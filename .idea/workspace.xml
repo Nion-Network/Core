@@ -2,11 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="68604608-52cf-40d9-a73d-8793f69eaae6" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/KotlinTest.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/logging/Logger.kt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/utils/Utils.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/KotlinTest.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/configuration/KotlinTest.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Main.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,6 +18,7 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Class" />
+        <option value="Kotlin File" />
         <option value="Kotlin Class" />
       </list>
     </option>
@@ -36,7 +38,6 @@
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="ProjectViewState">
-    <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
@@ -49,7 +50,19 @@
     <property name="project.structure.last.edited" value="Modules" />
     <property name="project.structure.proportion" value="0.24030036" />
     <property name="project.structure.side.proportion" value="0.41350907" />
-    <property name="settings.editor.selected.configurable" value="configurable.group.appearance" />
+    <property name="settings.editor.selected.configurable" value="fileTemplates" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveKotlinTopLevelDeclarationsDialog.RECENTS_KEY">
+      <recent name="si.iam.configuration" />
+    </key>
+    <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
+      <recent name="" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/src" />
+    </key>
   </component>
   <component name="RunManager">
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
@@ -77,7 +90,11 @@
       <updated>1585158605513</updated>
       <workItem from="1585158612935" duration="1000" />
       <workItem from="1585226474181" duration="1169000" />
-      <workItem from="1585227724774" duration="40000" />
+      <workItem from="1585227724774" duration="126000" />
+      <workItem from="1585228544150" duration="1393000" />
+      <workItem from="1585230058683" duration="77000" />
+      <workItem from="1585230149845" duration="60000" />
+      <workItem from="1585230222271" duration="3531000" />
     </task>
     <servers />
   </component>
@@ -89,29 +106,57 @@
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="440" y="190" width="814" height="669" key="#Project_Structure/0.0.1680.1050@0.0.1680.1050" timestamp="1585227431334" />
+    <state x="463" y="139" key="#com.intellij.ide.fileTemplates.ui.ConfigureTemplatesDialog" timestamp="1585236021127">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="463" y="139" key="#com.intellij.ide.fileTemplates.ui.ConfigureTemplatesDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585236021127" />
     <state x="683" y="421" key="#com.intellij.ide.util.projectWizard.JdkChooserPanel.MyDialog" timestamp="1585227297784">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="683" y="421" key="#com.intellij.ide.util.projectWizard.JdkChooserPanel.MyDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585227297784" />
-    <state width="1680" height="304" key="GridCell.Tab.0.bottom" timestamp="1585227709739">
+    <state x="601" y="404" width="477" height="245" key="#com.intellij.refactoring.move.moveClassesOrPackages.MoveClassesOrPackagesDialog.classes" timestamp="1585229062425">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1680" height="304" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585227709739" />
-    <state width="1680" height="304" key="GridCell.Tab.0.center" timestamp="1585227709738">
+    <state x="601" y="404" width="477" height="245" key="#com.intellij.refactoring.move.moveClassesOrPackages.MoveClassesOrPackagesDialog.classes/0.0.1680.1050@0.0.1680.1050" timestamp="1585229062425" />
+    <state x="601" y="431" key="#com.intellij.refactoring.move.moveClassesOrPackages.MoveClassesOrPackagesDialog.packages" timestamp="1585229056433">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1680" height="304" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585227709738" />
-    <state width="1680" height="304" key="GridCell.Tab.0.left" timestamp="1585227709738">
+    <state x="601" y="431" key="#com.intellij.refactoring.move.moveClassesOrPackages.MoveClassesOrPackagesDialog.packages/0.0.1680.1050@0.0.1680.1050" timestamp="1585229056433" />
+    <state x="601" y="43" key="#org.jetbrains.kotlin.idea.refactoring.move.moveDeclarations.ui.MoveKotlinTopLevelDeclarationsDialog" timestamp="1585228893116">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1680" height="304" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585227709738" />
-    <state width="1680" height="304" key="GridCell.Tab.0.right" timestamp="1585227709739">
+    <state x="601" y="43" key="#org.jetbrains.kotlin.idea.refactoring.move.moveDeclarations.ui.MoveKotlinTopLevelDeclarationsDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585228893116" />
+    <state width="1680" height="304" key="GridCell.Tab.0.bottom" timestamp="1585235222691">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
-    <state width="1680" height="304" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585227709739" />
+    <state width="1680" height="304" key="GridCell.Tab.0.bottom/0.0.1680.1050@0.0.1680.1050" timestamp="1585235222691" />
+    <state width="1680" height="304" key="GridCell.Tab.0.bottom/0.23.1680.931@0.23.1680.931" timestamp="1585234558639" />
+    <state width="1680" height="304" key="GridCell.Tab.0.center" timestamp="1585235222690">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1680" height="304" key="GridCell.Tab.0.center/0.0.1680.1050@0.0.1680.1050" timestamp="1585235222690" />
+    <state width="1680" height="304" key="GridCell.Tab.0.center/0.23.1680.931@0.23.1680.931" timestamp="1585234558637" />
+    <state width="1680" height="304" key="GridCell.Tab.0.left" timestamp="1585235222689">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1680" height="304" key="GridCell.Tab.0.left/0.0.1680.1050@0.0.1680.1050" timestamp="1585235222689" />
+    <state width="1680" height="304" key="GridCell.Tab.0.left/0.23.1680.931@0.23.1680.931" timestamp="1585234558636" />
+    <state width="1680" height="304" key="GridCell.Tab.0.right" timestamp="1585235222690">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state width="1680" height="304" key="GridCell.Tab.0.right/0.0.1680.1050@0.0.1680.1050" timestamp="1585235222690" />
+    <state width="1680" height="304" key="GridCell.Tab.0.right/0.23.1680.931@0.23.1680.931" timestamp="1585234558638" />
     <state x="378" y="187" key="Maven.ArtifactSearchDialog" timestamp="1585227219742">
       <screen x="0" y="0" width="1680" height="1050" />
     </state>
     <state x="378" y="187" key="Maven.ArtifactSearchDialog/0.0.1680.1050@0.0.1680.1050" timestamp="1585227219742" />
+    <state x="341" y="164" key="SettingsEditor" timestamp="1585230331928">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="341" y="164" key="SettingsEditor/0.0.1680.1050@0.0.1680.1050" timestamp="1585230331928" />
+    <state x="505" y="233" width="670" height="676" key="search.everywhere.popup" timestamp="1585231308652">
+      <screen x="0" y="0" width="1680" height="1050" />
+    </state>
+    <state x="505" y="233" width="670" height="676" key="search.everywhere.popup/0.0.1680.1050@0.0.1680.1050" timestamp="1585231308652" />
   </component>
 </project>
