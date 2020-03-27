@@ -2,6 +2,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import configuration.Configuration;
 import logging.Logger;
+import network.NetworkManager;
 import utils.Utils;
 
 /**
@@ -33,5 +34,8 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
+        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort());
+
+        Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
     }
 }
