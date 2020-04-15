@@ -9,3 +9,7 @@
 # Maven
 log/
 target/
+
+# KeyPairs
+private.key
+public.key
