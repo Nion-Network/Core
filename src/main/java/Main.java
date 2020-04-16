@@ -1,7 +1,9 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import configuration.Configuration;
+import io.javalin.Javalin;
 import logging.Logger;
+import utils.Crypto;
 import network.NetworkManager;
 import utils.Utils;
 
@@ -34,7 +36,8 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
-        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes());
+        Crypto crypt = new Crypto(".");
+        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
     }
