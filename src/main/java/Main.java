@@ -22,7 +22,7 @@ public class Main {
      * Kotlin -> Logger.debug(...)
      */
 
-    static Gson gson = new GsonBuilder()
+    public static Gson gson = new GsonBuilder()
             .setPrettyPrinting() // For debugging...
             .create();
 
