@@ -20,7 +20,7 @@ public class Main {
      * Kotlin -> Logger.debug(...)
      */
 
-    static Gson gson = new GsonBuilder()
+    public static Gson gson = new GsonBuilder()
             .setPrettyPrinting() // For debugging...
             .create();
 
@@ -34,7 +34,7 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
-        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort());
+        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
     }

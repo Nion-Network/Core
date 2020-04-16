@@ -8,12 +8,14 @@ import io.javalin.http.Context
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(port: Int) {
+class NetworkManager(port: Int, maxNodes: Int) {
 
+    private val nodeNetwork = NodeNetwork(maxNodes)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(port)
 
     init {
         "/ping" get { status(200) }
+        "/join" post { nodeNetwork.joinRequest(this) }
     }
 
     /**
