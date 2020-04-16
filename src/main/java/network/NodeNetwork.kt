@@ -1,7 +1,5 @@
 package network
 
-<<<<<<< HEAD
-=======
 import Main
 import abstraction.Node
 import io.javalin.http.Context
