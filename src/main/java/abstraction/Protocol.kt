@@ -16,3 +16,12 @@ data class Message(
         val signature: String,
         val body: String
 )
+
+data class Node(val publicKey: String, val port: Int) {
+
+    fun sendJoinRequest(body: String) = ""
+
+}
+
+
+enum class NetworkRequest { GET, POST }
