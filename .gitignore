@@ -10,5 +10,7 @@
 log/
 target/
 
-#Encryption
-*.key
+# KeyPairs
+private.key
+public.key
+>>>>>>> master
