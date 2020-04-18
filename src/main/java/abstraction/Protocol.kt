@@ -1,15 +1,13 @@
 package abstraction
 
+import network.NetworkManager
+
 /**
  * Created by Mihael Valentin Berčič
  * on 27/03/2020 at 12:11
  * using IntelliJ IDEA
  */
-interface Protocol {
-    fun send(message: Message)
-    fun digest(message: Message)
-    fun broadcast(message: Message)
-}
+interface Protocol
 
 data class Message(
         val publicKey: String,
