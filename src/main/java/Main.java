@@ -40,5 +40,21 @@ public class Main {
         NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes(), crypt.getKeyPair());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
+
+        //crypto test
+        String message=" hello";
+        String signature = null;
+        try {
+            signature = Crypto.sign(message,crypt.getKeyPair().getPrivate());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Logger.INSTANCE.info("Pub key: " + crypt.getPublicKey());
+        Logger.INSTANCE.info("Signature: " + signature);
+        try {
+            Logger.INSTANCE.info("Is valid: " + Crypto.verify(message,signature,crypt.getPublicKey()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

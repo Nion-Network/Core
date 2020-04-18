@@ -5,6 +5,7 @@ import abstraction.Node
 import abstraction.asNode
 import io.javalin.http.Context
 import network.NodeNetwork
+import utils.Crypto
 import utils.bodyAsMessage
 
 /**
@@ -28,7 +29,7 @@ class DHT(private val nodeNetwork: NodeNetwork) {
 
     fun onJoin(context: Context) {
         val message = context.bodyAsMessage
-        val confirmed = true // TODO FIX Crypto.verify(message.body, message.signature, message.publicKey)
+        val confirmed = Crypto.verify(message.body, message.signature, message.publicKey)
         if (confirmed) nodeNetwork.isInNetwork = true
     }
 }

@@ -1,5 +1,7 @@
 package utils;
 import logging.Logger;
+import sun.misc.BASE64Decoder;
+import sun.misc.BASE64Encoder;
 
 import javax.crypto.Cipher;
 import java.io.*;
@@ -72,9 +74,15 @@ public class Crypto {
         return Base64.getEncoder().encodeToString(signature);
     }
 
-    public static boolean verify(String plainText, String signature, PublicKey publicKey) throws Exception {
+    public static boolean verify(String plainText, String signature, String publicKey) throws Exception {
+        BASE64Decoder decoder = new BASE64Decoder();
+
+        byte[] byteKey = decoder.decodeBuffer(publicKey);
+
         Signature publicSignature = Signature.getInstance("SHA256withRSA");
-        publicSignature.initVerify(publicKey);
+        X509EncodedKeySpec X509publicKey = new X509EncodedKeySpec(byteKey);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        publicSignature.initVerify(kf.generatePublic(X509publicKey));
         publicSignature.update(plainText.getBytes(UTF_8));
 
         byte[] signatureBytes = Base64.getDecoder().decode(signature);
@@ -131,5 +139,11 @@ public class Crypto {
 
     public KeyPair getKeyPair() {
         return keyPair;
+    }
+
+    public String getPublicKey(){
+        Key pubKey = keyPair.getPublic();
+        BASE64Encoder encoder = new BASE64Encoder();
+        return  encoder.encode(pubKey.getEncoded());
     }
 }
