@@ -1,7 +1,9 @@
 package utils
 
+import Main
+import abstraction.Message
 import abstraction.NetworkRequest
-import org.sonatype.aether.transfer.TransferEvent
+import io.javalin.http.Context
 import java.io.File
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -25,11 +27,13 @@ class Utils {
 
     companion object {
 
-        fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpsURLConnection.() -> Unit) {
-            val connection: HttpsURLConnection = (URL(url).openConnection() as HttpsURLConnection).apply {
-                requestMethod = type.name
-                if(body.isNotEmpty()) doInput = true
-            }
+        fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpsURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpsURLConnection).let { connection ->
+            connection.requestMethod = type.name
+            if (body.isNotEmpty()) connection.doOutput = true
+            connection.doInput = true
+            connection.outputStream.bufferedWriter().write(body)
+            connection.apply(customBlock) // Customization
+            connection.responseCode to connection.responseMessage
         }
 
         /**
@@ -43,3 +47,7 @@ class Utils {
     }
 
 }
+
+// Body extension methods
+infix fun <T> Context.bodyAs(any: Class<T>): T = Main.gson.fromJson(body(), any)
+val Context.bodyAsMessage: Message get() = Main.gson.fromJson(body(), Message::class.java)

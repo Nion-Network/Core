@@ -128,4 +128,8 @@ public class Crypto {
 
         return new KeyPair(publicKey, privateKey);
     }
+
+    public KeyPair getKeyPair() {
+        return keyPair;
+    }
 }
