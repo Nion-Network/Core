@@ -13,3 +13,6 @@ target/
 # KeyPairs
 private.key
 public.key
+
+$builds
+*.jar
