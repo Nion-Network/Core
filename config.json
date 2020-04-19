@@ -1,7 +1,6 @@
 {
-  "bootstrapNode": "wat is dis",
   "trustedNodeIP": "127.0.0.1",
-  "trustedNodePort": 80,
+  "trustedNodePort": 5000,
   "listeningPort": 5000,
-  "keystorePath": "."
+  "keystorePath": ".",
 }
