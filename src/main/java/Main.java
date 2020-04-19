@@ -41,6 +41,7 @@ public class Main {
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
+
         //crypto test
         String message=" hello";
         String signature = null;

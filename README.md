@@ -9,15 +9,38 @@ These instructions will get you a copy of the project up and running on your loc
 
 * Maven
 * Docker
-
+* Java 8 or greater
 
 ### Installing
 
 
 ### Building
+After building the executable jar with maven, a docker container must be built with Dockerfile (also provided in the project root):
+```dockerfile
+FROM ubuntu:18.04
+RUN apt-get update
+RUN apt-get install default-jre -y
+RUN apt-get install docker.io -y
 
+WORKDIR /
+ADD vdf-cli /usr/bin/vdf-cli
+ADD target/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
+ADD config.json config.json
+
+EXPOSE 5000
+CMD java -jar Node.jar
+```
+
+Note that testing using docker containers requires the bootstrap node to be booted first. Make sure that both trustedNodeIP, and trustedNodePort are set to the boostrap node.
+To check the IP of the bootstrap node you can use
+```
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' container_name_or_id
+```
 
 ## Running a node
+```
+docker run -it node
+```
 
 
 ## Dependancies
