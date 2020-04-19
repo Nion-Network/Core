@@ -6,6 +6,9 @@ import logging.Logger;
 import utils.Crypto;
 import network.NetworkManager;
 import utils.Utils;
+import utils.VDF;
+
+import java.io.IOException;
 
 /**
  * Created by Mihael Berčič
@@ -22,7 +25,7 @@ public class Main {
      * Kotlin -> Logger.debug(...)
      */
 
-    static Gson gson = new GsonBuilder()
+    public static Gson gson = new GsonBuilder()
             .setPrettyPrinting() // For debugging...
             .create();
 
@@ -37,8 +40,38 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypt = new Crypto(".");
-        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort());
+        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes(), crypt.getKeyPair());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
+
+
+        //crypto test
+        String message=" hello";
+        String signature = null;
+        try {
+            signature = Crypto.sign(message,crypt.getKeyPair().getPrivate());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Logger.INSTANCE.info("Pub key: " + crypt.getPublicKey());
+        Logger.INSTANCE.info("Signature: " + signature);
+        try {
+            Logger.INSTANCE.info("Is signature valid: " + Crypto.verify(message,signature,crypt.getPublicKey()));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        VDF vdf = new VDF();
+        String proof=null;
+        try {
+            proof =vdf.runVDF(1000, "aa");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Logger.INSTANCE.info(proof);
+        Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
     }
 }
