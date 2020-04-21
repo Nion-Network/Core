@@ -2,5 +2,6 @@
   "trustedNodeIP": "172.17.0.2",
   "trustedNodePort": 5000,
   "listeningPort": 5000,
-  "keystorePath": "."
+  "keystorePath": ".",
+  "maxNodes": 1000
 }
