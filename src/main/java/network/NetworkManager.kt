@@ -25,10 +25,6 @@ class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork)
 
-
-    // Protocols
-    private val dhtProtocol: DHT = DHT(nodeNetwork)
-
     init {
 
         Logger.debug("My IP is $myIP")
