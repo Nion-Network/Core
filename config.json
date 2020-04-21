@@ -1,5 +1,5 @@
 {
-  "trustedNodeIP": "127.0.0.1",
+  "trustedNodeIP": "172.17.0.2",
   "trustedNodePort": 5000,
   "listeningPort": 5000,
   "keystorePath": "."

@@ -7,6 +7,7 @@ import io.javalin.http.Context
 import logging.Logger
 import protocols.DHT
 import utils.Utils
+import java.net.InetAddress
 import java.security.KeyPair
 
 /**
@@ -19,11 +20,14 @@ class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
     private val nodeNetwork = NodeNetwork(configuration.maxNodes, keyPair)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
+    private val myIP = InetAddress.getLocalHost().hostAddress
 
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork)
 
     init {
+
+        Logger.debug("My IP is $myIP")
 
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
@@ -31,13 +35,15 @@ class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
 
 
         // Join request to trusted Node after setup
-        Utils.urlRequest(NetworkRequest.POST, "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join")
-        while (!nodeNetwork.isInNetwork) {
-            Logger.trace("Waiting to be accepted into the network...")
-            Thread.sleep(1000)
-        }
+        if (myIP != configuration.trustedNodeIP) {
+            Utils.urlRequest(NetworkRequest.POST, "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join")
+            while (!nodeNetwork.isInNetwork) {
+                Logger.trace("Waiting to be accepted into the network...")
+                Thread.sleep(1000)
+            }
+            Logger.debug("We're in the network. Happy networking!")
+        } else Logger.debug("We're the trusted node! Very important...")
 
-        Logger.debug("We're in the network. Happy networking!")
 
     }
 

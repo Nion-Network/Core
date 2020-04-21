@@ -27,6 +27,7 @@ public class Main {
             .create();
 
     public static void main(String[] args) {
+        Logger.INSTANCE.debug("Assembly without compile test...");
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.debug("Starting...");
