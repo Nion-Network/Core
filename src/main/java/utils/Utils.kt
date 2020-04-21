@@ -7,7 +7,6 @@ import io.javalin.http.Context
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import javax.net.ssl.HttpsURLConnection
 
 /**
  * Created by Mihael Berčič
