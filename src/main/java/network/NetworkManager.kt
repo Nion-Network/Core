@@ -1,11 +1,13 @@
 package network
 
 import abstraction.NetworkRequest
+import abstraction.Node
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
 import logging.Logger
 import protocols.DHT
+import utils.Crypto
 import utils.Utils
 import java.net.InetAddress
 import java.security.KeyPair
@@ -15,15 +17,15 @@ import java.security.KeyPair
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
+class NetworkManager(configuration: Configuration, crypto: Crypto) {
 
-    private val nodeNetwork = NodeNetwork(configuration.maxNodes, keyPair)
+    private val nodeNetwork = NodeNetwork(configuration.maxNodes, crypto)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
     private val myIP = InetAddress.getLocalHost().hostAddress
 
     // Protocols
-    private val dhtProtocol: DHT = DHT(nodeNetwork)
+    private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
 
     init {
 
@@ -36,7 +38,7 @@ class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
 
         // Join request to trusted Node after setup
         if (myIP != configuration.trustedNodeIP) {
-            Utils.urlRequest(NetworkRequest.POST, "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join")
+            Utils.urlRequest(NetworkRequest.POST,  "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join", Main.gson.toJson(Node(crypto.publicKey,myIP,configuration.listeningPort)))
             while (!nodeNetwork.isInNetwork) {
                 Logger.trace("Waiting to be accepted into the network...")
                 Thread.sleep(1000)
