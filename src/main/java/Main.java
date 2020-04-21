@@ -1,10 +1,9 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import configuration.Configuration;
-import io.javalin.Javalin;
 import logging.Logger;
-import utils.Crypto;
 import network.NetworkManager;
+import utils.Crypto;
 import utils.Utils;
 
 /**
