@@ -39,8 +39,8 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
-        Crypto crypt = new Crypto(".");
-        NetworkManager networkManager = new NetworkManager(configuration, crypt.getKeyPair());
+        Crypto crypto = new Crypto(".");
+        NetworkManager networkManager = new NetworkManager(configuration, crypto);
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
@@ -49,14 +49,14 @@ public class Main {
         String message=" hello";
         String signature = null;
         try {
-            signature = Crypto.sign(message,crypt.getKeyPair().getPrivate());
+            signature = crypto.sign(message);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        Logger.INSTANCE.info("Pub key: " + crypt.getPublicKey());
+        Logger.INSTANCE.info("Pub key: " + crypto.getPublicKey());
         Logger.INSTANCE.info("Signature: " + signature);
         try {
-            Logger.INSTANCE.info("Is signature valid: " + Crypto.verify(message,signature,crypt.getPublicKey()));
+            Logger.INSTANCE.info("Is signature valid: " + crypto.verify(message,signature,crypto.getPublicKey()));
         } catch (Exception e) {
             e.printStackTrace();
         }

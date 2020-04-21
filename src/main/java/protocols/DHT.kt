@@ -14,7 +14,7 @@ import utils.bodyAsMessage
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DHT(private val nodeNetwork: NodeNetwork) {
+class DHT(private val nodeNetwork: NodeNetwork, private val crypto : Crypto) {
 
     fun joinRequest(context: Context) {
         val message: Message = context.bodyAsMessage
@@ -30,7 +30,7 @@ class DHT(private val nodeNetwork: NodeNetwork) {
 
     fun onJoin(context: Context) {
         val message = context.bodyAsMessage
-        val confirmed = Crypto.verify(message.body, message.signature, message.publicKey)
+        val confirmed = crypto.verify(message.body, message.signature, message.publicKey)
         if (confirmed) nodeNetwork.isInNetwork = true
         Logger.debug("Message received on path /joined: ${message.body}")
     }

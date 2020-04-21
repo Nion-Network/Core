@@ -43,7 +43,7 @@ public class Crypto {
         }
     }
 
-    public static String encrypt(String plainText, PublicKey publicKey) throws Exception {
+    public String encrypt(String plainText, PublicKey publicKey) throws Exception {
         Cipher encryptCipher = Cipher.getInstance("RSA");
         encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
 
@@ -52,7 +52,7 @@ public class Crypto {
         return Base64.getEncoder().encodeToString(cipherText);
     }
 
-    public static String decrypt(String cipherText, PrivateKey privateKey) throws Exception {
+    public String decrypt(String cipherText, PrivateKey privateKey) throws Exception {
         byte[] bytes = Base64.getDecoder().decode(cipherText);
 
         Cipher decriptCipher = Cipher.getInstance("RSA");
@@ -61,9 +61,9 @@ public class Crypto {
         return new String(decriptCipher.doFinal(bytes), UTF_8);
     }
 
-    public static String sign(String plainText, PrivateKey privateKey) throws Exception {
+    public String sign(String plainText) throws Exception {
         Signature privateSignature = Signature.getInstance("SHA256withRSA");
-        privateSignature.initSign(privateKey);
+        privateSignature.initSign(this.keyPair.getPrivate());
         privateSignature.update(plainText.getBytes(UTF_8));
 
         byte[] signature = privateSignature.sign();
@@ -71,7 +71,7 @@ public class Crypto {
         return Base64.getEncoder().encodeToString(signature);
     }
 
-    public static boolean verify(String plainText, String signature, String publicKey) throws Exception {
+    public boolean verify(String plainText, String signature, String publicKey) throws Exception {
         //BASE64Decoder decoder = new BASE64Decoder();
         //byte[] byteKey = decoder.decodeBuffer(publicKey);
         byte[] byteKey = java.util.Base64.getMimeDecoder().decode(publicKey);
