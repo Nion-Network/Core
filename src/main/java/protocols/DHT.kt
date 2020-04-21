@@ -4,6 +4,7 @@ import abstraction.Message
 import abstraction.Node
 import abstraction.asNode
 import io.javalin.http.Context
+import logging.Logger
 import network.NodeNetwork
 import utils.Crypto
 import utils.bodyAsMessage
@@ -20,7 +21,7 @@ class DHT(private val nodeNetwork: NodeNetwork) {
         val originalBody: String = message.body
 
         if (!nodeNetwork.isFull) {
-            val myMessage = nodeNetwork.createMessage("")
+            val myMessage = nodeNetwork.createMessage("Welcome to our network!")
             val node: Node = originalBody.asNode
             nodeNetwork.nodeMap[node.publicKey] = node
             node.sendMessage("/joined", myMessage)
@@ -31,5 +32,6 @@ class DHT(private val nodeNetwork: NodeNetwork) {
         val message = context.bodyAsMessage
         val confirmed = Crypto.verify(message.body, message.signature, message.publicKey)
         if (confirmed) nodeNetwork.isInNetwork = true
+        Logger.debug("Message received on path /joined: ${message.body}")
     }
 }

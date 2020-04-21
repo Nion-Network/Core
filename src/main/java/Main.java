@@ -37,7 +37,7 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypt = new Crypto(".");
-        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes(), crypt.getKeyPair());
+        NetworkManager networkManager = new NetworkManager(configuration, crypt.getKeyPair());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
