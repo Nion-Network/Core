@@ -1,8 +1,13 @@
 package network
 
+import abstraction.NetworkRequest
+import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
+import logging.Logger
 import protocols.DHT
+import utils.Utils
+import java.net.InetAddress
 import java.security.KeyPair
 
 /**
@@ -10,10 +15,15 @@ import java.security.KeyPair
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(port: Int, maxNodes: Int, private val keyPair: KeyPair) {
+class NetworkManager(configuration: Configuration, keyPair: KeyPair) {
 
-    private val nodeNetwork = NodeNetwork(maxNodes, keyPair)
-    private val application = Javalin.create { it.showJavalinBanner = false }.start(port)
+    private val nodeNetwork = NodeNetwork(configuration.maxNodes, keyPair)
+    private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
+
+    private val myIP = InetAddress.getLocalHost().hostAddress
+
+    // Protocols
+    private val dhtProtocol: DHT = DHT(nodeNetwork)
 
 
     // Protocols
@@ -21,11 +31,24 @@ class NetworkManager(port: Int, maxNodes: Int, private val keyPair: KeyPair) {
 
     init {
 
-        // TODO Send Join Request to main Node and wait for response on /joined
+        Logger.debug("My IP is $myIP")
 
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
+
+
+        // Join request to trusted Node after setup
+        if (myIP != configuration.trustedNodeIP) {
+            Utils.urlRequest(NetworkRequest.POST, "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join")
+            while (!nodeNetwork.isInNetwork) {
+                Logger.trace("Waiting to be accepted into the network...")
+                Thread.sleep(1000)
+            }
+            Logger.debug("We're in the network. Happy networking!")
+        } else Logger.debug("We're the trusted node! Very important...")
+
+
     }
 
     /**

@@ -5,8 +5,8 @@ import abstraction.Message
 import abstraction.NetworkRequest
 import io.javalin.http.Context
 import java.io.File
+import java.net.HttpURLConnection
 import java.net.URL
-import javax.net.ssl.HttpsURLConnection
 
 /**
  * Created by Mihael Berčič
@@ -27,11 +27,13 @@ class Utils {
 
     companion object {
 
-        fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpsURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpsURLConnection).let { connection ->
+        fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
             connection.requestMethod = type.name
-            if (body.isNotEmpty()) connection.doOutput = true
+            if (body.isNotEmpty()){
+                connection.doOutput = true
+                connection.outputStream.bufferedWriter().write(body)
+            }
             connection.doInput = true
-            connection.outputStream.bufferedWriter().write(body)
             connection.apply(customBlock) // Customization
             connection.responseCode to connection.responseMessage
         }

@@ -1,10 +1,9 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import configuration.Configuration;
-import io.javalin.Javalin;
 import logging.Logger;
-import utils.Crypto;
 import network.NetworkManager;
+import utils.Crypto;
 import utils.Utils;
 import utils.VDF;
 
@@ -30,6 +29,7 @@ public class Main {
             .create();
 
     public static void main(String[] args) {
+        Logger.INSTANCE.debug("Assembly without compile test...");
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.debug("Starting...");
@@ -40,7 +40,7 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypt = new Crypto(".");
-        NetworkManager networkManager = new NetworkManager(configuration.getListeningPort(), configuration.getMaxNodes(), crypt.getKeyPair());
+        NetworkManager networkManager = new NetworkManager(configuration, crypt.getKeyPair());
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
