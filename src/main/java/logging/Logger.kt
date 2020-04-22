@@ -23,7 +23,7 @@ object Logger {
     fun info(any: Any) = println("$green${padRight("[INFO]")}$reset $any")
     fun error(any: Any) = println("$red${padRight("[ERROR]")}$reset $any")
     fun trace(any: Any) = println("$yellow${padRight("[TRACE]")}$reset $any")
-
+    fun chain(any: Any) = println("$cyan${padRight("[CHAIN]")}$reset $any")
     private fun padRight(string: String) = string.padEnd(10)
 
 }
