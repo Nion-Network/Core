@@ -1,5 +1,7 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import common.Block;
+import common.BlockChain;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
@@ -40,11 +42,12 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypto = new Crypto(".");
-        NetworkManager networkManager = new NetworkManager(configuration, crypto);
+        //NetworkManager networkManager = new NetworkManager(configuration, crypto);
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
-
+        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()));
+        Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
         //crypto test
         String message=" hello";
         String signature = null;
