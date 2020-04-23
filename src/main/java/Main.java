@@ -41,40 +41,29 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
+
         Crypto crypto = new Crypto(".");
-        //NetworkManager networkManager = new NetworkManager(configuration, crypto);
+        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()));
+        Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
+        NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
         Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
 
-        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()));
-        Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
-        //crypto test
-        String message=" hello";
-        String signature = null;
-        try {
-            signature = crypto.sign(message);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        Logger.INSTANCE.info("Pub key: " + crypto.getPublicKey());
-        Logger.INSTANCE.info("Signature: " + signature);
-        try {
-            Logger.INSTANCE.info("Is signature valid: " + crypto.verify(message,signature,crypto.getPublicKey()));
-        } catch (Exception e) {
-            e.printStackTrace();
+        //start producing blocks
+        while(true){
+            VDF vdf = new VDF();
+            String proof=null;
+            try {
+                Block previous_block = blockChain.getLastBlock();
+                proof =vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
+                String outcome = blockChain.addBlock(new Block(previous_block,proof,crypto));
+                Logger.INSTANCE.info("New Block forged "+ outcome);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
-
-        VDF vdf = new VDF();
-        String proof=null;
-        try {
-            proof =vdf.runVDF(1000, "aa");
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        Logger.INSTANCE.info(proof);
-        Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
     }
 }

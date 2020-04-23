@@ -1,4 +1,7 @@
 package common;
+import utils.Crypto;
+import utils.VDF;
+
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -34,9 +37,21 @@ public class Block {
     //constructor for genesis  block
     public Block(String trusted_node_pub_key){
         this.consensus_nodes= new ArrayList<String>();
+        this.difficulty = 100000;
         this.consensus_nodes.add(trusted_node_pub_key);
         this.hash = computeHash();
     }
+    public Block (Block previous_block, String vdf_proof, Crypto crypto){
+        this.vdf_proof = vdf_proof;
+        this.height = previous_block.height+1;
+        this.difficulty = previous_block.difficulty; //TODO: dificulty adjustment algorithm
+        this.block_producer = crypto.getPublicKey();
+        this.timestamp = System.currentTimeMillis();
+        this.previous_hash = previous_block.getHash();
+        //TODO: ticket allocation
+        this.hash = computeHash();
+    }
+
     public String computeHash(){
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
