@@ -2,6 +2,7 @@ package network
 
 import abstraction.NetworkRequest
 import abstraction.Node
+import common.BlockChain
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
@@ -17,7 +18,7 @@ import java.security.KeyPair
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configuration: Configuration, crypto: Crypto) {
+class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: BlockChain) {
 
     private val nodeNetwork = NodeNetwork(configuration.maxNodes, crypto)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
@@ -34,7 +35,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto) {
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-
+        "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
 
         // Join request to trusted Node after setup
         if (myIP != configuration.trustedNodeIP) {

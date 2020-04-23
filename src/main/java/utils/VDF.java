@@ -67,7 +67,5 @@ public class VDF {
             //should never happen, reject block if it does and re-sync the chain
             return false;
         }
-
     }
-
 }
