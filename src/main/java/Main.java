@@ -5,9 +5,6 @@ import logging.Logger;
 import network.NetworkManager;
 import utils.Crypto;
 import utils.Utils;
-import utils.VDF;
-
-import java.io.IOException;
 
 /**
  * Created by Mihael Berčič
@@ -29,7 +26,6 @@ public class Main {
             .create();
 
     public static void main(String[] args) {
-        Logger.INSTANCE.debug("Assembly without compile test...");
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.debug("Starting...");
@@ -42,9 +38,9 @@ public class Main {
         Crypto crypto = new Crypto(".");
         NetworkManager networkManager = new NetworkManager(configuration, crypto);
 
-        Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
+        // TODO Uncomment. Commented due to local testing!
 
-
+        /*
         //crypto test
         String message=" hello";
         String signature = null;
@@ -73,5 +69,7 @@ public class Main {
         }
         Logger.INSTANCE.info(proof);
         Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
+        */
     }
+
 }
