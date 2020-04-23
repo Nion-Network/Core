@@ -1,32 +1,23 @@
-image: java:8-jdk
+image: docker:latest
+services:
+  - docker:dind
 
 stages:
   - build
-  - test
-
-before_script:
-  #  - echo `pwd` # debug
-  #  - echo "$CI_BUILD_NAME, $CI_BUILD_REF_NAME $CI_BUILD_STAGE" # debug
-  - export GRADLE_USER_HOME=`pwd`/.gradle
-
-cache:
-  paths:
-    - .gradle/wrapper
-    - .gradle/caches
+  - package
 
 build:
+  image: gradle:5.0-jdk8-alpine
   stage: build
   script:
-    - ./gradlew jar
+    - gradle build
   artifacts:
     paths:
       - build/libs/*.jar
-    expire_in: 1 week
-  only:
-    - master
-test:
-  stage: test
+
+package:
+  stage: package
   script:
-    - ./gradlew check
-after_script:
-  - echo "End CI"
+    - docker build -t registry.gitlab.com/dormage/decentralized-orchestration-for-edge-computing .
+    - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN registry.gitlab.com
+    - docker push registry.gitlab.com/dormage/decentralized-orchestration-for-edge-computing
