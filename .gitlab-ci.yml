@@ -1,6 +1,8 @@
 image: docker:latest
 services:
   - docker:dind
+variables:
+  DOCKER_DRIVER: overlay
 
 stages:
   - build
