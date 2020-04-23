@@ -35,6 +35,7 @@ class Utils {
             connection.doInput = true
             if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
             connection.apply(customBlock) // Customization
+            connection.disconnect()
             connection.responseCode to connection.responseMessage
         }
 
