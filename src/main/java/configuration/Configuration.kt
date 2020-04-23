@@ -7,5 +7,6 @@ data class Configuration(
         val listeningPort: Int,
         val maxNodes: Int,
         val keystorePath : String
-
-)
+) {
+    val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
+}

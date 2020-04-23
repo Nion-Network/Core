@@ -15,12 +15,8 @@ data class Message(val publicKey: String, val signature: String, val body: Strin
 
 
 data class Node(val publicKey: String, val ip: String, val port: Int) {
-    fun sendMessage(path: String, message: Message) = Utils.urlRequest(NetworkRequest.POST, "http://$ip:$port$path", message.asJson)
+    fun sendMessage(path: String, message: Message) = Utils.sendMessageTo("http://$ip:$port", path, message)
 }
 
 
 enum class NetworkRequest { GET, POST }
-
-
-// Data Class extension methods
-val String.asNode get() = Main.gson.fromJson(this, Node::class.java)
