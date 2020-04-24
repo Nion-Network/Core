@@ -1,14 +1,11 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import common.Block;
-import common.BlockChain;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
 import utils.Crypto;
 import utils.Utils;
 import utils.VDF;
-
 import java.io.IOException;
 
 /**
@@ -41,13 +38,12 @@ public class Main {
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
-
         Crypto crypto = new Crypto(".");
         BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()));
         Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
-        Logger.INSTANCE.debug("Listening on port: " + configuration.getListeningPort());
+        // TODO Uncomment. Commented due to local testing!
 
         //start producing blocks
         while(true){
@@ -63,7 +59,35 @@ public class Main {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        /*
+        //crypto test
+        String message=" hello";
+        String signature = null;
+        try {
+            signature = crypto.sign(message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Logger.INSTANCE.info("Pub key: " + crypto.getPublicKey());
+        Logger.INSTANCE.info("Signature: " + signature);
+        try {
+            Logger.INSTANCE.info("Is signature valid: " + crypto.verify(message,signature,crypto.getPublicKey()));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
+
+        VDF vdf = new VDF();
+        String proof=null;
+        try {
+            proof =vdf.runVDF(1000, "aa");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        Logger.INSTANCE.info(proof);
+        Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
     }
+
 }
