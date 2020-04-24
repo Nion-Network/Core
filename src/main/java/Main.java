@@ -1,5 +1,7 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import common.Block;
+import common.BlockChain;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
@@ -46,19 +48,21 @@ public class Main {
         // TODO Uncomment. Commented due to local testing!
 
         //start producing blocks
-        while(true){
+        while (true) {
             VDF vdf = new VDF();
-            String proof=null;
+            String proof = null;
             try {
                 Block previous_block = blockChain.getLastBlock();
-                proof =vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
-                String outcome = blockChain.addBlock(new Block(previous_block,proof,crypto));
-                Logger.INSTANCE.info("New Block forged "+ outcome);
+                proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
+                String outcome = blockChain.addBlock(new Block(previous_block, proof, crypto));
+                Logger.INSTANCE.info("New Block forged " + outcome);
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+
         /*
         //crypto test
         String message=" hello";
@@ -88,6 +92,7 @@ public class Main {
         }
         Logger.INSTANCE.info(proof);
         Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
-    }
 
+         */
+    }
 }
