@@ -10,6 +10,7 @@ import logging.Logger
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
+import javax.servlet.http.Part
 
 /**
  * Created by Mihael Valentin Berčič
@@ -34,6 +35,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
         "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
+        "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
