@@ -32,6 +32,7 @@ public class VDF {
         if (exitVal == 0) {
             return output.toString();
         } else {
+            //TODO throw exception to be handled by the implementing class
             Logger.INSTANCE.error("Error producing VDF " + exitVal);
             return null;
         }
