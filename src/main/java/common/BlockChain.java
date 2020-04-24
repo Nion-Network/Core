@@ -1,25 +1,59 @@
 package common;
+import configuration.Configuration;
 import logging.Logger;
 import utils.Crypto;
+import utils.VDF;
 
 import java.util.*;
 
 public class BlockChain {
     private List<Block> chain;
     private Crypto crypto;
+    private VDF vdf;
+    private ArrayList<String> lottery_results;
+    private int expected_block_producer;
+    private Timer timer;
+    private TimerTask nextEpoch;
+    private Configuration configuration;
 
-    public BlockChain(Block genesis, Crypto crypto){
+    public BlockChain(Block genesis, Crypto crypto, VDF vdf,  Configuration configuration){
         this.chain = new ArrayList<Block>();
         this.chain.add(genesis);
         this.crypto = crypto;
+        this.vdf = vdf;
+        this.configuration =configuration;
+        nextEpoch = new TimerTask() {
+            @Override
+            public void run() {
+                expected_block_producer++;
+                Logger.INSTANCE.chain("Epoch expired : " + expected_block_producer);
+            }
+        };
     }
     public String addBlock(Block block){
-        if(chain.get(chain.size()-1).getHash().equals(block.getPrevious_hash())) {
-            this.chain.add(block);
-            return block.getHash();
+        if(chain.get(chain.size()-1).getHash().equals(block.getPrevious_hash())) { //correct chain
+            if(vdf.verifyProof(getLastBlock().getDifficulty(),getLastBlock().getHash(),block.getVdf_proof())) { //proof valid
+                this.lottery_results = sortByTicket(block.getVdf_proof(),block.getConsensus_nodes());
+                if (block.getBlock_producer().equals(lottery_results.get(expected_block_producer))) { //lottery winner
+                    this.chain.add(block);
+                    //schedule epoch sliding window
+                    this.expected_block_producer = 0;
+                    if(timer!=null) {
+                        nextEpoch.cancel();
+                        timer.cancel();
+                        timer.schedule(nextEpoch, configuration.getEpochDuration());
+                    }
+                    return block.getHash();
+                }else{
+                    Logger.INSTANCE.chain("Block " + block.getHash() + " not produced by lottery winner!");
+                }
+            }else{
+                Logger.INSTANCE.chain("VDF proof for block "+ block.getHash()+ " is invalid!");
+            }
         }else{
-            return null;
+            Logger.INSTANCE.chain("Hash miss-match on candidate block: " + block.getHash());
         }
+        return null;
     }
     public boolean isValid(){
         return true;
