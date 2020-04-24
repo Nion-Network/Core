@@ -27,14 +27,15 @@ class Utils {
 
     companion object {
 
+        fun sendMessageTo(url: String, path: String = "/", message: Message, type: NetworkRequest = NetworkRequest.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson)
+
         fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
             connection.requestMethod = type.name
-            if (body.isNotEmpty()){
-                connection.doOutput = true
-                connection.outputStream.bufferedWriter().write(body)
-            }
+            connection.doOutput = body.isNotEmpty()
             connection.doInput = true
+            if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
             connection.apply(customBlock) // Customization
+            connection.disconnect()
             connection.responseCode to connection.responseMessage
         }
 
@@ -51,5 +52,6 @@ class Utils {
 }
 
 // Body extension methods
-infix fun <T> Context.bodyAs(any: Class<T>): T = Main.gson.fromJson(body(), any)
+infix fun <T> Context.bodyAs(any: Class<T>): T = body() fromJsonTo any
+infix fun <T> String.fromJsonTo(any: Class<T>): T = Main.gson.fromJson(this, any)
 val Context.bodyAsMessage: Message get() = Main.gson.fromJson(body(), Message::class.java)

@@ -1,6 +1,6 @@
 package network
 
-import abstraction.NetworkRequest
+import abstraction.Message
 import abstraction.Node
 import common.BlockChain
 import configuration.Configuration
@@ -10,8 +10,6 @@ import logging.Logger
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
-import java.net.InetAddress
-import java.security.KeyPair
 
 /**
  * Created by Mihael Valentin Berčič
@@ -20,34 +18,41 @@ import java.security.KeyPair
  */
 class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: BlockChain) {
 
-    private val nodeNetwork = NodeNetwork(configuration.maxNodes, crypto)
+    private val nodeNetwork = NodeNetwork(configuration, crypto)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
-    private val myIP = InetAddress.getLocalHost().hostAddress
 
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
 
     init {
-
-        Logger.debug("My IP is $myIP")
+        Logger.trace("My IP is ${nodeNetwork.myIP}")
 
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
+        "/query" post { dhtProtocol.onQuery(this) }
+        "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
         "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
 
         // Join request to trusted Node after setup
-        if (myIP != configuration.trustedNodeIP) {
-            Utils.urlRequest(NetworkRequest.POST,  "http://${configuration.trustedNodeIP}:${configuration.trustedNodePort}/join", Main.gson.toJson(Node(crypto.publicKey,myIP,configuration.listeningPort)))
+        // Check for IP (or port difference for local testing)...
+        if (nodeNetwork.myIP != configuration.trustedNodeIP || configuration.listeningPort != configuration.trustedNodePort) {
+            val joinMessage: Message = nodeNetwork.createMessage(Node(crypto.publicKey, nodeNetwork.myIP, configuration.listeningPort))
+            Logger.trace("Sending join request to our trusted node...")
+
+            val joinResponse = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", joinMessage)
+            Logger.trace("Join response from trusted node: $joinResponse")
+
             while (!nodeNetwork.isInNetwork) {
                 Logger.trace("Waiting to be accepted into the network...")
                 Thread.sleep(1000)
             }
+
             Logger.debug("We're in the network. Happy networking!")
         } else Logger.debug("We're the trusted node! Very important...")
 
-
+        Logger.debug("Listening on port: " + configuration.listeningPort)
     }
 
     /**

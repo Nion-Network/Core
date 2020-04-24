@@ -1,6 +1,6 @@
 package messages
 
-import abstraction.Message
+import abstraction.Node
 
 /**
  * Created by Mihael Valentin Berčič
@@ -8,3 +8,9 @@ import abstraction.Message
  * using IntelliJ IDEA
  */
 
+data class WelcomeMessageBody(val acceptorNode: Node)
+data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
+    val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
+}
+
+data class FoundMessageBody(val foundIp: String, val foundPort: Int, val forPublicKey: String)
