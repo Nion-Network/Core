@@ -41,7 +41,8 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypto = new Crypto(".");
-        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()), crypto);
+        VDF vdf = new VDF();
+        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()), crypto,vdf,configuration);
         Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
@@ -49,13 +50,12 @@ public class Main {
 
         //start producing blocks
         while (true) {
-            VDF vdf = new VDF();
+
             String proof = null;
             try {
                 Block previous_block = blockChain.getLastBlock();
                 proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
                 String outcome = blockChain.addBlock(new Block(previous_block, proof, crypto));
-                blockChain.sortByTicket(proof,blockChain.getLastBlock().getConsensus_nodes());
                 Logger.INSTANCE.info("New Block forged " + outcome);
             } catch (IOException e) {
                Logger.INSTANCE.error(e.getMessage());
