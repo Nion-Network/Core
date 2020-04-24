@@ -37,8 +37,8 @@ public class Block {
     //constructor for genesis  block
     public Block(String trusted_node_pub_key){
         this.consensus_nodes= new ArrayList<String>();
-        this.difficulty = 100000;
         this.consensus_nodes.add(trusted_node_pub_key);
+        this.difficulty = 100000;
         this.hash = computeHash();
     }
     public Block (Block previous_block, String vdf_proof, Crypto crypto){
@@ -48,6 +48,8 @@ public class Block {
         this.block_producer = crypto.getPublicKey();
         this.timestamp = System.currentTimeMillis();
         this.previous_hash = previous_block.getHash();
+        this.consensus_nodes = new ArrayList<String>();
+        this.consensus_nodes.add(crypto.getPublicKey());
         //TODO: ticket allocation
         this.hash = computeHash();
     }
@@ -65,6 +67,14 @@ public class Block {
             e.printStackTrace();
         }
         return "";
+    }
+
+    public ArrayList<String> getConsensus_nodes() {
+        return consensus_nodes;
+    }
+
+    public void setConsensus_nodes(ArrayList<String> consensus_nodes) {
+        this.consensus_nodes = consensus_nodes;
     }
 
     public String getHash() {
