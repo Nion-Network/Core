@@ -1,6 +1,7 @@
 package messages
 
 import abstraction.Node
+import common.Block
 
 /**
  * Created by Mihael Valentin Berčič
@@ -9,6 +10,7 @@ import abstraction.Node
  */
 
 data class WelcomeMessageBody(val acceptorNode: Node)
+data class NewBlockMessageBody(val block: Block)
 data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
     val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
 }
