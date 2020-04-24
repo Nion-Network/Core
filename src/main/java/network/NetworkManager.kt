@@ -7,6 +7,7 @@ import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
 import logging.Logger
+import protocols.BlockPropagation
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
@@ -25,6 +26,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
+    private val  blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork,crypto)
 
     init {
         Logger.trace("My IP is ${nodeNetwork.myIP}")
@@ -36,6 +38,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/joined" post { dhtProtocol.onJoin(this) }
         "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
+        "/newBlock" post { blockPropagation.receivedNewBlock(this)}
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...

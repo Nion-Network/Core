@@ -3,7 +3,9 @@ package network
 import Main
 import abstraction.Message
 import abstraction.Node
+import common.Block
 import configuration.Configuration
+import messages.NewBlockMessageBody
 import messages.QueryMessageBody
 import messages.WelcomeMessageBody
 import utils.Crypto
@@ -39,5 +41,5 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     // Message Creation
     fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
     fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
-
+    fun createNewBlockMessage(block: Block) : Message = createMessage(NewBlockMessageBody(block));
 }
