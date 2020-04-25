@@ -9,7 +9,8 @@ data class Configuration(
         val listeningPort: Int,
         val maxNodes: Int,
         val keystorePath : String,
-        val epochDuration : Int
+        val epochDuration : Int,
+        val broadcastSpread : Int
 ) {
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
 }

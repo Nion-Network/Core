@@ -26,7 +26,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
-    private val  blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork,crypto)
+    private val  blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork,crypto,blockChain,configuration)
 
     init {
         Logger.trace("My IP is ${nodeNetwork.myIP}")

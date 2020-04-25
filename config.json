@@ -4,5 +4,6 @@
   "listeningPort": 5000,
   "keystorePath": ".",
   "maxNodes": 1000,
-  "epochDuration" : 10000
+  "epochDuration" : 10000,
+  "broadcastSpread" : 3
 }
