@@ -82,4 +82,8 @@ public class BlockChain {
         int ticket = (int) (Math.abs(front - draw) * 1000000);
         return ticket;
     }
+
+    public List<Block> getChain() {
+        return chain;
+    }
 }
