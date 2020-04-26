@@ -1,19 +1,19 @@
 package network
 
-import abstraction.Message
-import abstraction.Node
-import abstraction.StartProtocol
+import abstraction.*
 import common.Block
 import common.BlockChain
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
 import logging.Logger
+import messages.ResponseBlocksMessageBody
 import protocols.BlockPropagation
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
 import utils.bodyAsMessage
+import utils.fromJsonTo
 
 /**
  * Created by Mihael Valentin Berčič
@@ -42,10 +42,11 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-        "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
+        "/chain" get{ this.result(Main.gson.toJson(blockChain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
         "/newBlock" post { blockPropagation.receivedNewBlock(this)}
-        "/getBlock" post { blockPropagation.receivedNewBlock(this)}
+        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this)} //we were asked for our blocks
+        "/syncBlockchainReply" post { blockPropagation.processBlocks(this)} //we received a reply to our request for blocks
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
@@ -77,10 +78,10 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     infix fun String.post(block: Context.() -> Unit) = application.post(this, block)
 
     //entry points for protocols
-    fun broadcast(protocol: StartProtocol, payload: Any) {
+    fun initiate(protocol: ProtocolTasks, payload: Any) {
         when(protocol){
-            StartProtocol.newBlock -> blockPropagation.broadcast(payload as Block)
-            StartProtocol.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
+            ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as Block)
+            ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
         }
     }
 }

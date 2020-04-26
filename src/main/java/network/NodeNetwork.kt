@@ -40,6 +40,6 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
     fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
     fun createNewBlockMessage(block: Block) : Message = createMessage(NewBlockMessageBody(block));
-    fun createRequestBlocskMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(height));
+    fun createRequestBlocskMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
     fun createResponseBlocksMessage(blocks: List<Block>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
 }
