@@ -35,12 +35,13 @@ public class Block {
         this.hash = computeHash();
     }
     //constructor for genesis  block
-    public Block(String trusted_node_pub_key){
+    public Block(String trusted_node_pub_key, int difficulty){
         this.consensus_nodes= new ArrayList<String>();
         this.consensus_nodes.add(trusted_node_pub_key);
-        this.difficulty = 100000;
+        this.difficulty = difficulty;
         this.hash = computeHash();
     }
+
     public Block (Block previous_block, String vdf_proof, Crypto crypto){
         this.vdf_proof = vdf_proof;
         this.height = previous_block.height+1;

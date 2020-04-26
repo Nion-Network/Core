@@ -5,9 +5,7 @@ import abstraction.Message
 import abstraction.Node
 import common.Block
 import configuration.Configuration
-import messages.NewBlockMessageBody
-import messages.QueryMessageBody
-import messages.WelcomeMessageBody
+import messages.*
 import utils.Crypto
 import java.net.InetAddress
 
@@ -42,4 +40,6 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
     fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
     fun createNewBlockMessage(block: Block) : Message = createMessage(NewBlockMessageBody(block));
+    fun createRequestBlocskMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(height));
+    fun createResponseBlocksMessage(blocks: List<Block>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
 }

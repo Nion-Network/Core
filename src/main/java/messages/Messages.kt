@@ -11,6 +11,8 @@ import common.Block
 
 data class WelcomeMessageBody(val acceptorNode: Node)
 data class NewBlockMessageBody(val block: Block)
+data class RequestBlocksMessageBody(val height: Int)
+data class ResponseBlocksMessageBody(val blocks: List<Block>)
 data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
     val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
 }
