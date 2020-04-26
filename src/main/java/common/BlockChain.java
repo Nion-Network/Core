@@ -1,6 +1,8 @@
 package common;
+import abstraction.ProtocolTasks;
 import configuration.Configuration;
 import logging.Logger;
+import network.NetworkManager;
 import utils.Crypto;
 import utils.VDF;
 
@@ -16,7 +18,7 @@ public class BlockChain {
     private TimerTask nextEpoch;
     private Configuration configuration;
 
-    public BlockChain(Block genesis, Crypto crypto, VDF vdf,  Configuration configuration){
+    public BlockChain(Block genesis, Crypto crypto, VDF vdf, Configuration configuration){
         this.chain = new ArrayList<Block>();
         if(genesis!=null) this.chain.add(genesis);
         this.crypto = crypto;
@@ -30,13 +32,14 @@ public class BlockChain {
             }
         };
     }
-    public String addBlock(Block block){
+    public String addBlock(Block block, NetworkManager networkManager){
         if(chain.size()>0) {
             if (getLastBlock().getHash().equals(block.getPrevious_hash())) { //correct chain
                 if (vdf.verifyProof(getLastBlock().getDifficulty(), getLastBlock().getHash(), block.getVdf_proof())) { //proof valid
                     this.lottery_results = sortByTicket(block.getVdf_proof(), block.getConsensus_nodes());
                     if (block.getBlock_producer().equals(lottery_results.get(expected_block_producer))) { //lottery winner
                         this.chain.add(block);
+                        Logger.INSTANCE.chain("Block " + block.getHeight() + " was added to the chain");
                         //schedule epoch sliding window
                         this.expected_block_producer = 0;
                         if (timer != null) {
@@ -54,6 +57,7 @@ public class BlockChain {
             } else {
                 if(Math.abs(getLastBlock().getHeight() - block.getHeight())>1){ //we're out of sync
                     Logger.INSTANCE.chain("Node fell out of sync.");
+                    networkManager.initiate(ProtocolTasks.requestBlocks,getLastBlock().getHeight());
                 }else {
                     Logger.INSTANCE.chain("Hash miss-match on candidate block: " + block.getHash());
                 }
@@ -97,5 +101,10 @@ public class BlockChain {
 
     public List<Block> getChain() {
         return chain;
+    }
+    public void syncChain(List<Block> blocks){
+        Logger.INSTANCE.chain("Start sync at height: " + chain.size());
+        blocks.stream().forEach(Block -> chain.add(Block));
+        Logger.INSTANCE.chain("Ended sync at height: " +chain.size());
     }
 }

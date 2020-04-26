@@ -1,4 +1,4 @@
-import abstraction.StartProtocol;
+import abstraction.ProtocolTasks;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import common.Block;
@@ -54,20 +54,25 @@ public class Main {
         }
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
+
         //start producing blocks
-        while (blockChain.getLastBlock().getConsensus_nodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
-            String proof = null;
-            try {
-                Block previous_block = blockChain.getLastBlock();
-                proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
-                Block new_block =new Block(previous_block, proof, crypto);
-                networkManager.broadcast(StartProtocol.newBlock,new_block);
-                String outcome = blockChain.addBlock(new_block);
-                Logger.INSTANCE.info("New Block forged " + outcome);
-            } catch (IOException e) {
-               Logger.INSTANCE.error(e.getMessage());
-            } catch (InterruptedException e) {
-                Logger.INSTANCE.error(e.getMessage());
+        while (true) {
+            if(blockChain.getLastBlock()!=null) {//oh god
+                if (blockChain.getLastBlock().getConsensus_nodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
+                    String proof = null;
+                    try {
+                        Block previous_block = blockChain.getLastBlock();
+                        proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
+                        Block new_block = new Block(previous_block, proof, crypto);
+                        networkManager.initiate(ProtocolTasks.newBlock, new_block);
+                        String outcome = blockChain.addBlock(new_block, networkManager);
+                        Logger.INSTANCE.info("New Block forged " + outcome);
+                    } catch (IOException e) {
+                        Logger.INSTANCE.error(e.getMessage());
+                    } catch (InterruptedException e) {
+                        Logger.INSTANCE.error(e.getMessage());
+                    }
+                }
             }
         }
 
