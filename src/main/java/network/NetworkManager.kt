@@ -2,6 +2,8 @@ package network
 
 import abstraction.Message
 import abstraction.Node
+import abstraction.StartProtocol
+import common.Block
 import common.BlockChain
 import configuration.Configuration
 import io.javalin.Javalin
@@ -11,7 +13,7 @@ import protocols.BlockPropagation
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
-import javax.servlet.http.Part
+import utils.bodyAsMessage
 
 /**
  * Created by Mihael Valentin Berčič
@@ -30,7 +32,11 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     init {
         Logger.trace("My IP is ${nodeNetwork.myIP}")
-
+        application.before{
+            val message = it.bodyAsMessage
+            val confirmed = crypto.verify(message.body, message.signature, message.publicKey)
+            if(!confirmed){it.status(400)}
+        }
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
         "/query" post { dhtProtocol.onQuery(this) }
@@ -39,6 +45,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/chain" get{ this.result(Main.gson.toJson(blockChain)) }
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
         "/newBlock" post { blockPropagation.receivedNewBlock(this)}
+        "/getBlock" post { blockPropagation.receivedNewBlock(this)}
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
@@ -60,6 +67,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         Logger.debug("Listening on port: " + configuration.listeningPort)
     }
 
+
     /**
      * Set javalin application's context to response to the string (path) with the context block.
      *
@@ -67,4 +75,12 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
      */
     infix fun String.get(block: Context.() -> Unit) = application.get(this, block)
     infix fun String.post(block: Context.() -> Unit) = application.post(this, block)
+
+    //entry points for protocols
+    fun broadcast(protocol: StartProtocol, payload: Any) {
+        when(protocol){
+            StartProtocol.newBlock -> blockPropagation.broadcast(payload as Block)
+            StartProtocol.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
+        }
+    }
 }

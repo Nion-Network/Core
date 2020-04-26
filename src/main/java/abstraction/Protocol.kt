@@ -20,3 +20,4 @@ data class Node(val publicKey: String, val ip: String, val port: Int) {
 
 
 enum class NetworkRequest { GET, POST }
+enum class StartProtocol{newBlock,requestBlocks }

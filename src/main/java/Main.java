@@ -1,3 +1,4 @@
+import abstraction.StartProtocol;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import common.Block;
@@ -5,10 +6,13 @@ import common.BlockChain;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
+import protocols.BlockPropagation;
 import utils.Crypto;
 import utils.Utils;
 import utils.VDF;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 /**
  * Created by Mihael Berčič
@@ -29,7 +33,7 @@ public class Main {
             .setPrettyPrinting() // For debugging...
             .create();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws UnknownHostException {
         Logger.INSTANCE.debug("Assembly without compile test...");
         boolean isPathSpecified = args.length != 0;
 
@@ -42,20 +46,23 @@ public class Main {
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypto = new Crypto(".");
         VDF vdf = new VDF();
-        BlockChain blockChain = new BlockChain(new Block(crypto.getPublicKey()), crypto,vdf,configuration);
-        Logger.INSTANCE.chain(gson.toJson(blockChain.getBlock(0)));
+        BlockChain blockChain;
+        if(InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
+            blockChain = new BlockChain(new Block(crypto.getPublicKey(), 200000), crypto, vdf, configuration);
+        }else{
+            blockChain = new BlockChain(null,crypto, vdf, configuration);
+        }
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
-        // TODO Uncomment. Commented due to local testing!
-
         //start producing blocks
-        while (true) {
-
+        while (blockChain.getLastBlock().getConsensus_nodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
             String proof = null;
             try {
                 Block previous_block = blockChain.getLastBlock();
                 proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
-                String outcome = blockChain.addBlock(new Block(previous_block, proof, crypto));
+                Block new_block =new Block(previous_block, proof, crypto);
+                networkManager.broadcast(StartProtocol.newBlock,new_block);
+                String outcome = blockChain.addBlock(new_block);
                 Logger.INSTANCE.info("New Block forged " + outcome);
             } catch (IOException e) {
                Logger.INSTANCE.error(e.getMessage());

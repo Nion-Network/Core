@@ -18,7 +18,7 @@ public class BlockChain {
 
     public BlockChain(Block genesis, Crypto crypto, VDF vdf,  Configuration configuration){
         this.chain = new ArrayList<Block>();
-        this.chain.add(genesis);
+        if(genesis!=null) this.chain.add(genesis);
         this.crypto = crypto;
         this.vdf = vdf;
         this.configuration =configuration;
@@ -31,27 +31,35 @@ public class BlockChain {
         };
     }
     public String addBlock(Block block){
-        if(chain.get(chain.size()-1).getHash().equals(block.getPrevious_hash())) { //correct chain
-            if(vdf.verifyProof(getLastBlock().getDifficulty(),getLastBlock().getHash(),block.getVdf_proof())) { //proof valid
-                this.lottery_results = sortByTicket(block.getVdf_proof(),block.getConsensus_nodes());
-                if (block.getBlock_producer().equals(lottery_results.get(expected_block_producer))) { //lottery winner
-                    this.chain.add(block);
-                    //schedule epoch sliding window
-                    this.expected_block_producer = 0;
-                    if(timer!=null) {
-                        nextEpoch.cancel();
-                        timer.cancel();
-                        timer.schedule(nextEpoch, configuration.getEpochDuration());
+        if(chain.size()>0) {
+            if (getLastBlock().getHash().equals(block.getPrevious_hash())) { //correct chain
+                if (vdf.verifyProof(getLastBlock().getDifficulty(), getLastBlock().getHash(), block.getVdf_proof())) { //proof valid
+                    this.lottery_results = sortByTicket(block.getVdf_proof(), block.getConsensus_nodes());
+                    if (block.getBlock_producer().equals(lottery_results.get(expected_block_producer))) { //lottery winner
+                        this.chain.add(block);
+                        //schedule epoch sliding window
+                        this.expected_block_producer = 0;
+                        if (timer != null) {
+                            nextEpoch.cancel();
+                            timer.cancel();
+                            timer.schedule(nextEpoch, configuration.getEpochDuration());
+                        }
+                        return block.getHash();
+                    } else {
+                        Logger.INSTANCE.chain("Block " + block.getHash() + " not produced by lottery winner!");
                     }
-                    return block.getHash();
-                }else{
-                    Logger.INSTANCE.chain("Block " + block.getHash() + " not produced by lottery winner!");
+                } else {
+                    Logger.INSTANCE.chain("VDF proof for block " + block.getHash() + " is invalid!");
                 }
-            }else{
-                Logger.INSTANCE.chain("VDF proof for block "+ block.getHash()+ " is invalid!");
+            } else {
+                if(Math.abs(getLastBlock().getHeight() - block.getHeight())>1){ //we're out of sync
+                    Logger.INSTANCE.chain("Node fell out of sync.");
+                }else {
+                    Logger.INSTANCE.chain("Hash miss-match on candidate block: " + block.getHash());
+                }
             }
         }else{
-            Logger.INSTANCE.chain("Hash miss-match on candidate block: " + block.getHash());
+            this.chain.add(block);//this should be removed in production. We accept any genesis block
         }
         return null;
     }
@@ -62,7 +70,11 @@ public class BlockChain {
         return this.chain.get(height);
     }
     public Block getLastBlock(){
-        return this.chain.get(this.chain.size()-1);
+        if(chain.size()>0) {
+            return this.chain.get(this.chain.size() - 1);
+        }else{
+            return null;
+        }
     }
 
     public ArrayList<String> sortByTicket(String vdf_proof, ArrayList<String> candidates){
