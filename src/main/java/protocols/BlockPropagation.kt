@@ -45,7 +45,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size));
         blockChain.chain.subList(blockMessage.height,blockChain.chain.size).stream().forEach(Consumer
         { b-> Logger.trace(b.hash) });
-        println( responseBlocksMessageBody.asJson)
+        println( responseBlocksMessageBody)
         var returnAddress: String = blockMessage.returnToHttpAddress;
         Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody).apply{println(this)}
     }
@@ -59,14 +59,13 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         }
     }
     fun processBlocks(context: Context){
-        Logger.info("Received some blocks")
-        println(context.body())
         try {
-
-            val responseBlocksMessageBody :ResponseBlocksMessageBody = context.bodyAsMessage.body.fromJsonTo(ResponseBlocksMessageBody::class.java)
+            val message = context.bodyAsMessage
+            val responseBlocksMessageBody :ResponseBlocksMessageBody = message.body.fromJsonTo(ResponseBlocksMessageBody::class.java)
             Logger.trace("Received  ${responseBlocksMessageBody.blocks.size} blocks to sync")
             blockChain.syncChain(responseBlocksMessageBody.blocks);
         }catch (e: java.lang.Exception){
+            e.printStackTrace();
             println(e.message)
         }
     }
