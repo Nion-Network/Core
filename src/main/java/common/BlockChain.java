@@ -17,10 +17,10 @@ public class BlockChain {
     private Timer timer;
     private TimerTask nextEpoch;
     private Configuration configuration;
+    private NetworkManager networkManager;
 
-    public BlockChain(Block genesis, Crypto crypto, VDF vdf, Configuration configuration){
+    public BlockChain(Crypto crypto, VDF vdf, Configuration configuration){
         this.chain = new ArrayList<Block>();
-        if(genesis!=null) this.chain.add(genesis);
         this.crypto = crypto;
         this.vdf = vdf;
         this.configuration =configuration;
@@ -32,7 +32,7 @@ public class BlockChain {
             }
         };
     }
-    public String addBlock(Block block, NetworkManager networkManager){
+    public String addBlock(Block block){
         if(chain.size()>0) {
             if (getLastBlock().getHash().equals(block.getPrevious_hash())) { //correct chain
                 if (vdf.verifyProof(getLastBlock().getDifficulty(), getLastBlock().getHash(), block.getVdf_proof())) { //proof valid
@@ -56,14 +56,21 @@ public class BlockChain {
                 }
             } else {
                 if(Math.abs(getLastBlock().getHeight() - block.getHeight())>1){ //we're out of sync
-                    Logger.INSTANCE.chain("Node fell out of sync.");
+                    Logger.INSTANCE.chain("Node fell out of sync 2.");
                     networkManager.initiate(ProtocolTasks.requestBlocks,getLastBlock().getHeight());
                 }else {
                     Logger.INSTANCE.chain("Hash miss-match on candidate block: " + block.getHash());
                 }
             }
+        }else if(block.getHeight()==0){
+            Logger.INSTANCE.chain("Adding genesis block ");
+            this.chain.add(block);//we add genesis block without challenge
         }else{
-            this.chain.add(block);//this should be removed in production. We accept any genesis block
+            if(chain.size()==0) {
+                networkManager.initiate(ProtocolTasks.requestBlocks, 0);
+            }else {
+                networkManager.initiate(ProtocolTasks.requestBlocks,getLastBlock().getHeight());
+            }
         }
         return null;
     }
@@ -104,7 +111,15 @@ public class BlockChain {
     }
     public void syncChain(List<Block> blocks){
         Logger.INSTANCE.chain("Start sync at height: " + chain.size());
-        blocks.stream().forEach(Block -> chain.add(Block));
+        for (Block b :
+                blocks) {
+            Logger.INSTANCE.chain("Chain size: "+ chain.size() + " Adding block " +b.getHeight() + " : " +b.getHash());
+            addBlock(b);
+        }
+        //blocks.stream().forEach(Block -> chain.add(Block));
         Logger.INSTANCE.chain("Ended sync at height: " +chain.size());
+    }
+    public void injectDependency(NetworkManager networkManager){
+        this.networkManager = networkManager;
     }
 }

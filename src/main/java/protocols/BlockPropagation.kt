@@ -12,7 +12,7 @@ import utils.Crypto
 import utils.Utils
 import utils.bodyAsMessage
 import utils.fromJsonTo
-import javax.xml.ws.Response
+import java.util.function.Consumer
 
 class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto: Crypto,private val blockChain: BlockChain, private val configuration: Configuration) {
 
@@ -31,29 +31,43 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         val message = context.bodyAsMessage
         val blockMessage: NewBlockMessageBody = message.body fromJsonTo NewBlockMessageBody::class.java
         Logger.chain("Received block: ${blockMessage.block.height}}")
+        blockChain.addBlock(blockMessage.block);
         if(blockChain.chain.contains(blockMessage.block)){
             nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
         }
     }
 
     fun receivedSyncRequest(context: Context){
+
         val message = context.bodyAsMessage
         val blockMessage: RequestBlocksMessageBody = message.body fromJsonTo RequestBlocksMessageBody::class.java
+        Logger.trace("Received request for blockchain sync from height: ${blockMessage.height}")
         val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size));
+        blockChain.chain.subList(blockMessage.height,blockChain.chain.size).stream().forEach(Consumer
+        { b-> Logger.trace(b.hash) });
+        println(Main.gson.toJson(responseBlocksMessageBody))
         var returnAddress: String = blockMessage.returnToHttpAddress;
-        //returnAddress =  "http://${nodeNetwork.nodeMap.get(message.publicKey).ip}: ${nodeNetwork.nodeMap.get(message.publicKey).port}"}
         Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody)
     }
 
     fun requestBlocks(height:Int){
         try {
+            Logger.info("Requesting new blocks from $height")
             nodeNetwork.pickRandomNodes(1).forEach { it.sendMessage("/syncBlockchainRequest", nodeNetwork.createRequestBlocskMessage(height)) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
     fun processBlocks(context: Context){
-        val responseBlocksMessageBody :ResponseBlocksMessageBody = context.bodyAsMessage.body.fromJsonTo(ResponseBlocksMessageBody::class.java)
-        blockChain.syncChain(responseBlocksMessageBody.blocks);
+        Logger.info("Received some blocks")
+        println(context.body())
+        try {
+
+            val responseBlocksMessageBody :ResponseBlocksMessageBody = context.bodyAsMessage.body.fromJsonTo(ResponseBlocksMessageBody::class.java)
+            Logger.trace("Received  ${responseBlocksMessageBody.blocks.size} blocks to sync")
+            blockChain.syncChain(responseBlocksMessageBody.blocks);
+        }catch (e: java.lang.Exception){
+            println(e.message)
+        }
     }
 }

@@ -7,13 +7,11 @@ import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
 import logging.Logger
-import messages.ResponseBlocksMessageBody
 import protocols.BlockPropagation
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
 import utils.bodyAsMessage
-import utils.fromJsonTo
 
 /**
  * Created by Mihael Valentin Berčič
@@ -31,6 +29,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     private val  blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork,crypto,blockChain,configuration)
 
     init {
+
         Logger.trace("My IP is ${nodeNetwork.myIP}")
         application.before{
             val message = it.bodyAsMessage

@@ -46,17 +46,16 @@ public class Main {
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypto = new Crypto(".");
         VDF vdf = new VDF();
-        BlockChain blockChain;
-        if(InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
-            blockChain = new BlockChain(new Block(crypto.getPublicKey(), 200000), crypto, vdf, configuration);
-        }else{
-            blockChain = new BlockChain(null,crypto, vdf, configuration);
-        }
+        BlockChain blockChain = new BlockChain(crypto,vdf,configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
-
+        blockChain.injectDependency(networkManager);
+        //the bootstrap node should start block production
+        if(InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
+            blockChain.addBlock(new Block(crypto.getPublicKey(), 200000));
+        }
 
         //start producing blocks
-        while (true) {
+        while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
             if(blockChain.getLastBlock()!=null) {//oh god
                 if (blockChain.getLastBlock().getConsensus_nodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
                     String proof = null;
@@ -64,9 +63,9 @@ public class Main {
                         Block previous_block = blockChain.getLastBlock();
                         proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
                         Block new_block = new Block(previous_block, proof, crypto);
-                        networkManager.initiate(ProtocolTasks.newBlock, new_block);
-                        String outcome = blockChain.addBlock(new_block, networkManager);
+                        String outcome = blockChain.addBlock(new_block);
                         Logger.INSTANCE.info("New Block forged " + outcome);
+                        networkManager.initiate(ProtocolTasks.newBlock, new_block);
                     } catch (IOException e) {
                         Logger.INSTANCE.error(e.getMessage());
                     } catch (InterruptedException e) {
@@ -75,37 +74,5 @@ public class Main {
                 }
             }
         }
-
-        /*
-        //crypto test
-        String message=" hello";
-        String signature = null;
-        try {
-            signature = crypto.sign(message);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        Logger.INSTANCE.info("Pub key: " + crypto.getPublicKey());
-        Logger.INSTANCE.info("Signature: " + signature);
-        try {
-            Logger.INSTANCE.info("Is signature valid: " + crypto.verify(message,signature,crypto.getPublicKey()));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-
-        VDF vdf = new VDF();
-        String proof=null;
-        try {
-            proof =vdf.runVDF(1000, "aa");
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        Logger.INSTANCE.info(proof);
-        Logger.INSTANCE.info("Is proof valid: " + vdf.verifyProof(1000,"aa",proof));
-
-         */
     }
 }
