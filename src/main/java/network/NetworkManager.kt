@@ -5,6 +5,7 @@ import common.Block
 import common.BlockChain
 import configuration.Configuration
 import io.javalin.Javalin
+import io.javalin.apibuilder.ApiBuilder.before
 import io.javalin.http.Context
 import logging.Logger
 import protocols.BlockPropagation

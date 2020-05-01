@@ -30,7 +30,7 @@ public class Main {
      */
 
     public static Gson gson = new GsonBuilder()
-            .setPrettyPrinting() // For debugging...
+            //.setPrettyPrinting() // For debugging...
             .create();
 
     public static void main(String[] args) throws UnknownHostException {
