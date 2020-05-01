@@ -32,11 +32,11 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     init {
 
         Logger.trace("My IP is ${nodeNetwork.myIP}")
-        application.before{
+     /*   application.before{
             val message = it.bodyAsMessage
             val confirmed = crypto.verify(message.body, message.signature, message.publicKey)
             if(!confirmed){it.status(400)}
-        }
+        }*/
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
         "/query" post { dhtProtocol.onQuery(this) }
