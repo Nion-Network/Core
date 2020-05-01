@@ -33,7 +33,10 @@ class Utils {
             connection.requestMethod = type.name
             connection.doOutput = body.isNotEmpty()
             connection.doInput = true
-            if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
+            if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use {
+                println("Writing $body")
+                it.write(body)
+            }
             connection.apply(customBlock) // Customization
             connection.disconnect()
             connection.responseCode to connection.responseMessage
