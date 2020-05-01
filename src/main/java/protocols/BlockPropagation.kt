@@ -30,7 +30,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     fun receivedNewBlock(context: Context){
         val message = context.bodyAsMessage
         val blockMessage: NewBlockMessageBody = message.body fromJsonTo NewBlockMessageBody::class.java
-        Logger.chain("Received block: ${blockMessage.block.height}}")
+        Logger.chain("Received block: ${blockMessage.block.height}")
         blockChain.addBlock(blockMessage.block);
         if(blockChain.chain.contains(blockMessage.block)){
             nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
@@ -45,9 +45,9 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size));
         blockChain.chain.subList(blockMessage.height,blockChain.chain.size).stream().forEach(Consumer
         { b-> Logger.trace(b.hash) });
-        println(Main.gson.toJson(responseBlocksMessageBody))
+        println( responseBlocksMessageBody.asJson)
         var returnAddress: String = blockMessage.returnToHttpAddress;
-        Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody)
+        Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody).apply{println(this)}
     }
 
     fun requestBlocks(height:Int){
