@@ -1,4 +1,5 @@
 package common;
+import org.apache.commons.codec.digest.DigestUtils;
 import utils.Crypto;
 import utils.VDF;
 
@@ -36,6 +37,7 @@ public class Block {
     }
     //constructor for genesis  block
     public Block(String trusted_node_pub_key, int difficulty){
+        this.height =0;
         this.consensus_nodes= new ArrayList<String>();
         this.consensus_nodes.add(trusted_node_pub_key);
         this.difficulty = difficulty;
@@ -56,18 +58,8 @@ public class Block {
     }
 
     public String computeHash(){
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            String input = previous_hash+height+ticket+difficulty+vdf_proof+block_producer+timestamp+consensus_nodes;
-            byte[] data = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            BigInteger number = new BigInteger(1, data);
-            StringBuilder hex = new StringBuilder(number.toString(16));
-            while(hex.length()<32){hex.insert(0,'0');}
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return "";
+        String input = previous_hash+height+ticket+difficulty+vdf_proof+block_producer+timestamp+consensus_nodes;
+        return DigestUtils.sha256Hex(input);
     }
 
     public ArrayList<String> getConsensus_nodes() {
