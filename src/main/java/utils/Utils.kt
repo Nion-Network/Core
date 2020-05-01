@@ -34,7 +34,6 @@ class Utils {
             connection.doOutput = body.isNotEmpty()
             connection.doInput = true
             if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use {
-                println("Writing $body")
                 it.write(body)
             }
             connection.apply(customBlock) // Customization
