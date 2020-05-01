@@ -30,7 +30,6 @@ class Utils {
         fun sendMessageTo(url: String, path: String = "/", message: Message, type: NetworkRequest = NetworkRequest.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson)
 
         fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
-            println("Sending body to $url\n$body")
             connection.requestMethod = type.name
             connection.doOutput = body.isNotEmpty()
             connection.doInput = true
