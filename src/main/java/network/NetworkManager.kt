@@ -1,6 +1,9 @@
 package network
 
-import abstraction.*
+import Main
+import abstraction.Message
+import abstraction.Node
+import abstraction.ProtocolTasks
 import common.Block
 import common.BlockChain
 import configuration.Configuration
@@ -11,7 +14,6 @@ import protocols.BlockPropagation
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
-import utils.bodyAsMessage
 
 /**
  * Created by Mihael Valentin Berčič
@@ -26,26 +28,22 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
-    private val  blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork,crypto,blockChain,configuration)
+    private val blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork, crypto, blockChain, configuration)
 
     init {
 
         Logger.trace("My IP is ${nodeNetwork.myIP}")
-        application.before{
-            val message = it.bodyAsMessage
-            val confirmed = crypto.verify(message.body, message.signature, message.publicKey)
-            if(!confirmed){it.status(400)}
-        }
+
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-        "/chain" get{ this.result(Main.gson.toJson(blockChain)) } //for browser debugging
+        "/chain" get { this.result(Main.gson.toJson(blockChain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
-        "/newBlock" post { blockPropagation.receivedNewBlock(this)}
-        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this)} //we were asked for our blocks
-        "/syncBlockchainReply" post { blockPropagation.processBlocks(this)} //we received a reply to our request for blocks
+        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
+        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
+        "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
@@ -78,7 +76,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     //entry points for protocols
     fun initiate(protocol: ProtocolTasks, payload: Any) {
-        when(protocol){
+        when (protocol) {
             ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as Block)
             ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
         }

@@ -115,6 +115,7 @@ public class BlockChain {
                 blocks) {
             Logger.INSTANCE.chain("Chain size: "+ chain.size() + " Adding block " +b.getHeight() + " : " +b.getHash());
             addBlock(b);
+            //chain.add(b);
         }
         //blocks.stream().forEach(Block -> chain.add(Block));
         Logger.INSTANCE.chain("Ended sync at height: " +chain.size());

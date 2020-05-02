@@ -85,6 +85,6 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
             nodeNetwork.nodeMap[acceptorNode.publicKey] = acceptorNode
             nodeNetwork.isInNetwork = true
         }
-        Logger.debug("Message received on path /joined: ${message.body}")
+        Logger.debug("Message received on path /joined")
     }
 }
