@@ -4,8 +4,8 @@ import Main
 import abstraction.Message
 import abstraction.Node
 import abstraction.ProtocolTasks
-import common.Block
 import common.BlockChain
+import common.BlockData
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
@@ -80,7 +80,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     //entry points for protocols
     fun initiate(protocol: ProtocolTasks, payload: Any) {
         when (protocol) {
-            ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as Block)
+            ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as BlockData)
             ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
             ProtocolTasks.requestInclusion -> consensus.requestInclusion(payload as String)
         }

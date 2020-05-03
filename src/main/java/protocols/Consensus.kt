@@ -8,11 +8,11 @@ import messages.RequestInclusionBody
 import network.NodeNetwork
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
-import utils.Utils
 import utils.bodyAsMessage
 import utils.fromJsonTo
 
-class Consensus (private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain){
+class Consensus (private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain
+){
     fun validatorSetInclusionRequest (context: Context){
         val message: Message = context.bodyAsMessage
         val inclusionBody: RequestInclusionBody = message.body fromJsonTo RequestInclusionBody::class.java
