@@ -1,8 +1,8 @@
 import abstraction.ProtocolTasks;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import common.Block;
 import common.BlockChain;
+import common.BlockData;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
@@ -49,20 +49,21 @@ public class Main {
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
         blockChain.injectDependency(networkManager);
         //the bootstrap node should start block production
-        if(InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
-            blockChain.addBlock(new Block(crypto.getPublicKey(), 200000));
-        }
 
+        //TODO: FIX THIS
+        if(InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
+            blockChain.addBlock(common.BlockData.Block.genesisBlock(crypto.getPublicKey(),200000));
+        }
         //start producing blocks
         while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
-            if(blockChain.getLastBlock()!=null) {//oh god
-                if (blockChain.getLastBlock().getConsensus_nodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
+            if(!blockChain.getChain().isEmpty()) {//oh god
+                if (blockChain.getLastBlock().getConsensusNodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
                     String proof = null;
                     try {
-                        Block previous_block = blockChain.getLastBlock();
+                        BlockData previous_block = blockChain.getLastBlock();
                         proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
-                        Block new_block = new Block(previous_block, proof, crypto, blockChain.getPending_inclusion_requests());
-                        String outcome = blockChain.addBlock(new_block);
+                        BlockData new_block = common.BlockData.Block.forgeNewBlock(previous_block,proof,crypto.getPublicKey(),blockChain.getPending_inclusion_requests());
+                        blockChain.addBlock(new_block);
                         Logger.INSTANCE.info("New Block forged " + new_block.getHash());
                         networkManager.initiate(ProtocolTasks.newBlock, new_block);
                     } catch (IOException e) {

@@ -3,7 +3,7 @@ package network
 import Main
 import abstraction.Message
 import abstraction.Node
-import common.Block
+import common.BlockData
 import configuration.Configuration
 import messages.*
 import utils.Crypto
@@ -39,8 +39,8 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     // Message Creation
     fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
     fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
-    fun createNewBlockMessage(block: Block) : Message = createMessage(NewBlockMessageBody(block));
-    fun createRequestBlocskMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
-    fun createResponseBlocksMessage(blocks: List<Block>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
+    fun createNewBlockMessage(block: BlockData) : Message = createMessage(NewBlockMessageBody(block));
+    fun createRequestBlocksMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
+    fun createResponseBlocksMessage(blocks: List<BlockData>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
     fun createValidatorInclusionRequestMessage(publicKey: String) : Message = createMessage(RequestInclusionBody(publicKey))
 }

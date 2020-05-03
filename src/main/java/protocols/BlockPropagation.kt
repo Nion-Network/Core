@@ -1,7 +1,7 @@
 package protocols
 
-import common.Block
 import common.BlockChain
+import common.BlockData
 import configuration.Configuration
 import io.javalin.http.Context
 import logging.Logger
@@ -20,7 +20,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     init {
     }
 
-    fun broadcast(block: Block) {
+    fun broadcast(block: BlockData) {
         try {
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/newBlock", nodeNetwork.createNewBlockMessage(block)) }
         } catch (e: Exception) {
@@ -52,7 +52,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     fun requestBlocks(height: Int) {
         try {
             Logger.info("Requesting new blocks from $height")
-            nodeNetwork.pickRandomNodes(1).forEach { it.sendMessage("/syncBlockchainRequest", nodeNetwork.createRequestBlocskMessage(height)) }
+            nodeNetwork.pickRandomNodes(1).forEach { it.sendMessage("/syncBlockchainRequest", nodeNetwork.createRequestBlocksMessage(height)) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
