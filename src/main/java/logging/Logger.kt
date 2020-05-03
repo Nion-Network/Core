@@ -24,6 +24,7 @@ object Logger {
     fun error(any: Any) = println("$red${padRight("[ERROR]")}$reset $any")
     fun trace(any: Any) = println("$yellow${padRight("[TRACE]")}$reset $any")
     fun chain(any: Any) = println("$cyan${padRight("[CHAIN]")}$reset $any")
-    private fun padRight(string: String) = string.padEnd(10)
+    fun consensus(any: Any) = println("$magenta${padRight("[CONSENSUS]")}$reset $any")
+    private fun padRight(string: String) = string.padEnd(12)
 
 }

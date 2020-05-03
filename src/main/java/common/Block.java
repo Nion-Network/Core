@@ -1,12 +1,6 @@
 package common;
 import org.apache.commons.codec.digest.DigestUtils;
 import utils.Crypto;
-import utils.VDF;
-
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
 public class Block {
@@ -44,15 +38,20 @@ public class Block {
         this.hash = computeHash();
     }
 
-    public Block (Block previous_block, String vdf_proof, Crypto crypto){
+    public Block (Block previous_block, String vdf_proof, Crypto crypto, ArrayList<String> inclusionRequests){
         this.vdf_proof = vdf_proof;
         this.height = previous_block.height+1;
         this.difficulty = previous_block.difficulty; //TODO: dificulty adjustment algorithm
         this.block_producer = crypto.getPublicKey();
         this.timestamp = System.currentTimeMillis();
         this.previous_hash = previous_block.getHash();
-        this.consensus_nodes = new ArrayList<String>();
-        this.consensus_nodes.add(crypto.getPublicKey());
+        //all the nodes that were part of the validator set before
+        this.consensus_nodes = previous_block.getConsensus_nodes();
+        //add all nodes awaiting inclusion in the validator set
+        this.consensus_nodes.addAll(inclusionRequests);
+        if(!consensus_nodes.contains(crypto.getPublicKey())) {
+            this.consensus_nodes.add(crypto.getPublicKey());
+        }
         //TODO: ticket allocation
         this.hash = computeHash();
     }

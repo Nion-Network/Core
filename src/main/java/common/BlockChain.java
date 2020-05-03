@@ -3,6 +3,7 @@ import abstraction.ProtocolTasks;
 import configuration.Configuration;
 import logging.Logger;
 import network.NetworkManager;
+import org.apache.commons.codec.digest.DigestUtils;
 import utils.Crypto;
 import utils.VDF;
 
@@ -18,8 +19,11 @@ public class BlockChain {
     private TimerTask nextEpoch;
     private Configuration configuration;
     private NetworkManager networkManager;
+    private ArrayList<String> pending_inclusion_requests;
+    private boolean validator_node = false;
 
     public BlockChain(Crypto crypto, VDF vdf, Configuration configuration){
+        this.pending_inclusion_requests = new ArrayList<>();
         this.chain = new ArrayList<Block>();
         this.crypto = crypto;
         this.vdf = vdf;
@@ -40,12 +44,19 @@ public class BlockChain {
                     if (block.getBlock_producer().equals(lottery_results.get(expected_block_producer))) { //lottery winner
                         this.chain.add(block);
                         Logger.INSTANCE.chain("Block " + block.getHeight() + " was added to the chain");
+                        if(!validator_node && block.getConsensus_nodes().contains(crypto.getPublicKey())){
+                            validator_node=!validator_node;
+                            Logger.INSTANCE.consensus("We were included in the validator set at block: " +block.getHeight());
+                        }else if (!block.getConsensus_nodes().contains(crypto.getPublicKey()) && validator_node){
+                            validator_node=!validator_node;
+                            Logger.INSTANCE.consensus("We were removed from the validator set at block: " +block.getHeight());
+                        }
                         //schedule epoch sliding window
                         this.expected_block_producer = 0;
                         if (timer != null) {
                             nextEpoch.cancel();
                             timer.cancel();
-                            timer.schedule(nextEpoch, configuration.getEpochDuration());
+                            timer.scheduleAtFixedRate(nextEpoch,0 , configuration.getEpochDuration());
                         }
                         return block.getHash();
                     } else {
@@ -89,15 +100,15 @@ public class BlockChain {
     }
 
     public ArrayList<String> sortByTicket(String vdf_proof, ArrayList<String> candidates){
-        //candidates.sort(((o1, o2) -> distance(vdf_proof,o1) - distance(vdf_proof,o2)));
         candidates.sort(Comparator.comparingInt((String S) -> distance(vdf_proof, S)));
         if(candidates.size()>0) {
-            Logger.INSTANCE.chain("Ticket number: " + distance(vdf_proof, candidates.get(0)));
+            Logger.INSTANCE.chain("First ticket number: " + distance(vdf_proof, candidates.get(0)));
+            Logger.INSTANCE.chain("Last ticket number: " + distance(vdf_proof, candidates.get(candidates.size()-1)));
         }
         return candidates;
     }
     public int distance(String proof, String node_id){
-        node_id = crypto.computeHash(node_id);
+        node_id = DigestUtils.sha256Hex(node_id);
         Long seed = Long.parseUnsignedLong(proof.substring(0,16),16);
         Random random = new Random(seed);
         double draw = random.nextDouble();
@@ -110,17 +121,18 @@ public class BlockChain {
         return chain;
     }
     public void syncChain(List<Block> blocks){
-        Logger.INSTANCE.chain("Start sync at height: " + chain.size());
-        for (Block b :
-                blocks) {
+        for (Block b : blocks) {
             Logger.INSTANCE.chain("Chain size: "+ chain.size() + " Adding block " +b.getHeight() + " : " +b.getHash());
             addBlock(b);
-            //chain.add(b);
         }
-        //blocks.stream().forEach(Block -> chain.add(Block));
-        Logger.INSTANCE.chain("Ended sync at height: " +chain.size());
     }
     public void injectDependency(NetworkManager networkManager){
         this.networkManager = networkManager;
+    }
+    public void addInclusionRequest(String publicKey){
+        this.pending_inclusion_requests.add(publicKey);
+    }
+    public ArrayList<String> getPending_inclusion_requests(){
+        return pending_inclusion_requests;
     }
 }

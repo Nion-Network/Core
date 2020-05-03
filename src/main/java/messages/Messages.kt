@@ -15,6 +15,7 @@ data class RequestBlocksMessageBody(val returnIp: String, val returnPort: Int,va
     val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
 }
 data class ResponseBlocksMessageBody(val blocks: List<Block>)
+data class RequestInclusionBody(val publicKey: String)
 data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
     val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
 }
