@@ -11,6 +11,7 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import logging.Logger
 import protocols.BlockPropagation
+import protocols.Consensus
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
@@ -29,6 +30,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
     private val blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork, crypto, blockChain, configuration)
+    private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
 
     init {
 
@@ -44,6 +46,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/newBlock" post { blockPropagation.receivedNewBlock(this) }
         "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
         "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
+        "/include" post {consensus.validatorSetInclusionRequest(this)}
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
@@ -79,6 +82,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         when (protocol) {
             ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as Block)
             ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
+            ProtocolTasks.requestInclusion -> consensus.requestInclusion(payload as String)
         }
     }
 }

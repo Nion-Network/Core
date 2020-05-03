@@ -42,4 +42,5 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     fun createNewBlockMessage(block: Block) : Message = createMessage(NewBlockMessageBody(block));
     fun createRequestBlocskMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
     fun createResponseBlocksMessage(blocks: List<Block>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
+    fun createValidatorInclusionRequestMessage(publicKey: String) : Message = createMessage(RequestInclusionBody(publicKey))
 }

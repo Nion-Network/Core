@@ -43,7 +43,7 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
      * @param context HTTP Context
      */
     fun onQuery(context: Context) {
-        println("Received query request for ${context.body()}")
+        //println("Received query request for ${context.body()}")
         val message: Message = context.bodyAsMessage
         val queryMessageBody: QueryMessageBody = message.body fromJsonTo QueryMessageBody::class.java
         val lookingFor: String = queryMessageBody.searchingPublicKey

@@ -13,7 +13,6 @@ import utils.Crypto
 import utils.Utils
 import utils.bodyAsMessage
 import utils.fromJsonTo
-import java.util.function.Consumer
 
 class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain, private val configuration: Configuration) {
 
@@ -47,8 +46,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         Logger.trace("Received request for blockchain sync from height: ${blockMessage.height}")
         val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size));
         val returnAddress: String = blockMessage.returnToHttpAddress;
-        Logger.error("Sending back sync message with: $responseBlocksMessageBody")
-        Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody).apply { println(this) }
+        Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody)
     }
 
     fun requestBlocks(height: Int) {
@@ -68,7 +66,6 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
             blockChain.syncChain(responseBlocksMessageBody.blocks);
         } catch (e: java.lang.Exception) {
             e.printStackTrace();
-            println(e.message)
         }
     }
 }

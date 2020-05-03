@@ -147,20 +147,4 @@ public class Crypto {
         Key pubKey = keyPair.getPublic();
         return new String(java.util.Base64.getMimeEncoder().encode(pubKey.getEncoded()));
     }
-
-    public String computeHash(String input){
-        try {
-            System.out.println("Input: " +input);
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] data = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            BigInteger number = new BigInteger(1, data);
-            StringBuilder hex = new StringBuilder(number.toString(16));
-            while(hex.length()<32){hex.insert(0,'0');}
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return "";
-    }
-
 }
