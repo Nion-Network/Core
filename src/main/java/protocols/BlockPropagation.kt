@@ -32,7 +32,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     fun receivedNewBlock(context: Context) {
         val message = context.bodyAsMessage
         val blockMessage: NewBlockMessageBody = message.body fromJsonTo NewBlockMessageBody::class.java
-        Logger.chain("Received block: ${blockMessage.block.height}")
+        Logger.chain("Received block: ${blockMessage.block.height} : ${blockMessage.block.hash}")
         blockChain.addBlock(blockMessage.block);
         if (blockChain.chain.contains(blockMessage.block)) {
             nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }

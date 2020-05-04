@@ -13,13 +13,18 @@ data class BlockData(
         var consensusNodes: List<String> = emptyList(),
         //no idea if this works every time
         var hash: String? = DigestUtils.sha256Hex(previous_hash + height + ticket + difficulty + vdf_proof + blockProducer + timestamp + consensusNodes)
-){
-    companion object Block{
+) {
+    companion object Block {
         //TODO: companion object
-        fun genesisBlock(block_producer: String, difficulty: Int) :BlockData = BlockData(blockProducer = block_producer, difficulty = difficulty)
+        fun genesisBlock(block_producer: String, difficulty: Int): BlockData = BlockData(
+                blockProducer = block_producer,
+                difficulty = difficulty,
+                consensusNodes = mutableListOf<String>(block_producer)
+        )
+
         fun forgeNewBlock(previous_block: BlockData, vdf_proof: String, publicKey: String, inclusionRequests: List<String>): BlockData = BlockData(
-                vdf_proof= vdf_proof,
-                height = previous_block.height+1,
+                vdf_proof = vdf_proof,
+                height = previous_block.height + 1,
                 difficulty = previous_block.difficulty,//TODO: Difficulty adjustment algorithm
                 blockProducer = publicKey,
                 previous_hash = previous_block.hash,
