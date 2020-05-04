@@ -17,6 +17,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     private lateinit var networkManager: NetworkManager
     private var pending_inclusion_requests: MutableList<String> = mutableListOf<String>()
     val lastBlock: BlockData? get() = chain.lastOrNull();
+
     init {
         //TODO: Timers
     }
@@ -24,11 +25,14 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     fun addBlock(blockData: BlockData) {
         if (chain.isEmpty() && blockData.height == 0) {
             chain.add(blockData)
-            Logger.chain("Genesis block added")
+            Logger.chain("Genesis block added")ł
         } else if (chain.last().height + 1 == blockData.height) { //is successor block
             if (chain.last().hash.equals(blockData.previous_hash)) { //is on the right chain
-                if (vdf.verifyProof(blockData.difficulty ?: 0, chain.last().hash, blockData.vdf_proof)) { //is proof valid
-                    if (blockData.blockProducer.equals(lotteryResults(blockData.vdf_proof ?: "", (blockData.consensusNodes ?: emptyList<String>()) as MutableList<String>).get(0))) { //lottery winner. TODO: Change to rolling epoch to guarantee liveliness.
+                if (vdf.verifyProof(blockData.difficulty
+                                ?: 0, chain.last().hash, blockData.vdf_proof)) { //is proof valid
+                    if (blockData.blockProducer.equals(lotteryResults(blockData.vdf_proof
+                                    ?: "", (blockData.consensusNodes
+                                    ?: emptyList<String>()) as MutableList<String>).get(0))) { //lottery winner. TODO: Change to rolling epoch to guarantee liveliness.
                         chain.add(blockData);
                         Logger.chain("Block ${blockData.hash} added at height ${blockData.height}")
                     } else {
