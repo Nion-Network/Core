@@ -45,7 +45,7 @@ public class Main {
 
         Configuration configuration = gson.fromJson(fileText, Configuration.class);
         Crypto crypto = new Crypto(".");
-        VDF vdf = new VDF();
+        VDF vdf = new VDF("http://localhost:"+configuration.getListeningPort()+"/vdf");
         BlockChain blockChain = new BlockChain(crypto, vdf, configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
         blockChain.injectDependency(networkManager);
@@ -53,6 +53,7 @@ public class Main {
         if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
             blockChain.addBlock(common.BlockData.Block.genesisBlock(crypto.getPublicKey(), 200000));
         }
+
         //start producing blocks
         while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
             if (!blockChain.getChain().isEmpty()) {//oh god
@@ -60,11 +61,12 @@ public class Main {
                     String proof = null;
                     try {
                         BlockData previous_block = blockChain.getLastBlock();
-                        proof = vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
-                        BlockData new_block = common.BlockData.Block.forgeNewBlock(previous_block, proof, crypto.getPublicKey(), blockChain.getPending_inclusion_requests());
-                        blockChain.addBlock(new_block);
-                        Logger.INSTANCE.info("New Block forged " + new_block.getHash());
-                        networkManager.initiate(ProtocolTasks.newBlock, new_block);
+                        vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash());
+                        break;
+                        //BlockData new_block = common.BlockData.Block.forgeNewBlock(previous_block, proof, crypto.getPublicKey(), blockChain.getPending_inclusion_requests());
+                        //blockChain.addBlock(new_block);
+                        //Logger.INSTANCE.info("New Block forged " + new_block.getHash());
+                        //networkManager.initiate(ProtocolTasks.newBlock, new_block);
                     } catch (IOException e) {
                         Logger.INSTANCE.error(e.getMessage());
                     } catch (InterruptedException e) {

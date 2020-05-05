@@ -34,13 +34,15 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         val blockMessage: NewBlockMessageBody = message.body fromJsonTo NewBlockMessageBody::class.java
         Logger.chain("Received block: ${blockMessage.block.height} : ${blockMessage.block.hash}")
         blockChain.addBlock(blockMessage.block);
-        if (blockChain.chain.contains(blockMessage.block)) {
-            nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
+        if (blockChain.chain.find {it.hash.equals(blockMessage.block.hash)}!=null) {
+            Logger.debug("Broadcasting block ${blockMessage.block.hash}")
+            //nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
+        }else{
+            Logger.debug("Not broadcasting old block ${blockMessage.block.hash}")
         }
     }
 
     fun receivedSyncRequest(context: Context) {
-
         val message = context.bodyAsMessage
         val blockMessage: RequestBlocksMessageBody = message.body fromJsonTo RequestBlocksMessageBody::class.java
         Logger.trace("Received request for blockchain sync from height: ${blockMessage.height}")
