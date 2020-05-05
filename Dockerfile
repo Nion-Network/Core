@@ -1,6 +1,8 @@
-FROM openjdk:8
-#RUN apt-get update
-#RUN apt-get install default-jre -y
+FROM ubuntu:18.04
+RUN apt-get update
+RUN apt-get install default-jre -y
+RUN apt-get install libssl-dev -y
+RUN apt-get install libssl1.0.0 libssl-dev -y
 #RUN apt-get install docker.io -y
 
 WORKDIR /

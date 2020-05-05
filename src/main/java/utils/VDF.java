@@ -1,5 +1,6 @@
 package utils;
 
+import configuration.Configuration;
 import logging.Logger;
 
 import java.io.BufferedReader;
@@ -11,23 +12,24 @@ public class VDF {
     private Process vdf_process;
     private Process proof_process;
     private Runtime rt;
-
-    public VDF(){
+    private String url;
+    public VDF(String url){
         this.rt = Runtime.getRuntime();
+        this.url=url;
     }
 
-    public String runVDF(int difficulty, String hash) throws IOException, InterruptedException {
+    public void runVDF(int difficulty, String hash) throws IOException, InterruptedException {
         if(vdf_process!=null && vdf_process.isAlive()){
             vdf_process.destroyForcibly().waitFor();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
-        this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty);
+        this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty + " -u " + this.url);
         StringBuilder output = new StringBuilder();
         BufferedReader reader = new BufferedReader(new InputStreamReader(vdf_process.getInputStream()));
         String line;
         while ((line = reader.readLine()) != null) {
             output.append(line + "\n");
-        }
+        }/*
         int exitVal = vdf_process.waitFor();
         if (exitVal == 0) {
             return output.toString();
@@ -35,7 +37,7 @@ public class VDF {
             //TODO throw exception to be handled by the implementing class
             Logger.INSTANCE.error("Error producing VDF " + exitVal);
             return null;
-        }
+        }*/
     }
 
     public boolean verifyProof(int difficulty, String hash, String proof){
@@ -60,7 +62,7 @@ public class VDF {
                     return false;
                 }
             }else{
-                Logger.INSTANCE.error("Error verifying VDF " + out.toString().trim());
+                //Logger.INSTANCE.error("Error verifying VDF " + out.toString().trim());
                 return false;
             }
         } catch (IOException e) {
