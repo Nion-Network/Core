@@ -43,5 +43,5 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
     fun createRequestBlocksMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
     fun createResponseBlocksMessage(blocks: List<BlockData>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
     fun createValidatorInclusionRequestMessage(publicKey: String) : Message = createMessage(RequestInclusionBody(publicKey))
-    fun createVdfProofMessage(proof: String) : Message = createMessage(VdfProofBody(proof))
+    fun createVdfProofMessage(proof: String, block: Int) : Message = createMessage(VdfProofBody(proof, block))
 }

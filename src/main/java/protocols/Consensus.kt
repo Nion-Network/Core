@@ -11,7 +11,6 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.bodyAsMessage
 import utils.fromJsonTo
-import java.lang.Exception
 
 class Consensus (private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain
 ){
@@ -35,9 +34,9 @@ class Consensus (private val nodeNetwork: NodeNetwork, private val crypto: Crypt
             val message: Message = context.bodyAsMessage
             vdfProofBody = message.body fromJsonTo VdfProofBody::class.java
         }
-        Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(vdfProofBody.proof)}")
-        if(blockChain.updateVdf(vdfProofBody.proof)){
-            val vdfMessage: Message = nodeNetwork.createVdfProofMessage(vdfProofBody.proof)
+        Logger.consensus("Received VDF proof for block ${vdfProofBody.block} : ${DigestUtils.sha256Hex(vdfProofBody.proof)}")
+        if(blockChain.updateVdf(vdfProofBody.proof, vdfProofBody.block)){
+            val vdfMessage: Message = nodeNetwork.createVdfProofMessage(vdfProofBody.proof, vdfProofBody.block)
             Logger.consensus("Broadcasting proof")
             nodeNetwork.pickRandomNodes(5).forEach{it.sendMessage("/vdf",vdfMessage)}
         }
