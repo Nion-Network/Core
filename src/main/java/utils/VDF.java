@@ -18,12 +18,12 @@ public class VDF {
         this.url=url;
     }
 
-    public void runVDF(int difficulty, String hash) throws IOException, InterruptedException {
+    public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
         if(vdf_process!=null && vdf_process.isAlive()){
             vdf_process.destroyForcibly().waitFor();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
-        this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty + " -u " + this.url);
+        this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty + " -u " + this.url +" -b " + height);
         StringBuilder output = new StringBuilder();
         BufferedReader reader = new BufferedReader(new InputStreamReader(vdf_process.getInputStream()));
         String line;
