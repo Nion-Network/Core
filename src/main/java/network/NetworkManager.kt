@@ -41,7 +41,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-        "/chain" get { this.result(Main.gson.toJson(blockChain)) } //for browser debugging
+        "/chain" get { this.result(Main.gson.toJson(blockChain.chain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
         "/newBlock" post { blockPropagation.receivedNewBlock(this) }
         "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks

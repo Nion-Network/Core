@@ -20,7 +20,7 @@ public class VDF {
 
     public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
         if(vdf_process!=null && vdf_process.isAlive()){
-            vdf_process.destroyForcibly().waitFor();
+            kill();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
         this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty + " -u " + this.url +" -b " + height);
@@ -69,6 +69,15 @@ public class VDF {
             Logger.INSTANCE.error("IO Exception verifying VDF " + e.toString());
             //should never happen, reject block if it does and re-sync the chain
             return false;
+        }
+    }
+    public void kill(){
+        Process killer = null;
+        try {
+            killer = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ");
+            killer.waitFor();
+        } catch (IOException | InterruptedException e) {
+            Logger.INSTANCE.error("Failed to kill VDF " +e.getMessage());
         }
     }
 }

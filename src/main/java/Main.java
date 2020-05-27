@@ -51,7 +51,10 @@ public class Main {
         blockChain.injectDependency(networkManager);
         //the bootstrap node should start block production
         if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
+            blockChain.setSynced(true);
+            blockChain.setValidator(true);
             blockChain.addBlock(common.BlockData.Block.genesisBlock(crypto.getPublicKey(), 200000));
+
         }
 
         //start producing blocks

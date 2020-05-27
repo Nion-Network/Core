@@ -19,7 +19,7 @@ data class BlockData(
         fun genesisBlock(block_producer: String, difficulty: Int): BlockData = BlockData(
                 blockProducer = block_producer,
                 difficulty = difficulty,
-                consensusNodes = mutableListOf<String>(block_producer)
+                consensusNodes = mutableListOf(block_producer)
         )
 
         fun forgeNewBlock(previous_block: BlockData, vdf_proof: String, publicKey: String, inclusionRequests: List<String>): BlockData = BlockData(
