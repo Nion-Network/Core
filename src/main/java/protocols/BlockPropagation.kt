@@ -28,7 +28,6 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         }
     }
 
-    //TODO: Decode message from context and decide to propagate further or stop
     fun receivedNewBlock(context: Context) {
         val message = context.bodyAsMessage
         val blockMessage: NewBlockMessageBody = message.body fromJsonTo NewBlockMessageBody::class.java
