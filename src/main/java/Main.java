@@ -66,10 +66,6 @@ public class Main {
                         BlockData previous_block = blockChain.getLastBlock();
                         vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash(),previous_block.getHeight()+1);
                         break;
-                        //BlockData new_block = common.BlockData.Block.forgeNewBlock(previous_block, proof, crypto.getPublicKey(), blockChain.getPending_inclusion_requests());
-                        //blockChain.addBlock(new_block);
-                        //Logger.INSTANCE.info("New Block forged " + new_block.getHash());
-                        //networkManager.initiate(ProtocolTasks.newBlock, new_block);
                     } catch (IOException e) {
                         Logger.INSTANCE.error(e.getMessage());
                     } catch (InterruptedException e) {

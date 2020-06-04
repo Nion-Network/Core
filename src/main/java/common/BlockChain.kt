@@ -13,9 +13,9 @@ import utils.VDF
 import java.util.*
 import java.util.function.ToIntFunction
 import kotlin.concurrent.schedule
+import kotlin.math.abs
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
-    private var pendingInclusionRequests: Set<String> = mutableSetOf<String>()
     var chain: MutableList<BlockData> = mutableListOf<BlockData>()
     private lateinit var networkManager: NetworkManager
     private var pending_inclusion_requests: MutableList<String> = mutableListOf<String>()
@@ -23,119 +23,85 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     private var validator: Boolean = false;
     private var timer: Timer = Timer();
     private var synced: Boolean = false
-    private var winner: Pair<String, Int> = Pair("", 0) //winners public key and block height
+    data class ExpectedBlock(val previous_block_hash: String, var vdf_proof: String? = null, var blockProducer: String ? = null, val height: Int)
+    private lateinit var expectedBlock: ExpectedBlock
 
-    /*
-        @Synchronized
-        fun addBlock(blockData: BlockData) {
-            if (chain.isEmpty()) {
-                if(blockData.height == 0) {
-                    chain.add(blockData)
-                    chain("Genesis block added")
-                }else{
-                    chain("Node fell out of sync 1.")
-                    networkManager.initiate(ProtocolTasks.requestBlocks, 0)
-                }
-            } else if ((chain.lastOrNull()?.height ?:0) + 1 == blockData.height) { //is successor block
-                if (chain.last().hash.equals(blockData.previous_hash)) { //is on the right chain
-                    if (updateVdf(blockData.vdf_proof!! , blockData.height)) { //is proof valid
-                        if (blockData.blockProducer.equals(lotteryResults(blockData.vdf_proof?: "", blockData.consensusNodes as MutableList<String>).get(0))) {
-                            chain.add(blockData)
-                            if(!validator && blockData.consensusNodes.contains(crypto.publicKey)){
-                                Logger.consensus("Accepted to the validator set")
-                                validator=!validator;
-                            }
-                            if(validator) vdf.runVDF(blockData.difficulty, blockData.hash, blockData.height + 1)
-                            chain("Block ${blockData.hash} added at height ${blockData.height}")
-                        } else {
-                            chain("Block ${blockData.hash} at height ${blockData.height} is not the lottery winner!")
-                        }
-                    } else {
-                        chain("Block ${blockData.hash} added at height ${blockData.height} invalid VDF proof")
-                    }
-                } else {
-                    chain("Hash miss-match at block ${blockData.height} ")
-                }
-            } else if((chain.lastOrNull()?.hash).equals(blockData.hash)) {
-                Logger.trace("Block ${blockData.height} : ${blockData.hash} already received")
-            }else{
-                Logger.debug("Not succesor ${chain.lastOrNull()?.height?:0}  : ${blockData.height}")
-                if (chain.lastOrNull()?.height?:0 > blockData.height) { //we're out of syncF
-                    chain("Node fell out of sync 2.")
-                    networkManager.initiate(ProtocolTasks.requestBlocks, 0)
-                } else if (chain.lastOrNull()?.height?:0 > blockData.height){
-                    Logger.debug("Old block?  ${blockData.height} : ${blockData.hash}")
-                }else{
-                    Logger.chain("Hash miss-match on candidate block: ${blockData.hash}")
-                }
-            }
-        }
-        */
     @Synchronized
     fun addBlock(blockData: BlockData) : Boolean{
+        chain("Adding block ${blockData.height}")
         if (chain.isEmpty() && blockData.height == 0) {//genesis blocks does not require verification
             chain.add(blockData)
-            winner = Pair(blockData.blockProducer ?: crypto.publicKey, blockData.height + 1)
+            expectedBlock = ExpectedBlock(blockData.hash?:"",null,null,1)
             chain("Added genesis block")
-        } else if (!synced) {
+            return true
+        } else if (!synced) { //sync chain
             networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
-        } //sync chain
-        else if (chain.last().hash.equals(blockData.previous_hash)) { //is on the right chain
-            if (winner.first.equals(blockData.blockProducer) && winner.second == blockData.height) { //expected winner
-                if (vdf.verifyProof(chain.last().difficulty, chain.last().hash, blockData.vdf_proof)) { //is proof valid
-                    chain.add(blockData)
-                    this.validator = blockData.consensusNodes.contains(crypto.publicKey)
-                    printChain()
-                    chain("Block ${blockData.hash} added at height ${blockData.height}")
-                    if(validator) {
-                        vdf.runVDF(blockData.difficulty, blockData.hash, blockData.height + 1)
-                        consensus("We're validators. Running VDF for ${blockData.height + 1}")
-                    }
-                    return true;
-                } else {
-                    chain("Block ${blockData.hash} added at height ${blockData.height} invalid VDF proof")
-                }
-            } else {
-                debug("Not expected block ${chain.last().hash ?: ""} height: ${chain.lastOrNull()?.height ?: 0}  : ${blockData.height} | block producer ${DigestUtils.sha256Hex(blockData.blockProducer)}")
-            }
-        } else {
-            chain("Hash miss-match at block ${blockData.height} ")
+            debug("Sync chain")
         }
+        else if (isSuccessorBlock(blockData)) { //is successor block
+            if (isProofValid(blockData)) { //is proof valid
+                chain.add(blockData)
+                expectedBlock = ExpectedBlock(blockData.hash?:"",null,null,blockData.height+1) //move expected block
+                chain("Block ${blockData.hash} added at height ${blockData.height}")
+                if (validator) {
+                    vdf.runVDF(blockData.difficulty, blockData.hash, blockData.height + 1)
+                    consensus("We're validators. Running VDF for ${blockData.height + 1}")
+                }else{
+                    consensus("We're not a validator node, skipping block creation")
+                }
+                return true;
+            }else{
+                consensus("Proof validation failed")
+            }
+        }else{
+            chain("Block validation failed")
+        }
+        this.validator = blockData.consensusNodes.contains(crypto.publicKey)
+        debug("Is validator $validator")
         return false;
     }
 
-    @Synchronized
     fun updateVdf(vdfProof: String, height: Int): Boolean {
-        val isInside = chain.size > height
-        if (!isInside && synced) {
-            val proofValid = chain.last().consensusNodes.contains(crypto.publicKey) && vdf.verifyProof(chain.last().difficulty, chain.last().hash, vdfProof)
-            if (proofValid) {
-                consensus("Proof is valid")
-                val lotteryResults = lotteryResults(vdfProof, chain.last().consensusNodes)
-                val myTurn = lotteryResults.indexOf(crypto.publicKey)
-                var delta: Long = myTurn * 5000L;
-                Logger.info("Scheduling block creation for $myTurn epoch in $delta ms")
-                winner = Pair(lotteryResults.first(), height);
-                chain("Setting winner ${DigestUtils.sha256Hex(winner.first)} for height: ${winner.second + 1}")
-                if(validator) {
-                    timer.cancel()
-                    timer = Timer()
-                    timer.schedule(delta) {
-                        Logger.consensus("New block forged at height $height in $myTurn epoch")
-                        var newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, getPending_inclusion_requests())
-                        if(addBlock(newBlock)) {
-                            networkManager.initiate(ProtocolTasks.newBlock, newBlock)
-                        }
-                    }
+        if(height == expectedBlock.height){
+            if(expectedBlock.vdf_proof != null){ //
+                if(expectedBlock.vdf_proof.equals(vdfProof)){
+                    chain("Proof already known")
+                }else{
+                    chain("Proof different then ours, something wrong!")
                 }
-                return true;
-            } else {
-                debug("Proof: ${DigestUtils.sha256Hex(vdfProof)} for block $height is invalid")
+            }else{
+                val current:BlockData = chain.last()
+                if(vdf.verifyProof(current.difficulty, current.hash, vdfProof)){
+                    chain("Proof is valid")
+                    expectedBlock.blockProducer = lotteryResults(vdfProof, current.consensusNodes)[0]
+                    expectedBlock.vdf_proof = vdfProof
+                    //should check if we are the block producer and forge the block
+                    if(validator) {
+                        val lotteryResults = lotteryResults(vdfProof, chain.last().consensusNodes)
+                        val myTurn = lotteryResults.indexOf(crypto.publicKey)
+                        var delta: Long = myTurn * 5000L;
+                        timer.cancel()
+                        timer = Timer()
+                        timer.schedule(delta) {
+                            Logger.consensus("New block forged at height $height in $myTurn epoch")
+                            var newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, getPending_inclusion_requests())
+                            if(addBlock(newBlock)) {
+                                networkManager.initiate(ProtocolTasks.newBlock, newBlock)
+                            }
+                        }
+                        consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
+                    }else{
+                        consensus("We're not in the validator set for block $height")
+                    }
+                }else{
+                    debug("Proof: ${DigestUtils.sha256Hex(vdfProof)} for block $height is invalid")
+                }
             }
-        } else {
+        }else{
             debug("Proof: ${DigestUtils.sha256Hex(vdfProof)} for block $height is old")
         }
-        return false;
+
+        return  false;
     }
 
     fun lotteryResults(vdf_proof: String, candidates: List<String>): List<String> {
@@ -148,13 +114,12 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     }
 
     fun distance(proof: String, node_id: String): Int {
-        var node_id = node_id
-        node_id = DigestUtils.sha256Hex(node_id)
+        val nodeId  = DigestUtils.sha256Hex(node_id)
         val seed = java.lang.Long.parseUnsignedLong(proof.substring(0, 16), 16)
         val random = Random(seed)
         val draw = random.nextDouble()
-        val front = Math.abs(java.lang.Long.parseUnsignedLong(node_id.substring(0, 16), 16) / Long.MAX_VALUE.toDouble())
-        return (Math.abs(front - draw) * 1000000).toInt()
+        val front = abs(java.lang.Long.parseUnsignedLong(nodeId.substring(0, 16), 16) / Long.MAX_VALUE.toDouble())
+        return (abs(front - draw) * 100000).toInt()
     }
 
     fun syncChain(blocks: List<BlockData>) {
@@ -198,4 +163,41 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     fun setValidator(isValidator: Boolean){
         this.validator = isValidator
     }
+    fun isSuccessorBlock(blockData: BlockData): Boolean{
+        if (expectedBlock.height == blockData.height) { //is block on the expected height
+            if(expectedBlock.blockProducer != null){ //do we know who the block producer is
+                if(expectedBlock.blockProducer.equals(blockData.blockProducer)){ //was the block produced by the expected winner
+                    return true
+                }else{
+                    chain("Block ${blockData.blockProducer?:"Unknown".substring(7)} is not the lottery winner for block ${blockData.height}")
+                }
+            }else{
+                chain("Block came before the proof")
+                return false;
+            }
+        }else{
+            chain("Expecting block at height: ${expectedBlock.height}. Received ${blockData.height}")
+            return false;
+        }
+        return false;
+    }
+    fun isProofValid(blockData: BlockData): Boolean{
+        val current:BlockData = chain.last()
+        if(expectedBlock.vdf_proof!=null){
+            if(expectedBlock.vdf_proof.equals(blockData.vdf_proof)){
+                chain("Received block's proof is as expected")
+                return true;
+            }
+        }else if(vdf.verifyProof(current.difficulty, current.hash, blockData.vdf_proof)){
+            chain("Block came before the proof but is valid")
+            expectedBlock.vdf_proof = blockData.vdf_proof
+            val blockProducer:String = lotteryResults(blockData.vdf_proof?:"",current.consensusNodes)[0]
+            expectedBlock.blockProducer = if(blockProducer == blockData.blockProducer) blockData.blockProducer else blockProducer
+            return true;
+        }else{
+            debug("vdf is invalid?")
+        }
+        return false
+    }
+
 }
