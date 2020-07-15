@@ -23,25 +23,24 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
 
     val isFull get(): Boolean = nodeMap.size >= configuration.maxNodes
 
-    fun broadcast(path: String, message: Message) {
+    fun <T> broadcast(path: String, message: Message<T>) {
         for (node in nodeMap.values) node.sendMessage(path, message)
     }
 
     fun pickRandomNodes(amount: Int): List<Node> = nodeMap.values.shuffled().take(amount)
 
-    fun createMessage(text: String): Message = Message(crypto.publicKey, crypto.sign(text), text)
-    fun createMessage(any: Any): Message = Main.gson.toJson(any).let { json -> Message(crypto.publicKey, crypto.sign(json), json) }
+    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Main.gson.toJson(data)), data)
 
     /**
      * In order to avoid nasty code writing in other protocols, we create messages here...
      */
 
     // Message Creation
-    fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
-    fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
-    fun createNewBlockMessage(block: BlockData) : Message = createMessage(NewBlockMessageBody(block));
-    fun createRequestBlocksMessage(height: Int) : Message = createMessage(RequestBlocksMessageBody(myIP,configuration.listeningPort,height));
-    fun createResponseBlocksMessage(blocks: List<BlockData>) : Message = createMessage(ResponseBlocksMessageBody(blocks));
-    fun createValidatorInclusionRequestMessage(publicKey: String) : Message = createMessage(RequestInclusionBody(publicKey))
-    fun createVdfProofMessage(proof: String, block: Int) : Message = createMessage(VdfProofBody(proof, block))
+    fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(Node(crypto.publicKey, myIP, configuration.listeningPort)))
+    fun createVdfProofMessage(proof: String): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof))
+    fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
+    fun createNewBlockMessage(block: BlockData): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
+    fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(myIP, configuration.listeningPort, height))
+    fun createResponseBlocksMessage(blocks: List<BlockData>): Message<ResponseBlocksMessageBody> = createGenericsMessage(ResponseBlocksMessageBody(blocks))
+    fun createValidatorInclusionRequestMessage(publicKey: String): Message<RequestInclusionBody> = createGenericsMessage(RequestInclusionBody(publicKey))
 }

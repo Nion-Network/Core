@@ -1,5 +1,6 @@
 package protocols
 
+import Main
 import abstraction.Message
 import common.BlockChain
 import io.javalin.http.Context
@@ -9,36 +10,34 @@ import messages.VdfProofBody
 import network.NodeNetwork
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
-import utils.bodyAsMessage
-import utils.fromJsonTo
+import utils.getMessage
 
-class Consensus (private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain
-){
-    fun validatorSetInclusionRequest (context: Context){
-        val message: Message = context.bodyAsMessage
-        val inclusionBody: RequestInclusionBody = message.body fromJsonTo RequestInclusionBody::class.java
-        blockChain.addInclusionRequest(inclusionBody.publicKey)
-        Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(inclusionBody.publicKey)}")
-    }
 
-    fun requestInclusion (publicKey: String){
-        val message:Message = nodeNetwork.createValidatorInclusionRequestMessage(publicKey)
-        nodeNetwork.pickRandomNodes(5).forEach{it.sendMessage("/include", message)}
-    }
+class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain) {
 
-    fun received_vdf (context: Context,  blockChain: BlockChain){
-        var vdfProofBody : VdfProofBody;
-        if(context.ip().toString().equals("127.0.0.1")){
-            vdfProofBody = Main.gson.fromJson(context.body(),VdfProofBody::class.java)
-        }else {
-            val message: Message = context.bodyAsMessage
-            vdfProofBody = message.body fromJsonTo VdfProofBody::class.java
+    fun validatorSetInclusionRequest(context: Context) {
+        val message: Message<RequestInclusionBody> = context.getMessage()
+        message.body.apply {
+            blockChain.addInclusionRequest(publicKey)
+            Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
         }
-        Logger.consensus("Received VDF proof for block ${vdfProofBody.block} : ${DigestUtils.sha256Hex(vdfProofBody.proof)}")
-        if(blockChain.updateVdf(vdfProofBody.proof, vdfProofBody.block)){
-            val vdfMessage: Message = nodeNetwork.createVdfProofMessage(vdfProofBody.proof, vdfProofBody.block)
+    }
+
+    fun requestInclusion(publicKey: String) {
+        nodeNetwork.createValidatorInclusionRequestMessage(publicKey).also { message ->
+            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/include", message) }
+        }
+    }
+
+    fun receivedVdf(context: Context, blockChain: BlockChain) {
+        val message = if (context.ip() != "127.0.0.1") context.getMessage<VdfProofBody>() else null
+        val body = message?.body ?: Main.gson.fromJson<VdfProofBody>(context.body(), VdfProofBody::class.java)
+        val proof = body.proof
+
+        Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(proof)}")
+        if (blockChain.updateVdf(proof)) {
             Logger.consensus("Broadcasting proof")
-            nodeNetwork.pickRandomNodes(5).forEach{it.sendMessage("/vdf",vdfMessage)}
+            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", nodeNetwork.createVdfProofMessage(proof)) }
         }
     }
 }
