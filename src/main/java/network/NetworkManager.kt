@@ -1,8 +1,6 @@
 package network
 
 import Main
-import abstraction.Message
-import abstraction.Node
 import abstraction.ProtocolTasks
 import common.BlockChain
 import common.BlockData
@@ -33,6 +31,10 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
 
     init {
+        application.exception(Exception::class.java) { exception, context ->
+            Logger.error("Stumbled upon error on request from ${context.ip()}")
+            exception.printStackTrace()
+        }
 
         Logger.trace("My IP is ${nodeNetwork.myIP}")
 
@@ -46,17 +48,16 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/newBlock" post { blockPropagation.receivedNewBlock(this) }
         "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
         "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
-        "/include" post {consensus.validatorSetInclusionRequest(this)}
-        "/vdf" post {consensus.received_vdf(this, blockChain)}
+        "/include" post { consensus.validatorSetInclusionRequest(this) }
+        "/vdf" post { consensus.receivedVdf(this, blockChain) }
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
         if (nodeNetwork.myIP != configuration.trustedNodeIP || configuration.listeningPort != configuration.trustedNodePort) {
-            val joinMessage: Message = nodeNetwork.createMessage(Node(crypto.publicKey, nodeNetwork.myIP, configuration.listeningPort))
             Logger.trace("Sending join request to our trusted node...")
-
-            val joinResponse = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", joinMessage)
-            Logger.trace("Join response from trusted node: $joinResponse")
+            Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", nodeNetwork.createIdentificationMessage()).apply {
+                Logger.trace("Join response from trusted node: $this")
+            }
 
             while (!nodeNetwork.isInNetwork) {
                 Logger.trace("Waiting to be accepted into the network...")
@@ -75,8 +76,8 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
      *
      * @param block the application will use when the GET path is visited.
      */
-    infix fun String.get(block: Context.() -> Unit) = application.get(this, block)
-    infix fun String.post(block: Context.() -> Unit) = application.post(this, block)
+    private infix fun String.get(block: Context.() -> Unit): Javalin = application.get(this, block)
+    private infix fun String.post(block: Context.() -> Unit): Javalin = application.post(this, block)
 
     //entry points for protocols
     fun initiate(protocol: ProtocolTasks, payload: Any) {

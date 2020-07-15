@@ -9,16 +9,20 @@ import common.BlockData
  * using IntelliJ IDEA
  */
 
+data class IdentificationMessage(val node: Node)
 data class WelcomeMessageBody(val acceptorNode: Node)
 data class NewBlockMessageBody(val block: BlockData)
-data class RequestBlocksMessageBody(val returnIp: String, val returnPort: Int,val height: Int){
-    val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
-}
+data class JoinRequest(val node: Node)
+
 data class ResponseBlocksMessageBody(val blocks: List<BlockData>)
 data class RequestInclusionBody(val publicKey: String)
-data class VdfProofBody(val proof: String, val block: Int)
-data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
-    val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
+data class VdfProofBody(val proof: String)
+
+data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) : ReturnableMessage(returnIp, returnPort)
+data class RequestBlocksMessageBody(val returnIp: String, val returnPort: Int, val height: Int) : ReturnableMessage(returnIp, returnPort)
+
+abstract class ReturnableMessage(ip: String, port: Int) {
+    val returnToHttpAddress: String = "http://$ip:$port"
 }
 
-data class FoundMessageBody(val foundIp: String, val foundPort: Int, val forPublicKey: String)
+data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
