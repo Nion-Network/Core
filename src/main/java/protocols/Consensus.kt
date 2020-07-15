@@ -35,7 +35,10 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         val proof = body.proof
 
         Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(proof)}")
-        if (blockChain.updateVdf(proof)) {
+
+        Logger.error(context.body())
+
+        if (blockChain.updateVdf(proof, body.block)) {
             Logger.consensus("Broadcasting proof")
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", nodeNetwork.createVdfProofMessage(proof)) }
         }
