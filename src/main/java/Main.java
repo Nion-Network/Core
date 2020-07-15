@@ -43,11 +43,12 @@ public class Main {
 
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
-        Configuration configuration = gson.fromJson(fileText, Configuration.class);
-        Crypto crypto = new Crypto(".");
-        VDF vdf = new VDF("http://localhost:"+configuration.getListeningPort()+"/vdf");
-        BlockChain blockChain = new BlockChain(crypto, vdf, configuration);
+        Configuration  configuration  = gson.fromJson(fileText, Configuration.class);
+        Crypto         crypto         = new Crypto(".");
+        VDF            vdf            = new VDF("http://localhost:" + configuration.getListeningPort() + "/vdf");
+        BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
+
         blockChain.injectDependency(networkManager);
         //the bootstrap node should start block production
         if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
