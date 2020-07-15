@@ -33,14 +33,15 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         val message = if (context.ip() != "127.0.0.1") context.getMessage<VdfProofBody>() else null
         val body = message?.body ?: Main.gson.fromJson<VdfProofBody>(context.body(), VdfProofBody::class.java)
         val proof = body.proof
+        val block = body.block
 
         Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(proof)}")
 
         Logger.error(context.body())
 
-        if (blockChain.updateVdf(proof, body.block)) {
+        if (blockChain.updateVdf(proof, block)) {
             Logger.consensus("Broadcasting proof")
-            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", nodeNetwork.createVdfProofMessage(proof)) }
+            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", nodeNetwork.createVdfProofMessage(proof, block)) }
         }
     }
 }

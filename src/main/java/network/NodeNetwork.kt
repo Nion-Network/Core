@@ -37,7 +37,7 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
 
     // Message Creation
     fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(Node(crypto.publicKey, myIP, configuration.listeningPort)))
-    fun createVdfProofMessage(proof: String): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof))
+    fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
     fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
     fun createNewBlockMessage(block: BlockData): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
     fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(myIP, configuration.listeningPort, height))
