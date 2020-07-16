@@ -8,7 +8,6 @@ package logging
 
 object Logger {
 
-
     val red = "\u001b[31m"
     val blue = "\u001B[34;1m"
     val cyan = "\u001b[36m"
