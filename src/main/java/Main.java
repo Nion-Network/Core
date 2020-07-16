@@ -49,7 +49,6 @@ public class Main {
         BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
-        blockChain.injectDependency(networkManager);
         //the bootstrap node should start block production
         if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
             blockChain.setSynced(true);

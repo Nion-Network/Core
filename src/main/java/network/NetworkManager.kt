@@ -31,6 +31,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
 
     init {
+        blockChain.injectDependency(this)
         application.exception(Exception::class.java) { exception, context ->
             Logger.error("Stumbled upon error on request from ${context.ip()}")
             exception.printStackTrace()
