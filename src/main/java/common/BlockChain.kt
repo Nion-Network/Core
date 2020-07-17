@@ -174,9 +174,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         this.validator = isValidator
     }
 
-    fun isSuccessorBlock(blockData: BlockData): Boolean {
-        val expectedBlock = this.expectedBlock ?: return false
-
+    fun isSuccessorBlock(blockData: BlockData): Boolean = expectedBlock?.let { expectedBlock ->
         val expectedHeight = expectedBlock.height
         val expectedBlockProducer = expectedBlock.blockProducer
         val blockProducer = blockData.blockProducer
@@ -191,13 +189,10 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
             null -> Logger.chain("Block came before the proof")
             else -> Logger.chain("Block ${blockData.blockProducer?.substring(7) ?: "Unknown"} is not the lottery winner for block $blockHeight")
         }
-
         return false
-    }
+    } ?: false
 
-    fun isProofValid(blockData: BlockData): Boolean {
-        val lastBlock = chain.lastOrNull() ?: return false
-
+    private fun isProofValid(blockData: BlockData): Boolean = chain.lastOrNull()?.let { lastBlock ->
         val lastDifficulty = lastBlock.difficulty
         val lastHash = lastBlock.hash
         val newProof = blockData.vdfProof
@@ -209,7 +204,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
             vdf.verifyProof(lastDifficulty, lastHash, newProof) -> {
                 Logger.chain("Block came before the proof but is valid")
                 val blockProducer = lotteryResults(newProof ?: "", lastBlock.consensusNodes).firstOrNull()
-                expectedBlock?.apply {
+                expectedBlock?.run {
                     this.vdfProof = newProof
                     this.blockProducer = if (blockProducer == newBlockProducer) newBlockProducer else blockProducer
                 }
@@ -219,9 +214,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 return false
             }
         }
-
         return true
-    }
+    } ?: false
 
 }
 
