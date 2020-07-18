@@ -1,7 +1,7 @@
 package protocols
 
 import Main
-import abstraction.Message
+import abstraction.
 import common.BlockChain
 import io.javalin.http.Context
 import logging.Logger
@@ -18,7 +18,7 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
     fun validatorSetInclusionRequest(context: Context) {
         val message: Message<RequestInclusionBody> = context.getMessage()
         message.body.apply {
-            blockChain.addInclusionRequest(publicKey)
+            blockChain.pendingInclusionRequests.add(publicKey)
             Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
         }
     }
@@ -38,7 +38,8 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(proof)}")
         if (blockChain.updateVdf(proof, block)) {
             Logger.consensus("Broadcasting proof")
-            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", nodeNetwork.createVdfProofMessage(proof, block)) }
+            val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
+            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", messageToSend) }
         }
     }
 }

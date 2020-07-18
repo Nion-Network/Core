@@ -54,7 +54,6 @@ public class Main {
             blockChain.setSynced(true);
             blockChain.setValidator(true);
             blockChain.addBlock(common.BlockData.Block.genesisBlock(crypto.getPublicKey(), 200000));
-
         }
 
         //start producing blocks
@@ -64,7 +63,7 @@ public class Main {
                     String proof = null;
                     try {
                         BlockData previous_block = blockChain.getLastBlock();
-                        vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash(),previous_block.getHeight()+1);
+                        vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash(), previous_block.getHeight() + 1);
                         break;
                     } catch (IOException e) {
                         Logger.INSTANCE.error(e.getMessage());
