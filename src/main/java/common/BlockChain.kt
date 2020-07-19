@@ -48,7 +48,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
             isSuccessorBlock(blockData) -> {
                 if (isProofValid(blockData)) { //is proof valid
                     chain.add(blockData)
-                    expectedBlock = ExpectedBlock(hash, height = blockData.height + 1)
+                    expectedBlock = ExpectedBlock(hash, height = height + 1)
                     Logger.chain("Block $hash added at height $height")
                     if (validator) {
                         vdf.runVDF(blockData.difficulty, hash, (height + 1))
@@ -157,6 +157,10 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         val blockProducer = blockData.blockProducer
         val blockHeight = blockData.height
 
+        Logger.debug("Expected: ${expectedBlockProducer?.substring(0..60)}")
+        Logger.debug("Received: ${blockProducer?.substring(0..60)}")
+        Logger.debug(blockData.consensusNodes.map { it.substring(0..60) })
+
         if (expectedHeight != blockHeight) Logger.chain("Expecting block at height: $expectedHeight. Received $blockHeight")
         else when (expectedBlockProducer) {
             blockProducer -> {
@@ -164,7 +168,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 return true
             }
             null -> Logger.chain("Block came before the proof")
-            else -> Logger.chain("Block ${blockData.blockProducer?.substring(7) ?: "Unknown"} is not the lottery winner for block $blockHeight")
+            else -> Logger.chain("Block ${blockProducer?.substring(0..60) ?: "Unknown"} is not the lottery winner for block $blockHeight")
         }
         return false
     } ?: false
