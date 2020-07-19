@@ -78,6 +78,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             val lastHash = lastBlock.hash
                             val lastConsensusNodes = lastBlock.consensusNodes
                             val lotteryResults = lotteryResults(vdfProof, lastConsensusNodes)
+                            var epoch = 0
+                            lotteryResults.forEach{Logger.consensus(DigestUtils.sha256Hex(it))}
 
                             if (vdf.verifyProof(lastDifficulty, lastHash, vdfProof)) {
                                 Logger.chain("Proof is valid")
@@ -86,16 +88,23 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
                                 if (validator) {
                                     val myTurn = lotteryResults.indexOf(crypto.publicKey)
-                                    val delta: Long = myTurn * 5000L
+                                    val delta: Long = configuration.epochDuration
 
                                     Logger.debug("Scheduling block creation in $delta")
                                     timer.cancel()
                                     timer = Timer()
-                                    timer.schedule(delta) {
-                                        Logger.consensus("New block forged at height $height in $myTurn epoch")
-                                        val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
-                                        if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
-                                    }
+                                    timer.scheduleAtFixedRate(object : TimerTask() {
+                                        override fun run() {
+                                            expectedBlock?.blockProducer = lotteryResults[epoch]
+                                            Logger.consensus("Moving epoch to: $epoch  with expected block producer as: ${DigestUtils.sha256Hex(expectedBlock!!.blockProducer)}")
+                                            if(epoch == myTurn) {
+                                                Logger.consensus("New block forged at height $height in $myTurn epoch")
+                                                val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
+                                                if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
+                                            }
+                                            epoch++
+                                        }
+                                    },0,delta)
                                     Logger.consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
                                 } else Logger.consensus("We're not in the validator set for block $height")
 
