@@ -1,7 +1,7 @@
 package protocols
 
 import Main
-import abstraction.
+import abstraction.Message
 import common.BlockChain
 import io.javalin.http.Context
 import logging.Logger

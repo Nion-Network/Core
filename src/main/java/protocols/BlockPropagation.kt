@@ -38,7 +38,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         Logger.chain("Received block: $height : $hash")
         blockChain.addBlock(block);
         if (blockChain.chain.find { it.hash.equals(hash) } != null) {
-            Logger.debug("Broadcasting block $hash")
+            Logger.debug("Broadcasting block $hash (We want to, but we're not broadcasting...)")
             //nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
         } else {
             Logger.debug("Not broadcasting old block $hash")
