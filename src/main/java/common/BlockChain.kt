@@ -8,7 +8,6 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.VDF
 import java.util.*
-import kotlin.concurrent.schedule
 import kotlin.math.abs
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
@@ -45,7 +44,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 Logger.debug("Requesting synchronization of the chain...")
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
             }
-            isSuccessorBlock(blockData) -> {
+            //height > lastBlock?.height ?: height || isSuccessorBlock(blockData) -> {
+            height > lastBlock?.height ?: 0 -> {
                 if (isProofValid(blockData)) { //is proof valid
                     chain.add(blockData)
                     expectedBlock = ExpectedBlock(hash, height = height + 1)
@@ -79,7 +79,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             val lastConsensusNodes = lastBlock.consensusNodes
                             val lotteryResults = lotteryResults(vdfProof, lastConsensusNodes)
                             var epoch = 0
-                            lotteryResults.forEach{Logger.consensus(DigestUtils.sha256Hex(it))}
+                            lotteryResults.forEach { Logger.consensus(DigestUtils.sha256Hex(it)) }
 
                             if (vdf.verifyProof(lastDifficulty, lastHash, vdfProof)) {
                                 Logger.chain("Proof is valid")
@@ -97,14 +97,14 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                                         override fun run() {
                                             expectedBlock?.blockProducer = lotteryResults[epoch]
                                             Logger.consensus("Moving epoch to: $epoch  with expected block producer as: ${DigestUtils.sha256Hex(expectedBlock!!.blockProducer)}")
-                                            if(epoch == myTurn) {
+                                            if (epoch == myTurn) {
                                                 Logger.consensus("New block forged at height $height in $myTurn epoch")
                                                 val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
                                                 if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
                                             }
                                             epoch++
                                         }
-                                    },0,delta)
+                                    }, 0, delta)
                                     Logger.consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
                                 } else Logger.consensus("We're not in the validator set for block $height")
 
@@ -160,7 +160,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         return (abs(front - draw) * 100000).toInt()
     }
 
-    private fun isSuccessorBlock(blockData: BlockData): Boolean = expectedBlock?.let { expectedBlock ->
+    private fun isSuccessorBlock(blockData: BlockData): Boolean = expectedBlock.apply { Logger.error("Expected block: $this") }?.let { expectedBlock ->
         val expectedHeight = expectedBlock.height
         val expectedBlockProducer = expectedBlock.blockProducer
         val blockProducer = blockData.blockProducer
