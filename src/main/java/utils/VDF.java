@@ -1,6 +1,5 @@
 package utils;
 
-import configuration.Configuration;
 import logging.Logger;
 
 import java.io.BufferedReader;
@@ -12,21 +11,22 @@ public class VDF {
     private Process vdf_process;
     private Process proof_process;
     private Runtime rt;
-    private String url;
-    public VDF(String url){
-        this.rt = Runtime.getRuntime();
-        this.url=url;
+    private String  url;
+
+    public VDF(String url) {
+        this.rt  = Runtime.getRuntime();
+        this.url = url;
     }
 
     public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
-        if(vdf_process!=null && vdf_process.isAlive()){
+        if (vdf_process != null && vdf_process.isAlive()) {
             kill();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
-        this.vdf_process = rt.exec("vdf-cli "+ hash+ " "+difficulty + " -u " + this.url +" -b " + height);
-        StringBuilder output = new StringBuilder();
+        this.vdf_process = rt.exec("vdf-cli " + hash + " " + difficulty + " -u " + this.url + " -b " + height);
+        StringBuilder  output = new StringBuilder();
         BufferedReader reader = new BufferedReader(new InputStreamReader(vdf_process.getInputStream()));
-        String line;
+        String         line;
         while ((line = reader.readLine()) != null) {
             output.append(line + "\n");
         }/*
@@ -40,14 +40,14 @@ public class VDF {
         }*/
     }
 
-    public boolean verifyProof(int difficulty, String hash, String proof){
+    public boolean verifyProof(int difficulty, String hash, String proof) {
         try {
-            proof_process = rt.exec("vdf-cli " + hash + " " + difficulty + " "+ proof);
-            StringBuffer out = new StringBuffer();
+            proof_process = rt.exec("vdf-cli " + hash + " " + difficulty + " " + proof);
+            StringBuffer   out    = new StringBuffer();
             BufferedReader reader = new BufferedReader(new InputStreamReader(proof_process.getInputStream()));
-            String line;
-            while((line = reader.readLine())!=null){
-                out.append(line+"\n");
+            String         line;
+            while ((line = reader.readLine()) != null) {
+                out.append(line + "\n");
             }
             int exit = 0;
             try {
@@ -55,13 +55,13 @@ public class VDF {
             } catch (InterruptedException e) {
                 return false;
             }
-            if(exit==0){ //success, parse out
-                if(out.toString().trim().equals("Proof is valid")){
+            if (exit == 0) { //success, parse out
+                if (out.toString().trim().equals("Proof is valid")) {
                     return true;
-                }else{
+                } else {
                     return false;
                 }
-            }else{
+            } else {
                 //Logger.INSTANCE.error("Error verifying VDF " + out.toString().trim());
                 return false;
             }
@@ -71,13 +71,14 @@ public class VDF {
             return false;
         }
     }
-    public void kill(){
+
+    public void kill() {
         Process killer = null;
         try {
             killer = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ");
             killer.waitFor();
         } catch (IOException | InterruptedException e) {
-            Logger.INSTANCE.error("Failed to kill VDF " +e.getMessage());
+            Logger.INSTANCE.error("Failed to kill VDF " + e.getMessage());
         }
     }
 }

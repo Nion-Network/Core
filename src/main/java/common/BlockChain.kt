@@ -9,6 +9,7 @@ import utils.Crypto
 import utils.VDF
 import java.util.*
 import kotlin.math.abs
+import kotlin.math.exp
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
 
@@ -44,8 +45,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 Logger.debug("Requesting synchronization of the chain...")
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
             }
-            //height > lastBlock?.height ?: height || isSuccessorBlock(blockData) -> {
-            height > lastBlock?.height ?: 0 -> {
+            height > lastBlock?.height ?: 0 /*|| isSuccessorBlock(blockData) */-> {
                 if (isProofValid(blockData)) { //is proof valid
                     chain.add(blockData)
                     expectedBlock = ExpectedBlock(hash, height = height + 1)
@@ -66,6 +66,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     }
 
     fun updateVdf(vdfProof: String, height: Int): Boolean {
+        Logger.error("EXPECTEDBLOCK AT THE MOMENT IS: ${expectedBlock}")
         expectedBlock?.also { block ->
             val blockHeight = block.height
             val blockProof = block.vdfProof
@@ -79,7 +80,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             val lastConsensusNodes = lastBlock.consensusNodes
                             val lotteryResults = lotteryResults(vdfProof, lastConsensusNodes)
                             var epoch = 0
-                            lotteryResults.forEach { Logger.consensus(DigestUtils.sha256Hex(it)) }
+
+                            //lotteryResults.forEach { Logger.consensus(DigestUtils.sha256Hex(it)) }
 
                             if (vdf.verifyProof(lastDifficulty, lastHash, vdfProof)) {
                                 Logger.chain("Proof is valid")
