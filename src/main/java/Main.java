@@ -53,8 +53,10 @@ public class Main {
         if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
             blockChain.setSynced(true);
             blockChain.setValidator(true);
-            blockChain.addBlock(common.BlockData.Block.genesisBlock(crypto.getPublicKey(), 200000));
+            blockChain.addBlock(BlockData.Companion.genesisBlock(crypto.getPublicKey(), 200000));
         }
+
+        // TODO NOT Cool with possible NPEs yo
 
         //start producing blocks
         while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now

@@ -40,6 +40,6 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
             Logger.consensus("Broadcasting proof")
             val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", messageToSend) }
-        }
+        } else Logger.error("Not able to update VDF!!!!!!!!!!!!!!")
     }
 }

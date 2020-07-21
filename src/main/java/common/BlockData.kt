@@ -14,7 +14,7 @@ data class BlockData(
         //no idea if this works every time
         var hash: String = DigestUtils.sha256Hex(previous_hash + height + ticket + difficulty + vdfProof + blockProducer + timestamp + consensusNodes)
 ) {
-    companion object Block {
+    companion object {
         //TODO: companion object
         fun genesisBlock(block_producer: String, difficulty: Int): BlockData = BlockData(
                 blockProducer = block_producer,
