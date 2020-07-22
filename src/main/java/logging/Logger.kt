@@ -20,12 +20,14 @@ object Logger {
 
     private val timestamp: String get() = System.currentTimeMillis().toString().drop(4).chunked(3).joinToString(" ")
 
-    fun debug(any: Any) = println("$blue${padRight("[DEBUG]")}${padRight("$timestamp")}$reset $any")
-    fun info(any: Any) = println("$green${padRight("[INFO]")}${padRight("$timestamp")}$reset $any")
-    fun error(any: Any) = println("$red${padRight("[ERROR]")}${padRight("$timestamp")}$reset $any")
-    fun trace(any: Any) = println("$yellow${padRight("[TRACE]")}${padRight("$timestamp")}$reset $any")
-    fun chain(any: Any) = println("$cyan${padRight("[CHAIN]")}${padRight("$timestamp")}$reset $any")
-    fun consensus(any: Any) = println("$magenta${padRight("[CONSENSUS]")}${padRight("$timestamp")}$reset $any")
+    fun debug(any: Any) = println("$blue${padRight("[DEBUG]")}${padRight(timestamp)}$reset $any")
+    fun info(any: Any) = println("$green${padRight("[INFO]")}${padRight(timestamp)}$reset $any")
+    fun error(any: Any) = println("$red${padRight("[ERROR]")}${padRight(timestamp)}$reset $any")
+    fun trace(any: Any) = println("$yellow${padRight("[TRACE]")}${padRight(timestamp)}$reset $any")
+    fun chain(any: Any) = println("$cyan${padRight("[CHAIN]")}${padRight(timestamp)}$reset $any")
+    fun consensus(any: Any) = println("$magenta${padRight("[CONSENSUS]")}${padRight(timestamp)}$reset $any")
+
+    
     private fun padRight(string: String) = string.padEnd(12)
 
 }

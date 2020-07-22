@@ -24,22 +24,27 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
     }
 
     fun requestInclusion(publicKey: String) {
+        Logger.debug("Requesting inclusion...")
         nodeNetwork.createValidatorInclusionRequestMessage(publicKey).also { message ->
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/include", message) }
         }
     }
 
     fun receivedVdf(context: Context, blockChain: BlockChain) {
-        val message = if (context.ip() != "127.0.0.1") context.getMessage<VdfProofBody>() else null
+        val ip = context.ip()
+        val isLocal = ip == "127.0.0.1"
+        val message = if (isLocal) null else context.getMessage<VdfProofBody>()
         val body = message?.body ?: Main.gson.fromJson<VdfProofBody>(context.body(), VdfProofBody::class.java)
         val proof = body.proof
         val block = body.block
 
-        Logger.consensus("Received VDF proof: ${DigestUtils.sha256Hex(proof)}")
+        val receivedFrom = if (isLocal) "Locally" else ip
+
+        Logger.consensus("VDF proof has been received [$receivedFrom] (proof = ${DigestUtils.sha256Hex(proof)})")
         if (blockChain.updateVdf(proof, block)) {
             Logger.consensus("Broadcasting proof")
             val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", messageToSend) }
-        } else Logger.error("Not able to update VDF!!!!!!!!!!!!!!")
+        } else Logger.error("updateVdf returned false!")
     }
 }

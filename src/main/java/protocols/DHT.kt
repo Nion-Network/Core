@@ -60,10 +60,13 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
      * @param context HTTP Context
      */
     fun joinRequest(context: Context) {
+        val ip = context.ip()
+        Logger.debug("Join request coming in from $ip ...")
         val message = context.getMessage<IdentificationMessage>()
         val body = message.body
 
         if (!nodeNetwork.isFull) body.node.apply {
+            Logger.debug("Node [$ip] has been accepted into the network...")
             nodeNetwork.nodeMap[publicKey] = this
             sendMessage("/joined", nodeNetwork.createIdentificationMessage())
         } else nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/join", message) }
@@ -75,6 +78,7 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
         val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
             val acceptorNode: Node = message.body.node
+            Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
             nodeNetwork.nodeMap[acceptorNode.publicKey] = acceptorNode
             nodeNetwork.isInNetwork = true
         }
