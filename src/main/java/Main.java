@@ -10,7 +10,6 @@ import utils.Crypto;
 import utils.Utils;
 import utils.VDF;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -34,7 +33,6 @@ public class Main {
             .create();
 
     public static void main(String[] args) throws UnknownHostException {
-        Logger.INSTANCE.debug("Assembly without compile test...");
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.debug("Starting...");
@@ -49,11 +47,16 @@ public class Main {
         BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
 
+        boolean isTrustedNode = InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP());
+
+        String publicKey = crypto.getPublicKey();
+
         //the bootstrap node should start block production
-        if (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) {
+        if (isTrustedNode) {
+            Logger.INSTANCE.debug("Set synced and validator to true...");
             blockChain.setSynced(true);
             blockChain.setValidator(true);
-            blockChain.addBlock(BlockData.Companion.genesisBlock(crypto.getPublicKey(), 200000));
+            blockChain.addBlock(BlockData.Companion.genesisBlock(publicKey, 200000));
         }
 
         // TODO NOT Cool with possible NPEs yo
@@ -61,21 +64,22 @@ public class Main {
         //start producing blocks
         while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
             if (!blockChain.getChain().isEmpty()) {//oh god
-                if (blockChain.getLastBlock().getConsensusNodes().contains(crypto.getPublicKey())) {//we are amongst the block producers
-                    String proof = null;
-                    try {
-                        BlockData previous_block = blockChain.getLastBlock();
-                        vdf.runVDF(previous_block.getDifficulty(), previous_block.getHash(), previous_block.getHeight() + 1);
-                        break;
-                    } catch (IOException e) {
-                        Logger.INSTANCE.error(e.getMessage());
-                    } catch (InterruptedException e) {
-                        Logger.INSTANCE.error(e.getMessage());
+                BlockData lastBlock = blockChain.getLastBlock();
+                if (lastBlock != null) {
+                    boolean areWeProducers = lastBlock.getConsensusNodes().contains(publicKey);
+                    Logger.INSTANCE.debug("Are we block producers? " + areWeProducers);
+                    if (areWeProducers) {
+                        try {
+                            vdf.runVDF(lastBlock.getDifficulty(), lastBlock.getHash(), lastBlock.getHeight() + 1);
+                            break;
+                        } catch (Exception e) {
+                            Logger.INSTANCE.error(e.getMessage());
+                        }
                     }
                 }
             }
         }
-        networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
         Logger.INSTANCE.consensus("Requesting inclusion into the validator set");
+        networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
     }
 }

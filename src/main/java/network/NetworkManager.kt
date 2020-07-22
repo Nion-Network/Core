@@ -41,9 +41,11 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
         "/ping" get { status(200) }
         "/join" post { dhtProtocol.joinRequest(this) }
+        "/joined" post { dhtProtocol.onJoin(this) }
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
-        "/joined" post { dhtProtocol.onJoin(this) }
+
+
         "/chain" get { this.result(Main.gson.toJson(blockChain.chain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
         "/newBlock" post { blockPropagation.receivedNewBlock(this) }
@@ -82,6 +84,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
     //entry points for protocols
     fun initiate(protocol: ProtocolTasks, payload: Any) {
+        Logger.info("Initiating protocol task $protocol")
         when (protocol) {
             ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as BlockData)
             ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
