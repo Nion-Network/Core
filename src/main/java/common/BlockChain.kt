@@ -112,6 +112,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                                     val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
                                         Logger.debug("ADDBLOCK")
                                         addBlock(this)
+                                        Logger.debug("After add block...")
                                         networkManager.initiate(ProtocolTasks.newBlock, this)
                                         Logger.debug("KARKOL")
                                     }
