@@ -26,12 +26,10 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     val pendingInclusionRequests = mutableListOf<String>()
     val lastBlock: BlockData? get() = chain.lastOrNull()
 
-    private var timer: Timer = Timer()
     private var service = Executors.newSingleThreadScheduledExecutor()
 
 
     fun addBlock(blockData: BlockData): Boolean {
-        Logger.debug("WTF")
         val height = blockData.height
         val hash = blockData.hash
 
@@ -49,7 +47,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
                 return false
             }
-            height > lastBlock.apply { Logger.debug("Last block is: $this") }!!.height -> {
+            height > lastBlock!!.height -> {
                 Logger.debug("Block we're attempting to add appears to be a successor of our last block (height > lastHeight)...")
                 if (isProofValid(blockData)) {
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
@@ -107,20 +105,19 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
                         Logger.debug("Scheduling block creation in $delta...")
                         service.shutdownNow()
+                        service = Executors.newSingleThreadScheduledExecutor()
                         service.scheduleAtFixedRate({
                             Logger.chain("Timer is running...")
                             if (epoch == myTurn) {
                                 Logger.consensus("New block forged at height $height in $myTurn epoch")
                                 val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
-                                    Logger.debug("ADDBLOCK")
-                                    val response = addBlock(this)
-                                    Logger.error("addblock response $response")
-                                    Logger.debug("After add block...")
-                                    networkManager.initiate(ProtocolTasks.newBlock, this)
-                                    Logger.debug("KARKOL")
+                                    if(addBlock(this))  networkManager.initiate(ProtocolTasks.newBlock, this)
                                 }
+                                service.shutdown()
+                                Thread.sleep(500)
                             }
                             epoch++
+                            Logger.error("Timer stop ${System.currentTimeMillis()}")
                         }, 0, delta, TimeUnit.MILLISECONDS)
                         Logger.consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
                         return true

@@ -20,22 +20,12 @@ public class VDF {
     }
 
     public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
-        Logger.INSTANCE.debug("VDF HASH: " +hash +" for height: "+ height);
+        //Logger.INSTANCE.debug("VDF HASH: " +hash +" for height: "+ height);
         if (vdfProcess != null && vdfProcess.isAlive()) {
             kill();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
         this.vdfProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " -u " + this.url + " -b " + height);
-
-        /*
-        int exitVal = vdf_process.waitFor();
-        if (exitVal == 0) {
-            return builder.toString();
-        } else {
-            //TODO throw exception to be handled by the implementing class
-            Logger.INSTANCE.error("Error producing VDF " + exitVal);
-            return null;
-        }*/
     }
 
     public boolean verifyProof(int difficulty, String hash, String proof) {
@@ -53,7 +43,7 @@ public class VDF {
             } catch (InterruptedException e) {
                 return false;
             }
-            if(exit != 0) Logger.INSTANCE.error("Error with verifying proof...");
+            if(exit != 0) Logger.INSTANCE.info("Verify proof exited with 0");
             return exit == 0 && out.toString().trim().equals("Proof is valid");
         } catch (IOException e) {
             Logger.INSTANCE.error("IO Exception verifying VDF " + e.toString());
