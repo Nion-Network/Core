@@ -44,7 +44,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
                 return false
             }
-            height > lastBlock!!.height -> {
+            height > lastBlock.apply { Logger.debug("Last block is: $this") }!!.height -> {
                 Logger.debug("Block we're attempting to add appears to be a successor of our last block (height > lastHeight)...")
                 if (isProofValid(blockData)) {
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
@@ -101,6 +101,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         val delta: Long = configuration.epochDuration
 
                         Logger.debug("Scheduling block creation in $delta...")
+                        timer.purge()
                         timer.cancel()
                         timer = Timer()
                         timer.scheduleAtFixedRate(object : TimerTask() {
@@ -111,7 +112,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                                     Logger.consensus("New block forged at height $height in $myTurn epoch")
                                     val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
                                         Logger.debug("ADDBLOCK")
-                                        addBlock(this)
+                                        val response = addBlock(this)
+                                        Logger.error("addblock response $response")
                                         Logger.debug("After add block...")
                                         networkManager.initiate(ProtocolTasks.newBlock, this)
                                         Logger.debug("KARKOL")
