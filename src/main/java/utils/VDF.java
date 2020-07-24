@@ -26,11 +26,6 @@ public class VDF {
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
         this.vdfProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " -u " + this.url + " -b " + height);
-        StringBuilder  builder = new StringBuilder();
-        BufferedReader reader  = new BufferedReader(new InputStreamReader(vdfProcess.getInputStream()));
-        String         line;
-        while ((line = reader.readLine()) != null) builder.append(line).append("\n");
-        Logger.INSTANCE.debug("Running a new VDF process...");
 
         /*
         int exitVal = vdf_process.waitFor();
