@@ -1,6 +1,7 @@
 package utils;
 
 import logging.Logger;
+import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -19,6 +20,7 @@ public class VDF {
     }
 
     public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
+        Logger.INSTANCE.debug("VDF HASH: " +hash +" for height: "+ height);
         if (vdfProcess != null && vdfProcess.isAlive()) {
             kill();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
@@ -43,7 +45,7 @@ public class VDF {
 
     public boolean verifyProof(int difficulty, String hash, String proof) {
         try {
-            Logger.INSTANCE.debug("Verifying proof for difficulty " + difficulty + " ...");
+            Logger.INSTANCE.debug("Verifying proof: Hash:" + hash + " proof: " + DigestUtils.sha256Hex(proof));
             proofProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " " + proof);
             StringBuffer   out    = new StringBuffer();
             BufferedReader reader = new BufferedReader(new InputStreamReader(proofProcess.getInputStream()));

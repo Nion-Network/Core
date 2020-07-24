@@ -26,16 +26,9 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
 
     fun addBlock(blockData: BlockData): Boolean {
+        Logger.debug("WTF")
         val height = blockData.height
         val hash = blockData.hash
-
-        Logger.chain("Attempting to add a block [$height] | $hash...")
-        Logger.debug("Running ${Thread.activeCount()} threads...");
-
-        Logger.debug("----------------------- Current chain -----------------------")
-        printChain()
-        Logger.debug("----------------------- End of current chain -----------------------")
-
 
         isValidator = blockData.consensusNodes.contains(crypto.publicKey)
         Logger.debug("Are we validators? $isValidator")
@@ -56,7 +49,14 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 if (isProofValid(blockData)) {
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
-                    if (isValidator) {
+
+                    Logger.chain("Attempting to add a block [$height] | $hash...")
+                    Logger.debug("Running ${Thread.activeCount()} threads...");
+
+                    Logger.debug("----------------------- Current chain -----------------------")
+                    printChain()
+                    Logger.debug("----------------------- End of current chain -----------------------")
+                    if (isValidator && isSynced) {
                         Logger.consensus("We seem to be validators. Running VDF for next height at ${height + 1}...")
                         vdf.runVDF(blockData.difficulty, hash, (height + 1))
                     } else Logger.consensus("We're not a validator node, skipping block creation")
@@ -109,8 +109,12 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                                 // Logger.consensus("Moving epoch to: $epoch  with expected block producer as: ${DigestUtils.sha256Hex(expectedBlock!!.blockProducer)}")
                                 if (epoch == myTurn) {
                                     Logger.consensus("New block forged at height $height in $myTurn epoch")
-                                    val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
-                                    if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
+                                    val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
+                                        Logger.debug("ADDBLOCK")
+                                        addBlock(this)
+                                        networkManager.initiate(ProtocolTasks.newBlock, this)
+                                        Logger.debug("KARKOL")
+                                    }
                                 }
                                 epoch++
                             }

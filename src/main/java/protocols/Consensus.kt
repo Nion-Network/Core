@@ -40,11 +40,15 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
 
         val receivedFrom = if (isLocal) "Locally" else ip
 
-        Logger.consensus("VDF proof has been received [$receivedFrom] (proof = ${DigestUtils.sha256Hex(proof)})")
-        if (blockChain.updateVdf(proof, block)) {
-            Logger.consensus("Broadcasting proof")
+        if(isLocal) {
             val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", messageToSend) }
+            Logger.consensus("Sending proof ${DigestUtils.sha256Hex(proof)}")
+        }
+        Logger.consensus("VDF proof has been received [$receivedFrom] (proof = ${DigestUtils.sha256Hex(proof)})")
+        if (blockChain.updateVdf(proof, block)) {
+            //Logger.consensus("Broadcasting proof")
+
         } else Logger.error("updateVdf returned false!")
     }
 }
