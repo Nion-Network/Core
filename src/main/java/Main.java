@@ -79,6 +79,7 @@ public class Main {
                 }
             }
         }
+
         Logger.INSTANCE.consensus("Requesting inclusion into the validator set");
         networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
         if(blockChain.getChain().isEmpty()) {
