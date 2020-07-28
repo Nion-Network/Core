@@ -20,10 +20,11 @@ import utils.Utils
  * @property publicKey public key of the current node.
  * @property signature encryption signature.
  * @property body information message holds.
+ * @property timeStamp timestamp when the message was generated.
  * @property asJson returns JSON of the data class.
  * @property bodyAsString returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T) {
+data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis()) {
     val asJson: String get() = gson.toJson(this)
     val bodyAsString: String get() = gson.toJson(body)
 }
