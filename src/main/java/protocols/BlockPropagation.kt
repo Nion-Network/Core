@@ -40,7 +40,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
 
         Logger.debug("A new block has been received at height $height... | $hash")
         if (blockChain.addBlock(block)) {
-            Logger.info("In future, broadcasting an accepted block will be done here...")
+            Logger.info("Broadcasting an accepted block...")
             nodeNetwork.broadcast("/newBlock", message, true)
         } else Logger.debug("The block received has not been added to the chain...")
     }

@@ -5,6 +5,7 @@ import abstraction.Message
 import abstraction.Node
 import common.BlockData
 import configuration.Configuration
+import logging.Logger
 import messages.*
 import utils.Crypto
 import java.net.InetAddress
@@ -27,7 +28,7 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
 
     fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
         if (networkHistory.containsKey(message.signature)) return
-
+        Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
         networkHistory[message.signature] = message.timeStamp
         val shuffledNodes = nodeMap.values.shuffled()
         val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
