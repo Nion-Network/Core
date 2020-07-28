@@ -16,15 +16,22 @@ import java.net.InetAddress
  */
 class NodeNetwork(private val configuration: Configuration, private val crypto: Crypto) {
 
-    // <PublicKey, Node>
-    val nodeMap: HashMap<String, Node> = hashMapOf()
+    val nodeMap: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
     var isInNetwork = false
-    val myIP: String get() = InetAddress.getLocalHost().hostAddress
 
+    private val networkHistory = hashMapOf<String, Long>()
+
+
+    val myIP: String get() = InetAddress.getLocalHost().hostAddress
     val isFull get(): Boolean = nodeMap.size >= configuration.maxNodes
 
-    fun <T> broadcast(path: String, message: Message<T>) {
-        for (node in nodeMap.values) node.sendMessage(path, message)
+    fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
+        if (networkHistory.containsKey(message.signature)) return
+
+        networkHistory[message.signature] = message.timeStamp
+        val shuffledNodes = nodeMap.values.shuffled()
+        val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
+        for (node in shuffledNodes.take(amountToTake)) node.sendMessage(path, message)
     }
 
     fun pickRandomNodes(amount: Int): List<Node> = nodeMap.values.shuffled().take(amount)

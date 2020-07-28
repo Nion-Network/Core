@@ -16,14 +16,19 @@ import utils.getMessage
 
 class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain, private val configuration: Configuration) {
 
-    private val networkHistory = hashMapOf<String, Message<NewBlockMessageBody>>()
 
     //TODO: Add message queue to check weather the message was already received and stop propagation
 
     fun broadcast(block: BlockData) {
         Logger.debug("We're broadcasting block ${block.hash}")
         val newBlockMessage = nodeNetwork.createNewBlockMessage(block)
-        nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/newBlock", newBlockMessage) }
+
+        // Prej
+        //nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/newBlock", newBlockMessage) }
+
+        // Potem
+        nodeNetwork.broadcast("/newBlock", newBlockMessage, true)
+
     }
 
     fun receivedNewBlock(context: Context) {
@@ -36,10 +41,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         Logger.debug("A new block has been received at height $height... | $hash")
         if (blockChain.addBlock(block)) {
             Logger.info("In future, broadcasting an accepted block will be done here...")
-            if (networkHistory.none { it.key == hash }) {
-                nodeNetwork.pickRandomNodes(configuration.broadcastSpread).forEach { it.sendMessage("/newBlock", message) }
-                networkHistory[hash] = message
-            }
+            nodeNetwork.broadcast("/newBlock", message, true)
         } else Logger.debug("The block received has not been added to the chain...")
     }
 
