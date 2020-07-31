@@ -8,8 +8,6 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.VDF
 import java.util.*
-import java.util.concurrent.Executor
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
@@ -27,6 +25,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     val lastBlock: BlockData? get() = chain.lastOrNull()
 
     private var service = Executors.newSingleThreadScheduledExecutor()
+    private var schedulingThread = Thread {}
 
 
     fun addBlock(blockData: BlockData): Boolean {
@@ -48,8 +47,16 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 return false
             }
             height > lastBlock!!.height -> {
-                Logger.debug("Block we're attempting to add appears to be a successor of our last block (height > lastHeight)...")
+                isSynced = height == lastBlock!!.height + 1
+                Logger.debug("Block we're attempting to add what appears to be a successor of our last block (height > lastHeight)...")
                 if (isProofValid(blockData)) {
+                    if (blockData.previousBlockHash != lastBlock?.hash) {
+                        Logger.error("Previous block hash doesn't match our last block hash... Running fork resolution by pop and sync...")
+                        chain.dropLast(1)
+                        isSynced = false
+                        networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
+                        return false
+                    }
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
 
@@ -107,7 +114,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         service.shutdownNow()
                         service = Executors.newSingleThreadScheduledExecutor()
                         service.scheduleAtFixedRate({
-                            Logger.chain("Timer is running...")
+                            Logger.chain("Timer is running... $myTurn vs $epoch")
                             if (epoch == myTurn) {
                                 Logger.consensus("New block forged at height $height in $myTurn epoch")
                                 val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
@@ -120,6 +127,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             Logger.error("Timer stop ${System.currentTimeMillis()}")
                         }, 0, delta, TimeUnit.MILLISECONDS)
                         Logger.consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
+
                         return true
                     }
                 }
@@ -133,6 +141,9 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         if (chain.isEmpty()) chain.addAll(blocks).apply { Logger.debug("We've added all blocks to the chain...") }
         else {
             Logger.info("Syncing chain with a not yet done feature. This is a TODO! BlockChain.kt @syncChain...")
+            blocks.forEach { block ->
+                if (vdf.verifyProof(block.difficulty, block.hash, block.vdfProof)) chain.add(block)
+            }
             /*
             for (b in blocks) {
                 //TODO: verify proofs and rebuild state by state
@@ -199,7 +210,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         if (isValidVdf) {
             Logger.consensus("Vdf proof for ${blockData.hash} seems to be valid...")
             return true
-        } else Logger.error("Vdf proof is invalid for. Check BlockChain.kt @isProofValid...")
+        } else Logger.error("Vdf proof is invalid for ${blockData.hash} Check BlockChain.kt @isProofValid...")
         return false
 
     }

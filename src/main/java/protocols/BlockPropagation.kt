@@ -11,7 +11,6 @@ import messages.RequestBlocksMessageBody
 import messages.ResponseBlocksMessageBody
 import network.NodeNetwork
 import utils.Crypto
-import utils.Utils
 import utils.getMessage
 
 class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain, private val configuration: Configuration) {
@@ -22,13 +21,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     fun broadcast(block: BlockData) {
         Logger.debug("We're broadcasting block ${block.hash}")
         val newBlockMessage = nodeNetwork.createNewBlockMessage(block)
-
-        // Prej
-        //nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/newBlock", newBlockMessage) }
-
-        // Potem
         nodeNetwork.broadcast("/newBlock", newBlockMessage, true)
-
     }
 
     fun receivedNewBlock(context: Context) {
@@ -51,9 +44,8 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         Logger.debug("Received request for blockchain sync from height: ${blockMessage.height}")
 
         Logger.debug("Sending back a response with blocks to sync...")
-        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size));
-        val returnAddress: String = blockMessage.returnToHttpAddress;
-        Utils.sendMessageTo(returnAddress, "/syncBlockchainReply", responseBlocksMessageBody)
+        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size))
+        blockMessage.node.sendMessage("/syncBlockchainReply", responseBlocksMessageBody)
     }
 
     fun requestBlocks(height: Int) {

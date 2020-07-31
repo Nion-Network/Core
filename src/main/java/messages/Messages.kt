@@ -16,11 +16,7 @@ data class ResponseBlocksMessageBody(val blocks: List<BlockData>)
 data class RequestInclusionBody(val publicKey: String)
 data class VdfProofBody(val proof: String, val block: Int)
 
-data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) : ReturnableMessage(returnIp, returnPort)
-data class RequestBlocksMessageBody(val returnIp: String, val returnPort: Int, val height: Int) : ReturnableMessage(returnIp, returnPort)
-
-abstract class ReturnableMessage(ip: String, port: Int) {
-    val returnToHttpAddress: String = "http://$ip:$port"
-}
+data class QueryMessageBody(val node: Node, val searchingPublicKey: String)
+data class RequestBlocksMessageBody(val node: Node, val height: Int)
 
 data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)

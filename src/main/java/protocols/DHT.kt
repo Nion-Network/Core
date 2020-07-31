@@ -48,9 +48,8 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
         val lookingFor: String = body.searchingPublicKey
 
         nodeNetwork.nodeMap[lookingFor]?.apply {
-            val returnAddress: String = body.returnToHttpAddress
             val foundMessage = nodeNetwork.createGenericsMessage(FoundMessage(ip, port, publicKey))
-            Utils.sendMessageTo(returnAddress, "/found", foundMessage)
+            body.node.sendMessage("/found", foundMessage)
         } ?: nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/query", message) }
     }
 
