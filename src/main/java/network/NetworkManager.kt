@@ -42,7 +42,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         application.before {
             val hex = it.header("hex")
             if (networkHistory.containsKey(hex)) {
-                Logger.error("We've already seen this message [${it.matchedPath()}]... We're ignoring it!")
+                Logger.error("We've already seen this message [${it.path()}]... We're ignoring it!")
                 throw ForbiddenResponse("We've already seen this message yo...")
             }
         }

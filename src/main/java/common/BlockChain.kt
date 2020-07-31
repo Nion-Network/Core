@@ -26,6 +26,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
     private var service = Executors.newSingleThreadScheduledExecutor()
     private var schedulingThread = Thread {}
+    private var epoch = 0
 
 
     fun addBlock(blockData: BlockData): Boolean {
@@ -59,7 +60,6 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                     }
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
-
                     Logger.chain("Attempting to add a block [$height] | $hash...")
                     Logger.debug("Running ${Thread.activeCount()} threads...");
 
@@ -71,7 +71,10 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         vdf.runVDF(blockData.difficulty, hash, (height + 1))
                     } else Logger.consensus("We're not a validator node, skipping block creation")
                     return true
-                } else Logger.consensus("Proof validation failed")
+                } else {
+
+                    Logger.consensus("Proof validation failed")
+                }
                 return false
             }
             else -> return false.apply { Logger.debug("Block validation has failed...") }
@@ -97,7 +100,6 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                     val lastHash = hash
                     val lastConsensusNodes = consensusNodes
                     val lotteryResults = lotteryResults(vdfProof, lastConsensusNodes)
-                    var epoch = 0
 
                     if (vdf.verifyProof(lastDifficulty, lastHash, vdfProof)) {
                         Logger.debug("Proof seems to be verified... ")
@@ -109,25 +111,24 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
                         val myTurn = lotteryResults.indexOf(crypto.publicKey)
                         val delta: Long = configuration.epochDuration
+                        val deadline = myTurn * delta + System.currentTimeMillis()
 
-                        Logger.debug("Scheduling block creation in $delta...")
-                        service.shutdownNow()
-                        service = Executors.newSingleThreadScheduledExecutor()
-                        service.scheduleAtFixedRate({
-                            Logger.chain("Timer is running... $myTurn vs $epoch")
-                            if (epoch == myTurn) {
-                                Logger.consensus("New block forged at height $height in $myTurn epoch")
-                                val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests).apply {
-                                    if(addBlock(this))  networkManager.initiate(ProtocolTasks.newBlock, this)
-                                }
-                                service.shutdown()
-                                Thread.sleep(500)
-                            }
-                            epoch++
-                            Logger.error("Timer stop ${System.currentTimeMillis()}")
-                        }, 0, delta, TimeUnit.MILLISECONDS)
+
+                        schedulingThread.interrupt()
+                        schedulingThread = Thread {
+                            Logger.debug("Scheduling block creation in $delta...")
+                            Logger.chain("Scheduling thread is running... [myTurn = $myTurn] vs [epoch = $epoch]")
+                            while (System.currentTimeMillis() < deadline);
+
+                            Logger.consensus("New block forged at height $height in $myTurn epoch")
+                            val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
+                            if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
+
+                            Logger.error("Thread stop ${System.currentTimeMillis()}")
+
+                        }
+                        schedulingThread.start()
                         Logger.consensus("Scheduled block creation in $delta ms as $myTurn best lottery drawn")
-
                         return true
                     }
                 }
@@ -142,7 +143,9 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         else {
             Logger.info("Syncing chain with a not yet done feature. This is a TODO! BlockChain.kt @syncChain...")
             blocks.forEach { block ->
-                if (vdf.verifyProof(block.difficulty, block.hash, block.vdfProof)) chain.add(block)
+                lastBlock?.apply {
+                    if(vdf.verifyProof(difficulty, hash, block.vdfProof)) chain.add(block)
+                }
             }
             /*
             for (b in blocks) {
