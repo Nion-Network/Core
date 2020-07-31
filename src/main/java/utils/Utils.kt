@@ -5,6 +5,7 @@ import abstraction.Message
 import abstraction.NetworkRequest
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
+import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,28 +16,24 @@ import java.net.URL
  * using IntelliJ IDEA
  */
 
+val networkHistory = hashMapOf<String, Long>()
+
+
 class Utils {
-
-    /*
-    Since we'll be using Utils class from Java classes as well, we have to use
-    a companion object (static).
-
-    Usage:
-        Java   -> Utils.Companion.readFile(...)
-        Kotlin -> Utils.readFile(...)
-    */
 
     companion object {
 
-        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequest = NetworkRequest.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson)
+        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequest = NetworkRequest.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
+            this.addRequestProperty("hex", DigestUtils.sha256Hex(message.signature))
+        }
 
         private fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
             connection.requestMethod = type.name
+            connection.apply(customBlock) // Customization
             connection.doOutput = body.isNotEmpty()
             connection.doInput = true
 
             if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
-            connection.apply(customBlock) // Customization
             connection.disconnect()
             return connection.responseCode to connection.responseMessage
         }

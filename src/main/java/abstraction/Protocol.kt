@@ -38,6 +38,8 @@ data class Message<T>(val publicKey: String, val signature: String, val body: T,
  */
 data class Node(val publicKey: String, val ip: String, val port: Int) {
 
+    val returnAddress get() = "http://$ip:port"
+
     /**
      * Sends the given message to current node.
      *

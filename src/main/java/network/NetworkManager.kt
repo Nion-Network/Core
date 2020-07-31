@@ -7,12 +7,14 @@ import common.BlockData
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
+import io.javalin.http.ForbiddenResponse
 import logging.Logger
 import protocols.BlockPropagation
 import protocols.Consensus
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
+import utils.networkHistory
 
 /**
  * Created by Mihael Valentin Berčič
@@ -35,6 +37,14 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         application.exception(Exception::class.java) { exception, context ->
             Logger.error("Stumbled upon error on request from ${context.ip()}")
             exception.printStackTrace()
+        }
+
+        application.before {
+            val hex = it.header("hex")
+            if (networkHistory.containsKey(hex)) {
+                Logger.error("We've already seen this message [${it.matchedPath()}]... We're ignoring it!")
+                throw ForbiddenResponse("We've already seen this message yo...")
+            }
         }
 
         Logger.trace("My IP is ${nodeNetwork.myIP}")

@@ -43,7 +43,7 @@ public class VDF {
             } catch (InterruptedException e) {
                 return false;
             }
-            if(exit != 0) Logger.INSTANCE.info("Verify proof exited with 0");
+            if(exit != 0) Logger.INSTANCE.info("Verify proof exited with something else than 0! [ Result = " + exit + " ]");
             return exit == 0 && out.toString().trim().equals("Proof is valid");
         } catch (IOException e) {
             Logger.INSTANCE.error("IO Exception verifying VDF " + e.toString());
