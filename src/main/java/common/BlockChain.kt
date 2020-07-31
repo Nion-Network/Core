@@ -7,6 +7,7 @@ import network.NetworkManager
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.VDF
+import java.lang.Exception
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -48,7 +49,6 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 return false
             }
             height > lastBlock!!.height -> {
-                isSynced = height == lastBlock!!.height + 1
                 Logger.debug("Block we're attempting to add what appears to be a successor of our last block (height > lastHeight)...")
                 if (isProofValid(blockData)) {
                     if (blockData.previousBlockHash != lastBlock?.hash) {
@@ -119,6 +119,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             Logger.debug("Scheduling block creation in $delta...")
                             Logger.chain("Scheduling thread is running... [myTurn = $myTurn] vs [epoch = $epoch]")
                             while (System.currentTimeMillis() < deadline);
+
+                            if(lastBlock.height == height) return@Thread
 
                             Logger.consensus("New block forged at height $height in $myTurn epoch")
                             val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
