@@ -30,6 +30,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     private var epoch = 0
 
 
+    @Synchronized
     fun addBlock(blockData: BlockData): Boolean {
         val height = blockData.height
         val hash = blockData.hash
