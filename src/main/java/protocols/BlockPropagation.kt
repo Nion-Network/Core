@@ -44,7 +44,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         Logger.debug("Received request for blockchain sync from height: ${blockMessage.height}")
 
         Logger.debug("Sending back a response with blocks to sync...")
-        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.subList(blockMessage.height, blockChain.chain.size))
+        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.drop(blockMessage.height))
         blockMessage.node.sendMessage("/syncBlockchainReply", responseBlocksMessageBody)
     }
 
