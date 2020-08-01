@@ -7,10 +7,8 @@ import network.NetworkManager
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.VDF
-import java.lang.Exception
 import java.util.*
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
@@ -54,7 +52,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 if (isProofValid(blockData)) {
                     if (blockData.previousBlockHash != lastBlock?.hash) {
                         Logger.error("Previous block hash doesn't match our last block hash... Running fork resolution by pop and sync...")
-                        chain.dropLast(1)
+                        lastBlock?.apply { chain.remove(this) }
                         isSynced = false
                         networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
                         return false
@@ -72,10 +70,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         vdf.runVDF(blockData.difficulty, hash, (height + 1))
                     } else Logger.consensus("We're not a validator node, skipping block creation")
                     return true
-                } else {
-
-                    Logger.consensus("Proof validation failed")
-                }
+                } else Logger.consensus("Proof validation failed")
                 return false
             }
             else -> return false.apply { Logger.debug("Block validation has failed...") }
@@ -121,7 +116,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             Logger.chain("Scheduling thread is running... [myTurn = $myTurn] vs [epoch = $epoch]")
                             while (System.currentTimeMillis() < deadline);
 
-                            if(lastBlock.height == height) return@Thread
+                            if (lastBlock.height == height) return@Thread
 
                             Logger.consensus("New block forged at height $height in $myTurn epoch")
                             val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
@@ -147,7 +142,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
             Logger.info("Syncing chain with a not yet done feature. This is a TODO! BlockChain.kt @syncChain...")
             blocks.forEach { block ->
                 lastBlock?.apply {
-                    if(vdf.verifyProof(difficulty, hash, block.vdfProof)) chain.add(block)
+                    if (vdf.verifyProof(difficulty, hash, block.vdfProof)) chain.add(block)
                 }
             }
             /*

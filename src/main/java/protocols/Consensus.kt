@@ -30,7 +30,7 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         }
     }
 
-    fun receivedVdf(context: Context, blockChain: BlockChain) {
+    fun receivedVdf(context: Context) {
         val ip = context.ip()
         val isLocal = ip == "127.0.0.1"
         val message = if (isLocal) null else context.getMessage<VdfProofBody>()
@@ -39,16 +39,19 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         val block = body.block
 
         val receivedFrom = if (isLocal) "Locally" else ip
+        val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
 
-        if(isLocal) {
-            val messageToSend = message ?: nodeNetwork.createVdfProofMessage(proof, block)
-            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/vdf", messageToSend) }
-            Logger.consensus("Sending proof ${DigestUtils.sha256Hex(proof)}")
-        }
         Logger.consensus("VDF proof has been received [$receivedFrom] (proof = ${DigestUtils.sha256Hex(proof)})")
-        if (blockChain.updateVdf(proof, block)) {
-            //Logger.consensus("Broadcasting proof")
 
+        if (block < blockChain.chain.size) {
+            Logger.info("VDF proof is old and we're not checking it...")
+            return
+        }
+
+        if (blockChain.updateVdf(proof, block)) {
+            Logger.consensus("Broadcasting proof")
+            nodeNetwork.broadcast("/vdf", messageToSend)
+            Logger.consensus("Sending proof ${DigestUtils.sha256Hex(proof)}")
         } else Logger.error("updateVdf returned false!")
     }
 }

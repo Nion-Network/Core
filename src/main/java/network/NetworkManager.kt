@@ -62,7 +62,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
         "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
         "/include" post { consensus.validatorSetInclusionRequest(this) }
-        "/vdf" post { consensus.receivedVdf(this, blockChain) }
+        "/vdf" post { consensus.receivedVdf(this) }
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
