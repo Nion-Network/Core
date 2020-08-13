@@ -58,6 +58,6 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         val body = message.body
         val blocks = body.blocks
         Logger.trace("Received ${blocks.size} blocks to sync")
-        blockChain.(blocks)
+        blockChain.syncChain(blocks)
     }
 }
