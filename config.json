@@ -3,5 +3,7 @@
   "trustedNodePort": 5000,
   "listeningPort": 5000,
   "keystorePath": ".",
-  "maxNodes": 1000
+  "maxNodes": 1000,
+  "epochDuration" : 5000,
+  "broadcastSpread" : 3
 }

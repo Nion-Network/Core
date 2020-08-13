@@ -1,6 +1,7 @@
 package messages
 
 import abstraction.Node
+import common.BlockData
 
 /**
  * Created by Mihael Valentin Berčič
@@ -8,9 +9,14 @@ import abstraction.Node
  * using IntelliJ IDEA
  */
 
-data class WelcomeMessageBody(val acceptorNode: Node)
-data class QueryMessageBody(val returnIp: String, val returnPort: Int, val searchingPublicKey: String) {
-    val returnToHttpAddress: String get() = "http://$returnIp:$returnPort"
-}
+data class IdentificationMessage(val node: Node)
+data class NewBlockMessageBody(val block: BlockData)
 
-data class FoundMessageBody(val foundIp: String, val foundPort: Int, val forPublicKey: String)
+data class ResponseBlocksMessageBody(val blocks: List<BlockData>)
+data class RequestInclusionBody(val publicKey: String)
+data class VdfProofBody(val proof: String, val block: Int)
+
+data class QueryMessageBody(val node: Node, val searchingPublicKey: String)
+data class RequestBlocksMessageBody(val node: Node, val height: Int)
+
+data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
