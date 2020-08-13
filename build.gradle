@@ -6,7 +6,7 @@ plugins {
 group 'eu.innorenew'
 version '1.0-SNAPSHOT'
 
-sourceCompatibility = 1.8
+sourceCompatibility = 11
 
 repositories {
     mavenCentral()
@@ -19,14 +19,15 @@ dependencies {
     compile 'com.google.code.gson:gson:2.8.6'
     compile 'io.javalin:javalin:3.8.0'
     compile "org.slf4j:slf4j-nop:1.7.28"
+    compile 'commons-codec:commons-codec:1.14'
 
 }
 
 compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "11"
 }
 compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "11"
 }
 
 jar {

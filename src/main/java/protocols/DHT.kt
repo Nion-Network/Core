@@ -4,14 +4,13 @@ import abstraction.Message
 import abstraction.Node
 import io.javalin.http.Context
 import logging.Logger
-import messages.FoundMessageBody
+import messages.FoundMessage
+import messages.IdentificationMessage
 import messages.QueryMessageBody
-import messages.WelcomeMessageBody
 import network.NodeNetwork
 import utils.Crypto
 import utils.Utils
-import utils.bodyAsMessage
-import utils.fromJsonTo
+import utils.getMessage
 
 /**
  * Created by Mihael Valentin Berčič
@@ -21,7 +20,7 @@ import utils.fromJsonTo
 class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
 
 
-    fun sendSearchQuery(forPublicKey: String){
+    fun sendSearchQuery(forPublicKey: String) {
         Logger.info("Broadcasting on /query looking for our key owner...")
         nodeNetwork.broadcast("/query", nodeNetwork.createQueryMessage(forPublicKey))
     }
@@ -32,9 +31,9 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
      * @param context Http request context
      */
     fun onFound(context: Context) {
-        val message: Message = context.bodyAsMessage
-        val foundMessageBody: FoundMessageBody = message.body fromJsonTo FoundMessageBody::class.java
-        Logger.info("We got back what we were looking for!\n$foundMessageBody")
+        val message: Message<FoundMessage> = context.getMessage()
+        // TODO use message...
+        Logger.info("We got back what we were looking for!")
     }
 
     /**
@@ -43,15 +42,14 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
      * @param context HTTP Context
      */
     fun onQuery(context: Context) {
-        println("Received query request for ${context.body()}")
-        val message: Message = context.bodyAsMessage
-        val queryMessageBody: QueryMessageBody = message.body fromJsonTo QueryMessageBody::class.java
-        val lookingFor: String = queryMessageBody.searchingPublicKey
+        //println("Received query request for ${context.body()}")
+        val message = context.getMessage<QueryMessageBody>()
+        val body = message.body
+        val lookingFor: String = body.searchingPublicKey
 
         nodeNetwork.nodeMap[lookingFor]?.apply {
-            val returnAddress: String = queryMessageBody.returnToHttpAddress
-            val foundMessage: Message = nodeNetwork.createMessage(FoundMessageBody(ip, port, publicKey))
-            Utils.sendMessageTo(returnAddress, "/found", foundMessage)
+            val foundMessage = nodeNetwork.createGenericsMessage(FoundMessage(ip, port, publicKey))
+            body.node.sendMessage("/found", foundMessage)
         } ?: nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/query", message) }
     }
 
@@ -61,30 +59,28 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
      * @param context HTTP Context
      */
     fun joinRequest(context: Context) {
-        try {
-            val message: Message = context.bodyAsMessage
-            val originalBody: String = message.body
-            if (!nodeNetwork.isFull) {
-                val myMessage: Message = nodeNetwork.createWelcomeMessage()
-                val node: Node = originalBody fromJsonTo Node::class.java
-                nodeNetwork.nodeMap[node.publicKey] = node
-                node.sendMessage("/joined", myMessage)
-            } else nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/join", message) }
-            context.status(200)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        val ip = context.ip()
+        Logger.debug("Join request coming in from $ip ...")
+        val message = context.getMessage<IdentificationMessage>()
+        val body = message.body
+
+        if (!nodeNetwork.isFull) body.node.apply {
+            Logger.debug("Node [$ip] has been accepted into the network...")
+            nodeNetwork.nodeMap[publicKey] = this
+            sendMessage("/joined", nodeNetwork.createIdentificationMessage())
+        } else nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/join", message) }
+        context.status(200)
     }
 
     fun onJoin(context: Context) {
-        val message = context.bodyAsMessage
-        val confirmed = crypto.verify(message.body, message.signature, message.publicKey)
+        val message: Message<IdentificationMessage> = context.getMessage()
+        val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
-            val welcomeMessage: WelcomeMessageBody = message.body fromJsonTo WelcomeMessageBody::class.java
-            val acceptorNode: Node = welcomeMessage.acceptorNode
+            val acceptorNode: Node = message.body.node
+            Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
             nodeNetwork.nodeMap[acceptorNode.publicKey] = acceptorNode
             nodeNetwork.isInNetwork = true
         }
-        Logger.debug("Message received on path /joined: ${message.body}")
+        Logger.debug("We were accepted into the network!")
     }
 }

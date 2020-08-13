@@ -3,10 +3,13 @@ package network
 import Main
 import abstraction.Message
 import abstraction.Node
+import common.BlockData
 import configuration.Configuration
-import messages.QueryMessageBody
-import messages.WelcomeMessageBody
+import logging.Logger
+import messages.*
+import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import utils.networkHistory
 import java.net.InetAddress
 
 /**
@@ -16,28 +19,39 @@ import java.net.InetAddress
  */
 class NodeNetwork(private val configuration: Configuration, private val crypto: Crypto) {
 
-    // <PublicKey, Node>
-    val nodeMap: HashMap<String, Node> = hashMapOf()
+    val nodeMap: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
     var isInNetwork = false
-    val myIP: String get() = InetAddress.getLocalHost().hostAddress
 
+    val myIP: String get() = InetAddress.getLocalHost().hostAddress
     val isFull get(): Boolean = nodeMap.size >= configuration.maxNodes
 
-    fun broadcast(path: String, message: Message) {
-        for (node in nodeMap.values) node.sendMessage(path, message)
+    fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
+        val hexHash = DigestUtils.sha256Hex(message.signature)
+        if (networkHistory.containsKey(hexHash)) return
+        Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
+        networkHistory[hexHash] = message.timeStamp
+        val shuffledNodes = nodeMap.values.shuffled()
+        val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
+        for (node in shuffledNodes.take(amountToTake)) node.sendMessage(path, message)
     }
 
     fun pickRandomNodes(amount: Int): List<Node> = nodeMap.values.shuffled().take(amount)
 
-    fun createMessage(text: String): Message = Message(crypto.publicKey, crypto.sign(text), text)
-    fun createMessage(any: Any): Message = Main.gson.toJson(any).let { json -> Message(crypto.publicKey, crypto.sign(json), json) }
+    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Main.gson.toJson(data)), data)
 
     /**
      * In order to avoid nasty code writing in other protocols, we create messages here...
      */
 
     // Message Creation
-    fun createQueryMessage(lookingFor: String): Message = createMessage(QueryMessageBody(myIP, configuration.listeningPort, lookingFor))
-    fun createWelcomeMessage(): Message = createMessage(WelcomeMessageBody(Node(crypto.publicKey, myIP, configuration.listeningPort)))
 
+    private val ourNode = Node(crypto.publicKey, myIP, configuration.listeningPort)
+
+    fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(ourNode))
+    fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
+    fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(ourNode, lookingFor))
+    fun createNewBlockMessage(block: BlockData): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
+    fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(ourNode, height))
+    fun createResponseBlocksMessage(blocks: List<BlockData>): Message<ResponseBlocksMessageBody> = createGenericsMessage(ResponseBlocksMessageBody(blocks))
+    fun createValidatorInclusionRequestMessage(publicKey: String): Message<RequestInclusionBody> = createGenericsMessage(RequestInclusionBody(publicKey))
 }

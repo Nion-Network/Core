@@ -1,8 +1,9 @@
 package utils;
-
 import logging.Logger;
-
 import javax.crypto.Cipher;
+import java.io.*;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -77,8 +78,6 @@ public class Crypto {
     }
 
     public boolean verify(String plainText, String signature, String publicKey) throws Exception {
-        //BASE64Decoder decoder = new BASE64Decoder();
-        //byte[] byteKey = decoder.decodeBuffer(publicKey);
         byte[] byteKey = java.util.Base64.getMimeDecoder().decode(publicKey);
         Signature publicSignature = Signature.getInstance("SHA256withRSA");
         X509EncodedKeySpec X509publicKey = new X509EncodedKeySpec(byteKey);
