@@ -2,6 +2,7 @@ package common
 
 import abstraction.ProtocolTasks
 import configuration.Configuration
+import logging.Dashboard
 import logging.Logger
 import network.NetworkManager
 import org.apache.commons.codec.digest.DigestUtils
@@ -59,6 +60,9 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                     }
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
+                    Dashboard.newBlockAccepted(blockData,crypto)
+                    Dashboard.newLottery(distance(blockData.vdfProof?:"",crypto.publicKey),crypto, blockData.height)
+
                     Logger.chain("Attempting to add a block [$height] | $hash...")
                     Logger.debug("Running ${Thread.activeCount()} threads...");
 
