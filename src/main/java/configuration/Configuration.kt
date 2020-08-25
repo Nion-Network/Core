@@ -10,7 +10,10 @@ data class Configuration(
         val maxNodes: Int,
         val keystorePath : String,
         val epochDuration : Long,
-        val broadcastSpread : Int
+        val broadcastSpread : Int,
+        val influxUrl : String,
+        val influxUsername : String,
+        val influxPassword : String
 ) {
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
 }

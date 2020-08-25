@@ -5,5 +5,8 @@
   "keystorePath": ".",
   "maxNodes": 1000,
   "epochDuration" : 5000,
-  "broadcastSpread" : 3
+  "broadcastSpread" : 3,
+  "influxUrl" : "http://88.200.63.190:8086",
+  "influxUsername" : "edge",
+  "influxPassword" : "e1d2g3e4"
 }
