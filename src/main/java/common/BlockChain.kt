@@ -2,6 +2,7 @@ package common
 
 import abstraction.ProtocolTasks
 import configuration.Configuration
+import logging.Dashboard
 import logging.Logger
 import network.NetworkManager
 import org.apache.commons.codec.digest.DigestUtils
@@ -59,6 +60,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                     }
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
+                    Dashboard.newBlockAccepted(blockData,crypto)
+                    Dashboard.newLottery(distance(blockData.vdfProof?:"",crypto.publicKey),crypto, blockData.height)
                     Logger.chain("Attempting to add a block [$height] | $hash...")
                     Logger.debug("Running ${Thread.activeCount()} threads...");
 
@@ -108,7 +111,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         val myTurn = lotteryResults.indexOf(crypto.publicKey)
                         val delta: Long = configuration.epochDuration
                         val deadline = myTurn * delta + System.currentTimeMillis()
-
+                        val ticket = distance(vdfProof,crypto.publicKey)
 
                         schedulingThread.interrupt()
                         schedulingThread = Thread {
@@ -117,9 +120,8 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                             while (System.currentTimeMillis() < deadline);
 
                             if (lastBlock.height == height) return@Thread
-
                             Logger.consensus("New block forged at height $height in $myTurn epoch")
-                            val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
+                            val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey,ticket , pendingInclusionRequests)
                             if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
 
                             Logger.error("Thread stop ${System.currentTimeMillis()}")

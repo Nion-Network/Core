@@ -21,9 +21,10 @@ data class BlockData(
                 consensusNodes = mutableListOf(block_producer)
         )
 
-        fun forgeNewBlock(previous_block: BlockData, vdfProof: String, publicKey: String, inclusionRequests: List<String>): BlockData = BlockData(
+        fun forgeNewBlock(previous_block: BlockData, vdfProof: String, publicKey: String, ticket:Int, inclusionRequests: List<String>): BlockData = BlockData(
                 vdfProof = vdfProof,
                 height = previous_block.height + 1,
+                ticket = ticket,
                 difficulty = previous_block.difficulty,//TODO: Difficulty adjustment algorithm
                 blockProducer = publicKey,
                 previousBlockHash = previous_block.hash,
