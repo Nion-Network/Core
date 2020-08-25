@@ -20,6 +20,7 @@ dependencies {
     compile 'io.javalin:javalin:3.8.0'
     compile "org.slf4j:slf4j-nop:1.7.28"
     compile 'commons-codec:commons-codec:1.14'
+    compile group: 'org.influxdb', name: 'influxdb-java', version: '2.20'
 
 }
 
