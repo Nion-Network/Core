@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import common.BlockChain;
 import common.BlockData;
 import configuration.Configuration;
+import logging.Dashboard;
 import logging.Logger;
 import network.NetworkManager;
 import utils.Crypto;
@@ -46,6 +47,7 @@ public class Main {
         VDF            vdf            = new VDF("http://localhost:" + configuration.getListeningPort() + "/vdf");
         BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
         NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
+        Dashboard.INSTANCE.init(configuration);
 
         boolean isTrustedNode = InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP());
 

@@ -30,7 +30,7 @@ public class VDF {
 
     public boolean verifyProof(int difficulty, String hash, String proof) {
         try {
-            Logger.INSTANCE.debug("Verifying proof: Hash:" + hash + " proof: " + DigestUtils.sha256Hex(proof));
+            Logger.INSTANCE.debug("Verifying proof: Hash:" + hash + " proof: " + proof);
             proofProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " " + proof);
             StringBuffer   out    = new StringBuffer();
             BufferedReader reader = new BufferedReader(new InputStreamReader(proofProcess.getInputStream()));

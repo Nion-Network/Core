@@ -5,6 +5,7 @@ import abstraction.Message
 import abstraction.NetworkRequest
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
+import logging.Dashboard
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.net.HttpURLConnection

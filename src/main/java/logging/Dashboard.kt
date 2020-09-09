@@ -1,6 +1,7 @@
 package logging
 
 import abstraction.Message
+import common.BlockChain
 import common.BlockData
 import configuration.Configuration
 import org.apache.commons.codec.digest.DigestUtils
@@ -17,6 +18,7 @@ enum class DashboardNamespace { NewBlock, ForgedBlock, Ticket, Message, Fork, Pr
 
 object Dashboard {
     private lateinit var influxDB:InfluxDB
+
     fun init(configuration: Configuration){
         influxDB = InfluxDBFactory.connect(configuration.influxUrl,configuration.influxUsername,configuration.influxPassword)
         influxDB.query(Query("CREATE DATABASE PROD"));
@@ -40,9 +42,11 @@ object Dashboard {
             Logger.error(e.localizedMessage)
         }
         }
-    fun <T> newMessage(message: Message<T>, crypto: Crypto){
+    fun <T> newMessage(message: Message<T>, crypto: Crypto, protocol: String){
         val point:Point = Point.measurement("message").time(System.currentTimeMillis(),TimeUnit.MILLISECONDS)
                 .addField("hash", message.signature)
+                .addField("protocol", protocol)
+                .addField("sender", DigestUtils.sha256Hex(crypto.publicKey))
                 .build()
         influxDB.write(point)
     }
@@ -52,6 +56,20 @@ object Dashboard {
                     .addField("nodeId", DigestUtils.sha256Hex(crypto.publicKey))
                     .addField("height", height)
                     .addField("ticket", ticket)
+                    .build()
+            influxDB.write(point)
+        }catch (e:Exception){
+            Logger.error(e.localizedMessage)
+        }
+    }
+    fun possibleFork(blockData: BlockData, crypto: Crypto, localBlockData: BlockData){
+        try {
+            val point: Point = Point.measurement("fork").time(System.currentTimeMillis(),TimeUnit.MILLISECONDS)
+                    .addField("nodeId", DigestUtils.sha256Hex(crypto.publicKey))
+                    .addField("localBlockHeight", localBlockData.height)
+                    .addField("localBlockHash", localBlockData.hash)
+                    .addField("conflictingBlockHeight", blockData.height)
+                    .addField("conflictingBlockHash", blockData.hash)
                     .build()
             influxDB.write(point)
         }catch (e:Exception){
