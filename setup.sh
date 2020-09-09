@@ -1,4 +1,5 @@
 clear
 docker build --tag node .
 clear
-docker run node
+docker run -i node
+clear
