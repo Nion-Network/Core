@@ -1,5 +1,7 @@
 package logging
 
+import java.util.*
+
 /**
  * Created by Mihael Berčič
  * on 26/03/2020 15:35
@@ -8,26 +10,67 @@ package logging
 
 object Logger {
 
-    val red = "\u001b[31m"
-    val blue = "\u001B[34;1m"
-    val cyan = "\u001b[36m"
-    val green = "\u001b[32m"
-    val black = "\u001b[30m"
-    val yellow = "\u001b[33m"
-    val magenta = "\u001b[35m"
-    val white = "\u001b[37m"
-    val reset = "\u001B[0m"
+    private var currentDebug: DebugType = DebugType.ALL
 
-    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4).chunked(3).joinToString(" ")
+    const val red = "\u001b[31m"
+    const val blue = "\u001B[34;1m"
+    const val cyan = "\u001b[36m"
+    const val green = "\u001b[32m"
+    const val black = "\u001b[30m"
+    const val yellow = "\u001b[33m"
+    const val magenta = "\u001b[35m"
+    const val white = "\u001b[37m"
+    const val reset = "\u001B[0m"
 
-    fun debug(any: Any) = println("$blue${padRight("[DEBUG]")}${padRight(timestamp)}$reset $any")
-    fun info(any: Any) = println("$green${padRight("[INFO]")}${padRight(timestamp)}$reset $any")
-    fun error(any: Any) = println("$red${padRight("[ERROR]")}${padRight(timestamp)}$reset $any")
-    fun trace(any: Any) = println("$yellow${padRight("[TRACE]")}${padRight(timestamp)}$reset $any")
-    fun chain(any: Any) = println("$cyan${padRight("[CHAIN]")}${padRight(timestamp)}$reset $any")
-    fun consensus(any: Any) = println("$magenta${padRight("[CONSENSUS]")}${padRight(timestamp)}$reset $any")
+    private const val informationString = " -------------------------------------------\n" +
+            "| ${red}Debug information$reset                         |\n" +
+            "| d = debug    e = error     c = chain      |\n" +
+            "| i = info     t = trace     x = consensus  |\n" +
+            "| ------------------------------------------|\n" +
+            "| a = ALL                                   |\n" +
+            " -------------------------------------------\n"
 
-    
+    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4)// .chunked(3).joinToString(" ")
+
+
+    private fun log(debugType: DebugType, message: Any, color: String = black) {
+        if (currentDebug == DebugType.ALL || currentDebug == debugType) {
+            val typeString = padRight(timestamp) + padRight(debugType.name)
+            println("$color$typeString$reset$message")
+        }
+    }
+
+    fun startInputListening() = Thread {
+        println(informationString)
+        val scanner = Scanner(System.`in`)
+        while (true) {
+            if (scanner.hasNext()) {
+                val next = scanner.next()
+                currentDebug = when (next[0]) {
+                    'd' -> DebugType.DEBUG
+                    'i' -> DebugType.INFO
+                    'e' -> DebugType.ERROR
+                    't' -> DebugType.TRACE
+                    'c' -> DebugType.CHAIN
+                    'x' -> DebugType.CONSENSUS
+                    else -> DebugType.ALL
+                }
+                println("Logging level has changed to $currentDebug")
+                println(informationString)
+
+            }
+        }
+    }.start()
+
+    fun info(message: Any) = log(DebugType.INFO, message, green)
+    fun debug(message: Any) = log(DebugType.DEBUG, message, blue)
+    fun error(message: Any) = log(DebugType.ERROR, message, red)
+    fun trace(message: Any) = log(DebugType.TRACE, message, yellow)
+    fun chain(message: Any) = log(DebugType.CHAIN, message, cyan)
+    fun consensus(message: Any) = log(DebugType.CONSENSUS, message, magenta)
+
     private fun padRight(string: String) = string.padEnd(12)
 
 }
+
+enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
