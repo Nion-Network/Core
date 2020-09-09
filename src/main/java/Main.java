@@ -35,6 +35,7 @@ public class Main {
     public static void main(String[] args) throws UnknownHostException {
         boolean isPathSpecified = args.length != 0;
 
+        Logger.INSTANCE.startInputListening();
         Logger.INSTANCE.debug("Starting...");
         Logger.INSTANCE.info("Path for config file specified: " + isPathSpecified);
         Logger.INSTANCE.info("Using " + (isPathSpecified ? "custom" : "default") + " configuration file...");
@@ -87,4 +88,5 @@ public class Main {
             Logger.INSTANCE.chain("Cold start, starting chain sync.");
         }
     }
+
 }
