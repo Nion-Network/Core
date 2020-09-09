@@ -48,16 +48,15 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
                 return false
             }
-            height == lastBlock!!.height + 1 -> {
+            height == lastBlock!!.height + 1 -> { //present
                 Logger.debug("Block we're attempting to add what appears to be a successor of our last block (height > lastHeight)...")
-                if (isProofValid(blockData)) {
-                    if (blockData.previousBlockHash != lastBlock?.hash) {
-                        Logger.error("Previous block hash doesn't match our last block hash... Running fork resolution by pop and sync...")
-                        lastBlock?.apply { chain.remove(this) }
-                        isSynced = false
-                        networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
-                        return false
-                    }
+                if (blockData.previousBlockHash != lastBlock?.hash) {
+                    Logger.error("Previous block hash doesn't match our last block hash... Running fork resolution by pop and sync...")
+                    lastBlock?.apply { chain.remove(this) }
+                    isSynced = false
+                    networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
+                    return false
+                } else if (isProofValid(blockData)) {
                     Logger.debug("Proof for $hash appears to be valid and we're adding the block to the chain...")
                     chain.add(blockData)
                     Dashboard.newBlockAccepted(blockData,crypto)
@@ -85,10 +84,11 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 networkManager.initiate(ProtocolTasks.requestBlocks,chain.size)
                 return false
             }
+
             else -> return false.apply { Logger.debug("Block validation has failed...") }
         }
     }
-
+    @Synchronized
     fun updateVdf(vdfProof: String, height: Int): Boolean {
         val lastBlock = lastBlock
         val lastHeight = lastBlock?.height ?: 1
@@ -120,7 +120,6 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                         val myTurn = lotteryResults.indexOf(crypto.publicKey)
                         val delta: Long = configuration.epochDuration
                         val deadline = myTurn * delta + System.currentTimeMillis()
-
 
                         schedulingThread.interrupt()
                         schedulingThread = Thread {
