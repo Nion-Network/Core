@@ -48,7 +48,7 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                 networkManager.initiate(ProtocolTasks.requestBlocks, chain.size)
                 return false
             }
-            height > lastBlock!!.height -> {
+            height == lastBlock!!.height + 1 -> {
                 Logger.debug("Block we're attempting to add what appears to be a successor of our last block (height > lastHeight)...")
                 if (isProofValid(blockData)) {
                     if (blockData.previousBlockHash != lastBlock?.hash) {
@@ -75,6 +75,14 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
                     } else Logger.consensus("We're not a validator node, skipping block creation")
                     return true
                 } else Logger.consensus("Proof validation failed")
+                return false
+            }
+            height > lastBlock!!.height +1 ->{ //block in the future. Block validation will fail, but we could have forked.
+                Logger.consensus("Block $height is in the future, initiate pop and re-sync")
+                Dashboard.possibleFork(blockData,crypto, chain.last())
+                chain.remove(chain.last()) //pop last block
+                isSynced=false
+                networkManager.initiate(ProtocolTasks.requestBlocks,chain.size)
                 return false
             }
             else -> return false.apply { Logger.debug("Block validation has failed...") }
@@ -122,8 +130,9 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
 
                             if (lastBlock.height == height) return@Thread
 
-                            Logger.consensus("New block forged at height $height in $myTurn epoch")
-                            val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests)
+
+                            val newBlock: BlockData = BlockData.forgeNewBlock(chain.last(), vdfProof, crypto.publicKey, pendingInclusionRequests,distance(vdfProof,crypto.publicKey))
+                            Logger.consensus("New block forged at height $height in $myTurn epoch with has ${newBlock.hash}")
                             if (addBlock(newBlock)) networkManager.initiate(ProtocolTasks.newBlock, newBlock)
 
                             Logger.error("Thread stop ${System.currentTimeMillis()}")
@@ -174,30 +183,6 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
         val front = abs(java.lang.Long.parseUnsignedLong(nodeId.substring(0, 16), 16) / Long.MAX_VALUE.toDouble())
         return (abs(front - draw) * 100000).toInt()
     }
-
-    /*
-    private fun isSuccessorBlock(blockData: BlockData): Boolean = expectedBlock.apply { Logger.error("Expected block: $this") }?.let { expectedBlock ->
-        val expectedHeight = expectedBlock.height
-        val expectedBlockProducer = expectedBlock.blockProducer
-        val blockProducer = blockData.blockProducer
-        val blockHeight = blockData.height
-
-        Logger.debug("Expected: ${expectedBlockProducer?.substring(0..60)}")
-        Logger.debug("Received: ${blockProducer?.substring(0..60)}")
-        Logger.debug(blockData.consensusNodes.map { it.substring(0..60) })
-
-        if (expectedHeight != blockHeight) Logger.chain("Expecting block at height: $expectedHeight. Received $blockHeight")
-        else when (expectedBlockProducer) {
-            blockProducer -> {
-                Logger.chain("Block validation passed")
-                return true
-            }
-            null -> Logger.chain("Block came before the proof")
-            else -> Logger.chain("Block ${blockProducer?.substring(0..60) ?: "Unknown"} is not the lottery winner for block $blockHeight")
-        }
-        return false
-    } ?: false
-    */
 
     private fun isProofValid(blockData: BlockData): Boolean {
         val lastBlock = lastBlock

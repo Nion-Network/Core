@@ -4,6 +4,7 @@ import Main
 import abstraction.Message
 import common.BlockChain
 import io.javalin.http.Context
+import logging.Dashboard
 import logging.Logger
 import messages.RequestInclusionBody
 import messages.VdfProofBody
@@ -27,6 +28,7 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         Logger.debug("Requesting inclusion...")
         nodeNetwork.createValidatorInclusionRequestMessage(publicKey).also { message ->
             nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/include", message) }
+            Dashboard.newMessage(message,crypto,"InclusionRequest")
         }
     }
 

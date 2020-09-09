@@ -5,6 +5,7 @@ import common.BlockChain
 import common.BlockData
 import configuration.Configuration
 import io.javalin.http.Context
+import logging.Dashboard
 import logging.Logger
 import messages.NewBlockMessageBody
 import messages.RequestBlocksMessageBody
