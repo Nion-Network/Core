@@ -2,7 +2,7 @@ package utils
 
 import Main
 import abstraction.Message
-import abstraction.NetworkRequest
+import abstraction.NetworkRequestType
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
 import org.apache.commons.codec.digest.DigestUtils
@@ -23,11 +23,11 @@ class Utils {
 
     companion object {
 
-        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequest = NetworkRequest.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
+        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
             this.addRequestProperty("hex", DigestUtils.sha256Hex(message.signature))
         }
 
-        private fun urlRequest(type: NetworkRequest, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
+        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
             connection.requestMethod = type.name
             connection.apply(customBlock) // Customization
             connection.doOutput = body.isNotEmpty()

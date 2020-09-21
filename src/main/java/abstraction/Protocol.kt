@@ -11,6 +11,9 @@ import utils.Utils
  * using IntelliJ IDEA
  */
 
+enum class NetworkRequestType { GET, POST }
+enum class ProtocolTasks { newBlock, requestBlocks, requestInclusion }
+
 /**
  * Message with body of type T.
  *
@@ -35,10 +38,9 @@ data class Message<T>(val publicKey: String, val signature: String, val body: T,
  * @property publicKey
  * @property ip
  * @property port
+ * @property returnAddress String representing URL to access the Node.
  */
-data class Node(val publicKey: String, val ip: String, val port: Int) {
-
-    val returnAddress get() = "http://$ip:port"
+data class Node(val publicKey: String, val ip: String, val port: Int, val returnAddress: String = "http://$ip:port") {
 
     /**
      * Sends the given message to current node.
@@ -52,14 +54,3 @@ data class Node(val publicKey: String, val ip: String, val port: Int) {
 }
 
 
-/**
- * Http method request types.
- *
- */
-enum class NetworkRequest { GET, POST }
-
-/**
- * Protocol types.
- *
- */
-enum class ProtocolTasks { newBlock, requestBlocks, requestInclusion }
