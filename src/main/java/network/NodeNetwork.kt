@@ -37,13 +37,14 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
 
     fun pickRandomNodes(amount: Int): List<Node> = nodeMap.values.shuffled().take(amount)
 
-    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Main.gson.toJson(data)), data)
-
     /**
-     * In order to avoid nasty code writing in other protocols, we create messages here...
+     * Create a generics message ready to be sent across the network.
+     *
+     * @param T Message body class type
+     * @param data Body of type T to be serialized into JSON.
+     * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-
-    // Message Creation
+    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Main.gson.toJson(data)), data)
 
     private val ourNode = Node(crypto.publicKey, myIP, configuration.listeningPort)
 

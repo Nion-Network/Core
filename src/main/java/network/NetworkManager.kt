@@ -26,8 +26,6 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
     private val nodeNetwork = NodeNetwork(configuration, crypto)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
-
-    // Protocols
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
     private val blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork, crypto, blockChain, configuration)
     private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
@@ -50,19 +48,19 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         Logger.trace("My IP is ${nodeNetwork.myIP}")
 
         "/ping" get { status(200) }
-        "/join" post { dhtProtocol.joinRequest(this) }
-        "/joined" post { dhtProtocol.onJoin(this) }
-        "/query" post { dhtProtocol.onQuery(this) }
-        "/found" post { dhtProtocol.onFound(this) }
-
-
         "/chain" get { this.result(Main.gson.toJson(blockChain.chain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
-        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
-        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
-        "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
-        "/include" post { consensus.validatorSetInclusionRequest(this) }
+
+        "/join" post { dhtProtocol.joinRequest(this) }
+        "/query" post { dhtProtocol.onQuery(this) }
+        "/found" post { dhtProtocol.onFound(this) }
+        "/joined" post { dhtProtocol.onJoin(this) }
+
         "/vdf" post { consensus.receivedVdf(this) }
+        "/include" post { consensus.validatorSetInclusionRequest(this) }
+        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
+        "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
+        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
 
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
@@ -85,14 +83,25 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
 
 
     /**
-     * Set javalin application's context to response to the string (path) with the context block.
+     *  Set networking to respond using given lambda block to provided path on GET request.
      *
-     * @param block the application will use when the GET path is visited.
+     * @param block Response lambda that will execute on GET request.
      */
     private infix fun String.get(block: Context.() -> Unit): Javalin = application.get(this, block)
+
+    /**
+     *  Set networking to respond using given lambda block to provided path on POST request.
+     *
+     * @param block Response lambda that will execute on POST request.
+     */
     private infix fun String.post(block: Context.() -> Unit): Javalin = application.post(this, block)
 
-    //entry points for protocols
+    /**
+     * Initiates the given protocol and passes the payload to it.
+     *
+     * @param protocol Chosen protocol.
+     * @param payload Payload to be sent.
+     */
     fun initiate(protocol: ProtocolTasks, payload: Any) {
         Logger.info("Initiating protocol task $protocol")
         when (protocol) {

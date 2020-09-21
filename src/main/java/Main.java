@@ -22,12 +22,6 @@ import java.net.UnknownHostException;
 
 public class Main {
 
-    /**
-     * Logger use:
-     * Java -> Logger.INSTANCE.debug(...)
-     * Kotlin -> Logger.debug(...)
-     */
-
     public static Gson gson = new GsonBuilder()
             .setPrettyPrinting() // For debugging...
             .create();
@@ -52,15 +46,12 @@ public class Main {
 
         String publicKey = crypto.getPublicKey();
 
-        //the bootstrap node should start block production
-        if (isTrustedNode) {
+        if (isTrustedNode) { //the bootstrap node should start block production
             Logger.INSTANCE.debug("Set synced and validator to true...");
             blockChain.setSynced(true);
             blockChain.setValidator(true);
             blockChain.addBlock(BlockData.Companion.genesisBlock(publicKey, 200000));
         }
-
-        // TODO NOT Cool with possible NPEs yo
 
         //start producing blocks
         while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
@@ -83,7 +74,7 @@ public class Main {
 
         Logger.INSTANCE.consensus("Requesting inclusion into the validator set");
         networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
-        if(blockChain.getChain().isEmpty()) {
+        if (blockChain.getChain().isEmpty()) {
             networkManager.initiate(ProtocolTasks.requestBlocks, 0);
             Logger.INSTANCE.chain("Cold start, starting chain sync.");
         }

@@ -12,15 +12,17 @@ object Logger {
 
     private var currentDebug: DebugType = DebugType.ALL
 
-    const val red = "\u001b[31m"
-    const val blue = "\u001B[34;1m"
-    const val cyan = "\u001b[36m"
-    const val green = "\u001b[32m"
-    const val black = "\u001b[30m"
-    const val yellow = "\u001b[33m"
-    const val magenta = "\u001b[35m"
-    const val white = "\u001b[37m"
-    const val reset = "\u001B[0m"
+    private enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
+
+    private const val red = "\u001b[31m"
+    private const val blue = "\u001B[34;1m"
+    private const val cyan = "\u001b[36m"
+    private const val green = "\u001b[32m"
+    private const val black = "\u001b[30m"
+    private const val yellow = "\u001b[33m"
+    private const val magenta = "\u001b[35m"
+    private const val white = "\u001b[37m"
+    private const val reset = "\u001B[0m"
 
     private const val informationString = " -------------------------------------------\n" +
             "| ${red}Debug information$reset                         |\n" +
@@ -30,9 +32,16 @@ object Logger {
             "| a = ALL                                   |\n" +
             " -------------------------------------------\n"
 
-    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4)// .chunked(3).joinToString(" ")
+    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4).chunked(3).joinToString(" ")
 
 
+    /**
+     * Prints the given message with the coloring and debug information provided.
+     *
+     * @param debugType
+     * @param message
+     * @param color Text color
+     */
     private fun log(debugType: DebugType, message: Any, color: String = black) {
         if (currentDebug == DebugType.ALL || currentDebug == debugType) {
             val typeString = padRight(timestamp) + padRight(debugType.name)
@@ -40,6 +49,10 @@ object Logger {
         }
     }
 
+    /**
+     * Starts a console input listening thread used for controlling future printing output.
+     *
+     */
     fun startInputListening() = Thread {
         println(informationString)
         val scanner = Scanner(System.`in`)
@@ -72,5 +85,3 @@ object Logger {
     private fun padRight(string: String) = string.padEnd(12)
 
 }
-
-enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
