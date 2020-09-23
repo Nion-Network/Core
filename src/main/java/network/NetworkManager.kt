@@ -1,16 +1,11 @@
 package network
 
-import Main
 import abstraction.ProtocolTasks
-import common.BlockChain
-import common.BlockData
 import configuration.Configuration
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
-import protocols.BlockPropagation
-import protocols.Consensus
 import protocols.DHT
 import utils.Crypto
 import utils.Utils
@@ -21,17 +16,17 @@ import utils.networkHistory
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: BlockChain) {
+class NetworkManager(configuration: Configuration, crypto: Crypto) { // , blockChain: BlockChain
 
     private val nodeNetwork = NodeNetwork(configuration, crypto)
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
     private val dhtProtocol: DHT = DHT(nodeNetwork, crypto)
-    private val blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork, crypto, blockChain, configuration)
-    private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
+    // private val blockPropagation: BlockPropagation = BlockPropagation(nodeNetwork, crypto, blockChain, configuration)
+    // private val consensus: Consensus = Consensus(nodeNetwork, crypto, blockChain)
 
     init {
-        blockChain.networkManager = this
+        // blockChain.networkManager = this
         application.exception(Exception::class.java) { exception, context ->
             Logger.error("Stumbled upon error on request from ${context.ip()}")
             exception.printStackTrace()
@@ -48,7 +43,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         Logger.trace("My IP is ${nodeNetwork.myIP}")
 
         "/ping" get { status(200) }
-        "/chain" get { this.result(Main.gson.toJson(blockChain.chain)) } //for browser debugging
+        // "/chain" get { this.result(Main.gson.toJson(blockChain.chain)) } //for browser debugging
         "/search" get { dhtProtocol.sendSearchQuery(this.queryParam("pub_key").toString()); }
 
         "/join" post { dhtProtocol.joinRequest(this) }
@@ -56,12 +51,15 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
 
+        /*
         "/vdf" post { consensus.receivedVdf(this) }
         "/include" post { consensus.validatorSetInclusionRequest(this) }
         "/newBlock" post { blockPropagation.receivedNewBlock(this) }
         "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
         "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
 
+
+         */
         // Join request to trusted Node after setup
         // Check for IP (or port difference for local testing)...
         if (nodeNetwork.myIP != configuration.trustedNodeIP || configuration.listeningPort != configuration.trustedNodePort) {
@@ -96,6 +94,7 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
      */
     private infix fun String.post(block: Context.() -> Unit): Javalin = application.post(this, block)
 
+    /*
     /**
      * Initiates the given protocol and passes the payload to it.
      *
@@ -110,4 +109,6 @@ class NetworkManager(configuration: Configuration, crypto: Crypto, blockChain: B
             ProtocolTasks.requestInclusion -> consensus.requestInclusion(payload as String)
         }
     }
+
+     */
 }
