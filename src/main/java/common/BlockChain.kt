@@ -1,15 +1,9 @@
 package common
 
-import abstraction.ProtocolTasks
-import configuration.Configuration
-import logging.Logger
-import network.NetworkManager
-import org.apache.commons.codec.digest.DigestUtils
-import utils.Crypto
-import utils.VDF
-import java.util.*
-import java.util.concurrent.Executors
-import kotlin.math.abs
+
+
+/*
+
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
 
@@ -217,4 +211,5 @@ class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val c
     }
 }
 
-private data class ExpectedBlock(val previousBlockHash: String, var vdfProof: String? = null, var blockProducer: String? = null, val height: Int)
+
+*/

@@ -2,6 +2,25 @@ package common
 
 import org.apache.commons.codec.digest.DigestUtils
 
+/*
+BLOCK { header, epoch, slot, previousHash, currentHash, timeStamp, signature, body }
+
+ */
+
+data class Block(val epoch: Int,
+                 val slot: Int,
+                 val height: Int,
+                 val difficulty: Int,
+                 val timestamp: Long,
+                 val committeeIndex: Int,
+                 val precedentHash: String = "",
+                 val hash: String = DigestUtils.sha256Hex("$epoch$slot$height$difficulty$timestamp$committeeIndex$precedentHash"))
+
+// send(BlockMessage<BlockData>(...))
+// send(BlockMessage<Vote>(...))
+// send(BlockMessage<VdfProof>(...))
+
+/*
 data class BlockData(
         val previousBlockHash: String? = null,
         val height: Int = 0,
@@ -31,5 +50,5 @@ data class BlockData(
         )
     }
 }
-
+*/
 
