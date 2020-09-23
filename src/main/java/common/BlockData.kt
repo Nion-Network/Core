@@ -14,6 +14,7 @@ data class Block(val epoch: Int,
                  val timestamp: Long,
                  val committeeIndex: Int,
                  val precedentHash: String = "",
+                 val validatorChanges: Map<Boolean, String> = emptyMap(),
                  val hash: String = DigestUtils.sha256Hex("$epoch$slot$height$difficulty$timestamp$committeeIndex$precedentHash"))
 
 // send(BlockMessage<BlockData>(...))
