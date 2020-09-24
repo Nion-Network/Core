@@ -1,5 +1,6 @@
 package manager
 
+import blockchain.BlockChain
 import blockchain.BlockProducer
 import configuration.Configuration
 import network.NetworkManager
@@ -29,6 +30,7 @@ class ApplicationManager(configFileContent: String) {
 
     val blockProducer = BlockProducer(this)
     val validatorManager = ValidatorManager(this)
+    val blockChain = BlockChain(this)
 
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 }

@@ -17,11 +17,12 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
             applicationManager.currentValidators.apply {
                 add(publicKey)
                 // TODO add to config
-                if (size >= 2) {
-                    val geneseisBlock = applicationManager.blockProducer.genesisBlock
-                    // TODO add to chain SOMEWHERE
-                    applicationManager.vdf.runVDF(geneseisBlock.difficulty, geneseisBlock.hash, geneseisBlock.height)
+                if (size >= 2) applicationManager.apply {
+                    val genesisBlock = blockProducer.genesisBlock
+                    blockChain.addBlock(genesisBlock)
+                    vdf.runVDF(genesisBlock.difficulty, genesisBlock.hash, genesisBlock.height)
                 }
+
             }
             Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
         }
