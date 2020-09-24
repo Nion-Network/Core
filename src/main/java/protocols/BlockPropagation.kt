@@ -1,8 +1,7 @@
 package protocols
 
 import abstraction.Message
-import common.BlockChain
-import common.BlockData
+import blockchain.Block
 import configuration.Configuration
 import io.javalin.http.Context
 import logging.Logger
@@ -13,6 +12,7 @@ import network.NodeNetwork
 import utils.Crypto
 import utils.getMessage
 
+/*
 class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto: Crypto, private val blockChain: BlockChain, private val configuration: Configuration) {
 
 
@@ -61,3 +61,5 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
         blockChain.syncChain(blocks)
     }
 }
+
+*/

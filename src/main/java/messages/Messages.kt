@@ -1,7 +1,7 @@
 package messages
 
 import abstraction.Node
-import common.BlockData
+import blockchain.Block
 
 /**
  * Created by Mihael Valentin Berčič
@@ -10,9 +10,9 @@ import common.BlockData
  */
 
 data class IdentificationMessage(val node: Node)
-data class NewBlockMessageBody(val block: BlockData)
+data class NewBlockMessageBody(val block: Block)
 
-data class ResponseBlocksMessageBody(val blocks: List<BlockData>)
+data class ResponseBlocksMessageBody(val blocks: List<Block>)
 data class RequestInclusionBody(val publicKey: String)
 data class VdfProofBody(val proof: String, val block: Int)
 

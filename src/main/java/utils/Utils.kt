@@ -3,6 +3,7 @@ package utils
 import Main
 import abstraction.Message
 import abstraction.NetworkRequestType
+import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
 import org.apache.commons.codec.digest.DigestUtils
@@ -22,6 +23,10 @@ val networkHistory = hashMapOf<String, Long>()
 class Utils {
 
     companion object {
+
+        val gson = GsonBuilder()
+                .setPrettyPrinting() // For debugging...
+                .create()
 
         fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
             this.addRequestProperty("hex", DigestUtils.sha256Hex(message.signature))
@@ -50,4 +55,4 @@ class Utils {
 
 }
 
-inline fun <reified T> Context.getMessage(): Message<T> = Main.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
+inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)

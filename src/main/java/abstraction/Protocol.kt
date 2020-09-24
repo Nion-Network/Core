@@ -2,7 +2,6 @@
 
 package abstraction
 
-import Main.gson
 import utils.Utils
 
 /**
@@ -28,8 +27,8 @@ enum class ProtocolTasks { newBlock, requestBlocks, requestInclusion }
  * @property bodyAsString returns @body as JSON.
  */
 data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis()) {
-    val asJson: String get() = gson.toJson(this)
-    val bodyAsString: String get() = gson.toJson(body)
+    val asJson: String get() = Utils.gson.toJson(this)
+    val bodyAsString: String get() = Utils.gson.toJson(body)
 }
 
 /**

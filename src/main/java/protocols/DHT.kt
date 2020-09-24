@@ -4,12 +4,10 @@ import abstraction.Message
 import abstraction.Node
 import io.javalin.http.Context
 import logging.Logger
+import manager.ApplicationManager
 import messages.FoundMessage
 import messages.IdentificationMessage
 import messages.QueryMessageBody
-import network.NodeNetwork
-import utils.Crypto
-import utils.Utils
 import utils.getMessage
 
 /**
@@ -17,8 +15,10 @@ import utils.getMessage
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
+class DHT(private val applicationManager: ApplicationManager) {
 
+    private val networkManager = applicationManager.networkManager
+    private val nodeNetwork = networkManager.nodeNetwork
 
     fun sendSearchQuery(forPublicKey: String) {
         Logger.info("Broadcasting on /query looking for our key owner...")
@@ -74,7 +74,7 @@ class DHT(private val nodeNetwork: NodeNetwork, private val crypto: Crypto) {
 
     fun onJoin(context: Context) {
         val message: Message<IdentificationMessage> = context.getMessage()
-        val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
+        val confirmed: Boolean = applicationManager.crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
             val acceptorNode: Node = message.body.node
             Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
