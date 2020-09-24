@@ -1,9 +1,16 @@
 package blockchain
 
+import manager.ApplicationManager
 
+class BlockChain(applicationManager: ApplicationManager) {
+
+    private val chain = mutableListOf<Block>()
+
+    fun addBlock(block: Block) = chain.add(block)
+
+}
 
 /*
-
 
 class BlockChain(private var crypto: Crypto, private var vdf: VDF, private val configuration: Configuration) {
 
