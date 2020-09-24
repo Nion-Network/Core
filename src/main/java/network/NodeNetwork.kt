@@ -1,14 +1,13 @@
 package network
 
-import Main
 import abstraction.Message
 import abstraction.Node
-import common.BlockData
-import configuration.Configuration
+import blockchain.Block
 import logging.Logger
+import manager.ApplicationManager
 import messages.*
 import org.apache.commons.codec.digest.DigestUtils
-import utils.Crypto
+import utils.Utils
 import utils.networkHistory
 import java.net.InetAddress
 
@@ -17,7 +16,15 @@ import java.net.InetAddress
  * on 16/04/2020 at 13:45
  * using IntelliJ IDEA
  */
-class NodeNetwork(private val configuration: Configuration, private val crypto: Crypto) {
+class NodeNetwork(applicationManager: ApplicationManager) {
+
+    private val crypto = applicationManager.crypto
+    private val configuration = applicationManager.configuration
+    private val ourNode = Node(crypto.publicKey, myIP, configuration.listeningPort)
+
+    init {
+        Logger.trace("My IP is $myIP")
+    }
 
     val nodeMap: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
     var isInNetwork = false
@@ -44,15 +51,14 @@ class NodeNetwork(private val configuration: Configuration, private val crypto: 
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Main.gson.toJson(data)), data)
+    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
 
-    private val ourNode = Node(crypto.publicKey, myIP, configuration.listeningPort)
 
     fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(ourNode))
     fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
     fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(ourNode, lookingFor))
-    fun createNewBlockMessage(block: BlockData): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
+    fun createNewBlockMessage(block: Block): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
     fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(ourNode, height))
-    fun createResponseBlocksMessage(blocks: List<BlockData>): Message<ResponseBlocksMessageBody> = createGenericsMessage(ResponseBlocksMessageBody(blocks))
+    fun createResponseBlocksMessage(blocks: List<Block>): Message<ResponseBlocksMessageBody> = createGenericsMessage(ResponseBlocksMessageBody(blocks))
     fun createValidatorInclusionRequestMessage(publicKey: String): Message<RequestInclusionBody> = createGenericsMessage(RequestInclusionBody(publicKey))
 }

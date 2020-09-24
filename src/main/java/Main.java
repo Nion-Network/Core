@@ -1,14 +1,7 @@
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import configuration.Configuration;
 import logging.Logger;
-import network.NetworkManager;
-import state.State;
-import utils.Crypto;
+import manager.ApplicationManager;
 import utils.Utils;
-import utils.VDF;
 
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
@@ -20,10 +13,6 @@ import java.net.UnknownHostException;
 
 public class Main {
 
-    public static Gson gson = new GsonBuilder()
-            .setPrettyPrinting() // For debugging...
-            .create();
-
     public static void main(String[] args) throws UnknownHostException {
         boolean isPathSpecified = args.length != 0;
 
@@ -34,55 +23,8 @@ public class Main {
 
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
-        Configuration configuration = gson.fromJson(fileText, Configuration.class);
-        Crypto        crypto        = new Crypto(".");
-        VDF           vdf           = new VDF("http://localhost:" + configuration.getListeningPort() + "/vdf");
-        State         currentState  = new State(0, 0, 0, configuration.getInitialDifficulty());
+        ApplicationManager manager = new ApplicationManager(fileText);
 
-        // BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
-        NetworkManager networkManager = new NetworkManager(configuration, crypto);
-
-        boolean isTrustedNode = InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP());
-
-        String publicKey = crypto.getPublicKey();
-
-        /*
-                if (isTrustedNode) { //the bootstrap node should start block production
-                    Logger.INSTANCE.debug("Set synced and validator to true...");
-                    blockChain.setSynced(true);
-                    blockChain.setValidator(true);
-                    blockChain.addBlock(BlockData.Companion.genesisBlock(publicKey, 200000));
-                }
-
-
-                //start producing blocks
-                while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
-                    if (!blockChain.getChain().isEmpty()) {//oh god
-                        BlockData lastBlock = blockChain.getLastBlock();
-                        if (lastBlock != null) {
-                            boolean areWeProducers = lastBlock.getConsensusNodes().contains(publicKey);
-                            Logger.INSTANCE.debug("Are we block producers? " + areWeProducers);
-                            if (areWeProducers) {
-                                try {
-                                    vdf.runVDF(lastBlock.getDifficulty(), lastBlock.getHash(), lastBlock.getHeight() + 1);
-                                    break;
-                                } catch (Exception e) {
-                                    Logger.INSTANCE.error(e.getMessage());
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-
-        Logger.INSTANCE.consensus("Requesting inclusion into the validator set");
-        networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
-        if (blockChain.getChain().isEmpty()) {
-            networkManager.initiate(ProtocolTasks.requestBlocks, 0);
-            Logger.INSTANCE.chain("Cold start, starting chain sync.");
-        }
-         */
     }
 
 }
