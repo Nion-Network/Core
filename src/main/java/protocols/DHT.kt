@@ -17,8 +17,8 @@ import utils.getMessage
  */
 class DHT(private val applicationManager: ApplicationManager) {
 
-    private val networkManager = applicationManager.networkManager
-    private val nodeNetwork = networkManager.nodeNetwork
+    private val networkManager by lazy { applicationManager.networkManager }
+    private val nodeNetwork by lazy { networkManager.nodeNetwork }
 
     fun sendSearchQuery(forPublicKey: String) {
         Logger.info("Broadcasting on /query looking for our key owner...")
@@ -68,7 +68,7 @@ class DHT(private val applicationManager: ApplicationManager) {
             Logger.debug("Node [$ip] has been accepted into the network...")
             nodeNetwork.nodeMap[publicKey] = this
             sendMessage("/joined", nodeNetwork.createIdentificationMessage())
-        } else nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/join", message) }
+        } else nodeNetwork.broadcast("/join", message)
         context.status(200)
     }
 

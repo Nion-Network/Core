@@ -17,6 +17,6 @@ data class RequestInclusionBody(val publicKey: String)
 data class VdfProofBody(val proof: String, val block: Int)
 
 data class QueryMessageBody(val node: Node, val searchingPublicKey: String)
-data class RequestBlocksMessageBody(val node: Node, val height: Int)
+data class RequestBlocksMessageBody(val node: Node, val epoch: Int)
 
 data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)

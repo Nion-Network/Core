@@ -12,30 +12,20 @@ import utils.networkHistory
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(applicationManager: ApplicationManager) { // , blockChain: BlockChain
-
-    // BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
+class NetworkManager(val applicationManager: ApplicationManager) { // , blockChain: BlockChain
 
     val nodeNetwork = NodeNetwork(applicationManager)
-    private val validatorManager = applicationManager.validatorManager
     private val configuration = applicationManager.configuration
-    private val dhtProtocol = applicationManager.dhtProtocol
+
+    private val dhtProtocol by lazy { applicationManager.dhtProtocol }
+    private val vdfManager by lazy { applicationManager.vdfManager }
+    private val chainManager by lazy { applicationManager.chainManager }
+    private val validatorManager by lazy { applicationManager.validatorManager }
 
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
-    init {
-        // blockChain.networkManager = this
-        application.exception(Exception::class.java) { exception, context ->
-            Logger.error("Stumbled upon error on request from ${context.ip()}")
-            exception.printStackTrace()
-        }
 
-        application.before {
-            val hex = it.header("hex")
-            if (networkHistory.containsKey(hex)) {
-                Logger.error("We've already seen this message [${it.path()}]... We're ignoring it!")
-            }
-        }
+    fun start() {
         "/ping" get { status(200) }
 
         // DHT protocol
@@ -45,25 +35,15 @@ class NetworkManager(applicationManager: ApplicationManager) { // , blockChain: 
         "/join" post { dhtProtocol.joinRequest(this) }
         "/search" get { this.queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
 
-
-        //
         "/include" post { validatorManager.validatorSetInclusionRequest(this) }
-
-
-        /*
-        "/vdf" post { consensus.receivedVdf(this) }
-        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
-        "/syncBlockchainReply" post { blockPropagation.processBlocks(this) } //we received a reply to our request for blocks
-        "/syncBlockchainRequest" post { blockPropagation.receivedSyncRequest(this) } //we were asked for our blocks
-
-
-         */
+        "/vdf" post { vdfManager.receivedVdf(this) }
+        "/syncRequest" post { chainManager.syncRequestReceived(this) } //we were asked for our blocks
+        "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
-            Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", nodeNetwork.createIdentificationMessage()).apply {
-                Logger.trace("Join response from trusted node: $this")
-            }
+            val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", nodeNetwork.createIdentificationMessage())
+            Logger.trace("Join response from trusted node: $response")
 
             while (!nodeNetwork.isInNetwork) {
                 Logger.trace("Waiting to be accepted into the network...")
@@ -73,6 +53,20 @@ class NetworkManager(applicationManager: ApplicationManager) { // , blockChain: 
             Logger.debug("We're in the network. Happy networking!")
         } else Logger.debug("We're the trusted node!")
         Logger.debug("Listening on port: " + configuration.listeningPort)
+    }
+
+    init {
+
+        application.exception(Exception::class.java) { exception, context ->
+            Logger.error("Stumbled upon error on request from ${context.ip()}")
+            exception.printStackTrace()
+        }
+
+        application.before { if (networkHistory.containsKey(it.header("hex"))) Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!") }
+
+        /*
+        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
+         */
     }
 
 

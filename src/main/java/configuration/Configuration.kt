@@ -9,7 +9,10 @@ data class Configuration(
         val keystorePath: String,
         val epochDuration: Long,
         val broadcastSpread: Int,
-        val initialDifficulty: Int
+        val initialDifficulty: Int,
+        val validatorsCount: Int,
+        val committeeSize: Int,
+        val slotCount: Int
 ) {
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
 }

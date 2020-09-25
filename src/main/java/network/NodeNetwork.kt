@@ -43,7 +43,6 @@ class NodeNetwork(applicationManager: ApplicationManager) {
     }
 
     fun pickRandomNodes(amount: Int): List<Node> = nodeMap.values.shuffled().take(amount)
-
     /**
      * Create a generics message ready to be sent across the network.
      *
@@ -53,8 +52,11 @@ class NodeNetwork(applicationManager: ApplicationManager) {
      */
     fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
 
-
     fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(ourNode))
+
+
+    fun <T> sendMessageToRandomNodes(path: String, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(path, message) }
+
     fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
     fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(ourNode, lookingFor))
     fun createNewBlockMessage(block: Block): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
