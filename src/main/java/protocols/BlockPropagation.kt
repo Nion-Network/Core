@@ -18,12 +18,6 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
 
     //TODO: Add message queue to check weather the message was already received and stop propagation
 
-    fun broadcast(block: BlockData) {
-        Logger.debug("We're broadcasting block ${block.hash}")
-        val newBlockMessage = nodeNetwork.createNewBlockMessage(block)
-        nodeNetwork.broadcast("/newBlock", newBlockMessage, true)
-    }
-
     fun receivedNewBlock(context: Context) {
         val message: Message<NewBlockMessageBody> = context.getMessage()
         val newBlockMessage: NewBlockMessageBody = message.body
@@ -39,26 +33,7 @@ class BlockPropagation(private val nodeNetwork: NodeNetwork, private val crypto:
     }
 
     fun receivedSyncRequest(context: Context) {
-        val message = context.getMessage<RequestBlocksMessageBody>()
-        val blockMessage = message.body
-        Logger.debug("Received request for blockchain sync from height: ${blockMessage.height}")
 
-        Logger.debug("Sending back a response with blocks to sync...")
-        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blockChain.chain.drop(blockMessage.height))
-        blockMessage.node.sendMessage("/syncBlockchainReply", responseBlocksMessageBody)
-    }
-
-    fun requestBlocks(height: Int) {
-        Logger.info("Requesting new blocks from $height")
-        nodeNetwork.pickRandomNodes(1).forEach { it.sendMessage("/syncBlockchainRequest", nodeNetwork.createRequestBlocksMessage(height)) }
-    }
-
-    fun processBlocks(context: Context) {
-        val message = context.getMessage<ResponseBlocksMessageBody>()
-        val body = message.body
-        val blocks = body.blocks
-        Logger.trace("Received ${blocks.size} blocks to sync")
-        blockChain.syncChain(blocks)
     }
 }
 

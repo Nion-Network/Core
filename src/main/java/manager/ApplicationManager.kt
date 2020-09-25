@@ -1,11 +1,9 @@
 package manager
 
-import blockchain.BlockChain
 import blockchain.BlockProducer
 import configuration.Configuration
 import network.NetworkManager
 import protocols.DHT
-import protocols.ValidatorManager
 import state.State
 import utils.Crypto
 import utils.Utils
@@ -21,16 +19,28 @@ class ApplicationManager(configFileContent: String) {
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
-    val currentValidators = mutableListOf<String>()
     val crypto = Crypto(".")
+    val currentValidators: MutableList<String> = if (isTrustedNode) mutableListOf(crypto.publicKey) else mutableListOf()
 
-    val vdf = VDF("http://localhost: ${configuration.listeningPort}/vdf")
     val networkManager = NetworkManager(this)
+
+    val vdf = VDF("http://localhost:${configuration.listeningPort}/vdf")
+    val vdfManager = VDFManager(this)
     val dhtProtocol: DHT = DHT(this)
 
+    // Blockchain related
+    val chainManager = ChainManager(this)
     val blockProducer = BlockProducer(this)
     val validatorManager = ValidatorManager(this)
-    val blockChain = BlockChain(this)
 
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
+
+    init {
+        try {
+            networkManager.start()
+            chainManager.requestSync(0)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

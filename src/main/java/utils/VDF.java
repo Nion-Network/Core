@@ -9,31 +9,30 @@ import java.io.InputStreamReader;
 
 public class VDF {
     //this class assumes vdf-cli is available in the path (https://docs.rs/vdf/0.1.0/vdf/)
-    private Process vdfProcess;
-    private Process proofProcess;
-    private Runtime runtime;
-    private String  url;
+    private       Process vdfProcess;
+    private final Runtime runtime;
+    private final String  url;
 
     public VDF(String url) {
         this.runtime = Runtime.getRuntime();
         this.url     = url;
     }
 
-    public void runVDF(int difficulty, String hash, int height) throws IOException, InterruptedException {
-        //Logger.INSTANCE.debug("VDF HASH: " +hash +" for height: "+ height);
+    public void runVDF(int difficulty, String hash, int epoch) throws IOException, InterruptedException {
+        Logger.INSTANCE.debug("VDF HASH: " +hash +" for epoch: "+ epoch);
         if (vdfProcess != null && vdfProcess.isAlive()) {
             kill();
             Logger.INSTANCE.info("A VDF process is already running. It was killed");
         }
-        this.vdfProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " -u " + this.url + " -b " + height);
+        this.vdfProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " -u " + this.url + " -b " + epoch);
     }
 
     public boolean verifyProof(int difficulty, String hash, String proof) {
         try {
             Logger.INSTANCE.debug("Verifying proof: Hash:" + hash + " proof: " + DigestUtils.sha256Hex(proof));
-            proofProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " " + proof);
-            StringBuffer   out    = new StringBuffer();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(proofProcess.getInputStream()));
+            Process        proofProcess = runtime.exec("vdf-cli " + hash + " " + difficulty + " " + proof);
+            StringBuffer   out          = new StringBuffer();
+            BufferedReader reader       = new BufferedReader(new InputStreamReader(proofProcess.getInputStream()));
             String         line;
             while ((line = reader.readLine()) != null) out.append(line).append("\n");
 
@@ -43,7 +42,7 @@ public class VDF {
             } catch (InterruptedException e) {
                 return false;
             }
-            if(exit != 0) Logger.INSTANCE.info("Verify proof exited with something else than 0! [ Result = " + exit + " ]");
+            if (exit != 0) Logger.INSTANCE.info("Verify proof exited with something else than 0! [ Result = " + exit + " ]");
             return exit == 0 && out.toString().trim().equals("Proof is valid");
         } catch (IOException e) {
             Logger.INSTANCE.error("IO Exception verifying VDF " + e.toString());
