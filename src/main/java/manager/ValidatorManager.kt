@@ -8,24 +8,28 @@ import messages.RequestInclusionBody
 import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
 
-// TODO rename!
 class ValidatorManager(private val applicationManager: ApplicationManager) {
+
+    private val nodeNetwork = applicationManager.networkManager.nodeNetwork
 
     fun validatorSetInclusionRequest(context: Context) {
         val message: Message<RequestInclusionBody> = context.getMessage()
-        message.body.apply {
-            applicationManager.currentValidators.apply {
-                add(publicKey)
-                // TODO add to config
-                if (size >= 2) applicationManager.apply {
-                    val genesisBlock = blockProducer.genesisBlock
-                    blockChain.addBlock(genesisBlock)
-                    vdf.runVDF(genesisBlock.difficulty, genesisBlock.hash, genesisBlock.height)
-                }
-
+        val publicKey = message.publicKey
+        Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
+        applicationManager.apply {
+            currentValidators.add(publicKey)
+            if (currentValidators.size >= configuration.validatorsCount) {
+                val genesisBlock = blockProducer.genesisBlock
+                blockChain.addBlock(genesisBlock)
+                vdf.runVDF(genesisBlock.difficulty, genesisBlock.hash, genesisBlock.height)
             }
-            Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
         }
+    }
+
+    fun requestInclusion() {
+        Logger.debug("Requesting inclusion...")
+        val message = nodeNetwork.createValidatorInclusionRequestMessage(applicationManager.crypto.publicKey)
+        nodeNetwork.broadcast("/include", message)
     }
 
 }
@@ -41,12 +45,6 @@ class Consensus(private val nodeNetwork: NodeNetwork, private val crypto: Crypto
         }
     }
 
-    fun requestInclusion(publicKey: String) {
-        Logger.debug("Requesting inclusion...")
-        nodeNetwork.createValidatorInclusionRequestMessage(publicKey).also { message ->
-            nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/include", message) }
-        }
-    }
 
     fun receivedVdf(context: Context) {
         val ip = context.ip()
