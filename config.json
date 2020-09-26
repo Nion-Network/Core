@@ -4,7 +4,7 @@
   "listeningPort": 5000,
   "keystorePath": ".",
   "maxNodes": 1000,
-  "epochDuration": 5000,
+  "slotDuration": 10000,
   "maxCommitteeMembers": 32,
   "initialDifficulty": 20000,
   "maxCommittees": 64,

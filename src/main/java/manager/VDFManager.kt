@@ -6,6 +6,8 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Utils
 import utils.getMessage
 import java.math.BigInteger
+import java.util.*
+import kotlin.concurrent.schedule
 import kotlin.random.Random
 
 
@@ -17,6 +19,7 @@ import kotlin.random.Random
 class VDFManager(private val applicationManager: ApplicationManager) {
 
 
+    private val networkManager by lazy { applicationManager.networkManager }
     private val configuration = applicationManager.configuration
     private val crypto by lazy { applicationManager.crypto }
     private val chainManager by lazy { applicationManager.chainManager }
@@ -37,23 +40,36 @@ class VDFManager(private val applicationManager: ApplicationManager) {
                     .toLong()
             val random = Random(seed)
             val ourKey = crypto.publicKey
+            val timer = Timer()
+            val nodeNetwork = networkManager.nodeNetwork
 
             for (slot in 0..configuration.slotCount) {
                 val validatorSetCopy = applicationManager.currentValidators.toMutableList()
-                val blockProducer = validatorSetCopy.shuffled(random)[0]
-                validatorSetCopy.remove(blockProducer)
-
-                val validators = validatorSetCopy.shuffled(random).take(configuration.validatorsCount)
-                validatorSetCopy.removeAll(validators)
+                val blockProducerNode = validatorSetCopy.shuffled(random)[0]
+                validatorSetCopy.remove(blockProducerNode)
 
                 val committee = validatorSetCopy.shuffled(random).take(configuration.committeeSize)
+                validatorSetCopy.removeAll(committee)
 
-                val weProduce = blockProducer == ourKey
-                val weValidate = validators.contains(ourKey)
+                val weProduce = blockProducerNode == ourKey
                 val weCommittee = committee.contains(ourKey)
 
-                println("Info for slot [$slot]:\tWe produce: $weProduce\tWe validate: $weValidate\tWe committee: $weCommittee")
+                println("Info for slot [$slot]:\tWe produce: $weProduce\tWe committee: $weCommittee")
 
+                // TODO NOT FUCKING GOING INTO MASTER FUCK NO
+                if (weProduce) {
+                    timer.schedule(configuration.slotDuration * slot) {
+                        applicationManager.blockProducer.apply {
+                            val lastBlock = chainManager.lastBlock
+                            val newBlock = lastBlock?.let { createBlock(it) } ?: genesisBlock
+                            applicationManager.validatorSetChanges.clear()
+                            chainManager.addBlock(newBlock)
+                            applicationManager.currentState.ourSlot++
+                            val messageToSend = nodeNetwork.createNewBlockMessage(newBlock)
+                            if (epoch == 0) nodeNetwork.broadcast("/block", messageToSend)
+                        }
+                    }
+                }
             }
 
         }

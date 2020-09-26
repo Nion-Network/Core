@@ -7,7 +7,7 @@ data class Configuration(
         val listeningPort: Int,
         val maxNodes: Int,
         val keystorePath: String,
-        val epochDuration: Long,
+        val slotDuration: Long,
         val broadcastSpread: Int,
         val initialDifficulty: Int,
         val validatorsCount: Int,

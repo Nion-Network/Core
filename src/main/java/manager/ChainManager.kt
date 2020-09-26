@@ -3,6 +3,7 @@ package manager
 import blockchain.Block
 import io.javalin.http.Context
 import logging.Logger
+import messages.NewBlockMessageBody
 import messages.RequestBlocksMessageBody
 import messages.ResponseBlocksMessageBody
 import utils.getMessage
@@ -12,14 +13,23 @@ import utils.getMessage
  * on 25/09/2020 at 16:58
  * using IntelliJ IDEA
  */
-class ChainManager(applicationManager: ApplicationManager) {
+class ChainManager(private val applicationManager: ApplicationManager) {
 
     private val chain = mutableListOf<Block>()
     private val vdf by lazy { applicationManager.vdf }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
-    private val validatorManager by lazy {applicationManager.validatorManager}
+    private val validatorManager by lazy { applicationManager.validatorManager }
 
-    fun addBlock(block: Block) = chain.add(block)
+    fun addBlock(block: Block) = chain.add(block).apply { Logger.chain("Added block: ${block.epoch}") }
+
+    val lastBlock: Block? get() = chain.lastOrNull()
+
+    fun runVDF() {
+        println(chain.lastOrNull())
+        chain.lastOrNull()?.apply { runVDF(this) }
+    }
+
+    private fun runVDF(onBlock: Block) = vdf.runVDF(onBlock.difficulty, onBlock.hash, onBlock.epoch)
 
     fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { lastBlock ->
         vdf.verifyProof(lastBlock.difficulty, lastBlock.hash, proof)
@@ -47,13 +57,32 @@ class ChainManager(applicationManager: ApplicationManager) {
         val body = message.body
         val blocks = body.blocks
 
+        Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
             val lastBlock = chain.lastOrNull()
             lastBlock?.apply {
                 addBlock(block)
-            } ?: if(block.epoch == 0 && block.slot == 0 && block.precedentHash.isEmpty()) addBlock(block)
+                block.validatorChanges.forEach { (publicKey, isAdded) ->
+                    if (isAdded) applicationManager.currentValidators.add(publicKey)
+                    else applicationManager.currentValidators.remove(publicKey)
+                }
+            } ?: if (block.epoch == 0 && block.slot == 0 && block.precedentHash.isEmpty()) addBlock(block)
         }
         validatorManager.requestInclusion()
+        val lastBlock = chain.lastOrNull()
+        lastBlock?.apply { vdf.runVDF(lastBlock.difficulty, lastBlock.hash, lastBlock.epoch) }
+    }
+
+    fun blockReceived(context: Context){
+        val message = context.getMessage<NewBlockMessageBody>()
+        val body = message.body
+        val newBlock = body.block
+
+        val epoch = newBlock.epoch
+        val slot = newBlock.slot
+
+        Logger.chain("Received block at [$epoch]:[$slot] to add...")
+        chain.add(newBlock)
     }
 
 }
