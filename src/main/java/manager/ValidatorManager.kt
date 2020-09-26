@@ -16,12 +16,12 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
         val publicKey = message.publicKey
         Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
         applicationManager.apply {
-            currentValidators.add(publicKey)
-            if (currentValidators.size >= configuration.validatorsCount) {
-                val genesisBlock = blockProducer.genesisBlock
-                chainManager.addBlock(genesisBlock)
-                println("Running vdf!")
-                vdf.runVDF(genesisBlock.difficulty, genesisBlock.hash, genesisBlock.epoch)
+            validatorSetChanges[publicKey] = true
+            val currentValidatorsSize = currentValidators.size
+            val newValidators = validatorSetChanges.filter { it.value }.count()
+            if (currentValidatorsSize + newValidators >= configuration.validatorsCount) {
+                chainManager.addBlock(blockProducer.genesisBlock)
+                applicationManager.chainManager.runVDF()
             }
         }
     }

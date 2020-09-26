@@ -20,7 +20,9 @@ class ApplicationManager(configFileContent: String) {
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
+
     val currentValidators: MutableList<String> = if (isTrustedNode) mutableListOf(crypto.publicKey) else mutableListOf()
+    val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
     val networkManager = NetworkManager(this)
 
@@ -38,9 +40,15 @@ class ApplicationManager(configFileContent: String) {
     init {
         try {
             networkManager.start()
-            chainManager.requestSync(0)
+            if (!isTrustedNode) chainManager.requestSync(0)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    fun changeState() {
+        currentValidators.apply {
+            validatorSetChanges.forEach { (publicKey, isNew) -> if (isNew) add(publicKey) else remove(publicKey) }
         }
     }
 }

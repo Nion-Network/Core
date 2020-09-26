@@ -39,6 +39,7 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
         "/vdf" post { vdfManager.receivedVdf(this) }
         "/syncRequest" post { chainManager.syncRequestReceived(this) } //we were asked for our blocks
         "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
+        "/block" post { chainManager.blockReceived(this) }
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
@@ -63,10 +64,6 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
         }
 
         application.before { if (networkHistory.containsKey(it.header("hex"))) Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!") }
-
-        /*
-        "/newBlock" post { blockPropagation.receivedNewBlock(this) }
-         */
     }
 
 

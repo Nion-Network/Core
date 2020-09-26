@@ -8,12 +8,12 @@ import manager.ApplicationManager
  * using IntelliJ IDEA
  */
 
-class BlockProducer(applicationManager: ApplicationManager) {
+class BlockProducer(private val applicationManager: ApplicationManager) {
 
     private val currentState = applicationManager.currentState
     private val currentTime: Long get() = System.currentTimeMillis()
 
-    val genesisBlock: Block get() = Block(0, 0, 0, currentTime, 0)
+    val genesisBlock: Block get() = Block(0, 0, 0, currentTime, 0, validatorChanges = applicationManager.validatorSetChanges)
 
     fun createBlock(previousBlock: Block): Block = Block(
             epoch = currentState.currentEpoch,
@@ -21,6 +21,7 @@ class BlockProducer(applicationManager: ApplicationManager) {
             difficulty = currentState.currentDifficulty,
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
+            validatorChanges = applicationManager.validatorSetChanges,
             precedentHash = previousBlock.hash
     )
 }
