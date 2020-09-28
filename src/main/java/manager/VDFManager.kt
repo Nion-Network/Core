@@ -6,8 +6,6 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Utils
 import utils.getMessage
 import java.math.BigInteger
-import java.util.*
-import kotlin.concurrent.schedule
 import kotlin.random.Random
 
 
@@ -33,15 +31,13 @@ class VDFManager(private val applicationManager: ApplicationManager) {
 
         val proof = body.proof
         val epoch = body.block
-        if (chainManager.isVDFCorrect(proof)) {
+        if (isLocal || chainManager.isVDFCorrect(proof)) {
             val hex = DigestUtils.sha256Hex(proof)
             val seed = BigInteger(hex, 16)
                     .remainder(Long.MAX_VALUE.toBigInteger())
                     .toLong()
             val random = Random(seed)
             val ourKey = crypto.publicKey
-            val timer = Timer()
-            val nodeNetwork = networkManager.nodeNetwork
 
             for (slot in 0..configuration.slotCount) {
                 val validatorSetCopy = applicationManager.currentValidators.toMutableList()
@@ -54,24 +50,16 @@ class VDFManager(private val applicationManager: ApplicationManager) {
                 val weProduce = blockProducerNode == ourKey
                 val weCommittee = committee.contains(ourKey)
 
-                println("Info for slot [$slot]:\tWe produce: $weProduce\tWe committee: $weCommittee")
+                // println("Info for slot [$slot]:\tWe produce: $weProduce\tWe committee: $weCommittee")
 
-                // TODO NOT FUCKING GOING INTO MASTER FUCK NO
-                if (weProduce) {
-                    timer.schedule(configuration.slotDuration * slot) {
-                        applicationManager.blockProducer.apply {
-                            val lastBlock = chainManager.lastBlock
-                            val newBlock = lastBlock?.let { createBlock(it) } ?: genesisBlock
-                            applicationManager.validatorSetChanges.clear()
-                            chainManager.addBlock(newBlock)
-                            applicationManager.currentState.ourSlot++
-                            val messageToSend = nodeNetwork.createNewBlockMessage(newBlock)
-                            if (epoch == 0) nodeNetwork.broadcast("/block", messageToSend)
-                        }
-                    }
+                chainManager.mySlotDuties[slot] = when {
+                    weProduce -> Doodie.PRODUCER
+                    weCommittee -> Doodie.COMMITTEE
+                    else -> Doodie.VALIDATOR
                 }
-            }
 
+            }
+            chainManager.startTheTimer()
         }
 
 

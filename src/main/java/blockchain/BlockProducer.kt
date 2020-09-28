@@ -19,7 +19,7 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             epoch = currentState.currentEpoch,
             slot = currentState.ourSlot,
             difficulty = currentState.currentDifficulty,
-            timestamp = currentTime,
+            timestamp = System.currentTimeMillis(),
             committeeIndex = currentState.committeeIndex,
             validatorChanges = applicationManager.validatorSetChanges,
             precedentHash = previousBlock.hash

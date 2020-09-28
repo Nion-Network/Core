@@ -3,6 +3,7 @@ package manager
 import blockchain.Block
 import io.javalin.http.Context
 import logging.Logger
+import logging.toChunkedTimeStamp
 import messages.NewBlockMessageBody
 import messages.RequestBlocksMessageBody
 import messages.ResponseBlocksMessageBody
@@ -15,21 +16,70 @@ import utils.getMessage
  */
 class ChainManager(private val applicationManager: ApplicationManager) {
 
-    private val chain = mutableListOf<Block>()
+    val chain = mutableListOf<Block>()
+    private val configuration by lazy { applicationManager.configuration }
     private val vdf by lazy { applicationManager.vdf }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
     private val validatorManager by lazy { applicationManager.validatorManager }
+    private val timeManager by lazy { applicationManager.timerManager }
 
-    fun addBlock(block: Block) = chain.add(block).apply { Logger.chain("Added block: ${block.epoch}") }
+    // TODO move
+    val mySlotDuties: MutableMap<Int, Doodie> = mutableMapOf()
+    private val blockProducer by lazy { applicationManager.blockProducer }
+
+    private var isTimerSetup = false
+
+    fun startTheTimer() {
+        if (!isTimerSetup) {
+            Logger.info("Starting the timer...")
+            runTimer()
+            isTimerSetup = true
+        }
+    }
+
+    private fun runTimer() {
+        val slotDuration = configuration.slotDuration
+        val state = applicationManager.currentState
+        val currentSlot = state.ourSlot
+
+        val slotBlock = lastBlock
+        val delay = slotBlock?.let { slotDuration - (System.currentTimeMillis() - it.timestamp) } ?: slotDuration
+
+
+
+        Logger.debug("Task for [$currentSlot] is ${mySlotDuties[currentSlot]} --- Chain size: ${chain.size}")
+        when (mySlotDuties[currentSlot]) {
+            Doodie.PRODUCER -> {
+                val newBlock = slotBlock?.let { blockProducer.createBlock(it) } ?: blockProducer.genesisBlock
+                val message = nodeNetwork.createNewBlockMessage(newBlock)
+                nodeNetwork.broadcast("/block", message)
+                addBlock(newBlock)
+            }
+            Doodie.COMMITTEE -> TODO()
+            Doodie.VALIDATOR -> TODO()
+            null -> {
+            }
+        }
+
+        state.ourSlot++
+        Logger.info("Timer will run again after $delay ms with the slot ${state.ourSlot}!")
+
+        timeManager.runAfter(delay) {
+            runTimer()
+        }
+    }
+
+    fun addBlock(block: Block) {
+        chain.add(block)
+    }
 
     val lastBlock: Block? get() = chain.lastOrNull()
 
     fun runVDF() {
-        println(chain.lastOrNull())
         chain.lastOrNull()?.apply { runVDF(this) }
     }
 
-    private fun runVDF(onBlock: Block) = vdf.runVDF(onBlock.difficulty, onBlock.hash, onBlock.epoch)
+    fun runVDF(onBlock: Block) = vdf.runVDF(onBlock.difficulty, onBlock.hash, onBlock.epoch)
 
     fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { lastBlock ->
         vdf.verifyProof(lastBlock.difficulty, lastBlock.hash, proof)
@@ -62,6 +112,8 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             val lastBlock = chain.lastOrNull()
             lastBlock?.apply {
                 addBlock(block)
+                applicationManager.currentState.ourSlot = block.slot
+                applicationManager.currentState.currentEpoch = block.epoch
                 block.validatorChanges.forEach { (publicKey, isAdded) ->
                     if (isAdded) applicationManager.currentValidators.add(publicKey)
                     else applicationManager.currentValidators.remove(publicKey)
@@ -69,11 +121,9 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             } ?: if (block.epoch == 0 && block.slot == 0 && block.precedentHash.isEmpty()) addBlock(block)
         }
         validatorManager.requestInclusion()
-        val lastBlock = chain.lastOrNull()
-        lastBlock?.apply { vdf.runVDF(lastBlock.difficulty, lastBlock.hash, lastBlock.epoch) }
     }
 
-    fun blockReceived(context: Context){
+    fun blockReceived(context: Context) {
         val message = context.getMessage<NewBlockMessageBody>()
         val body = message.body
         val newBlock = body.block
@@ -81,8 +131,14 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val epoch = newBlock.epoch
         val slot = newBlock.slot
 
-        Logger.chain("Received block at [$epoch]:[$slot] to add...")
-        chain.add(newBlock)
+        addBlock(newBlock)
+        startTheTimer()
     }
 
 }
+
+enum class Doodie { PRODUCER, COMMITTEE, VALIDATOR }
+/*
+val lastBlock = chain.lastOrNull()
+lastBlock?.apply { vdf.runVDF(lastBlock.difficulty, lastBlock.hash, lastBlock.epoch) }
+*/

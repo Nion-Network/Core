@@ -19,10 +19,8 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
             validatorSetChanges[publicKey] = true
             val currentValidatorsSize = currentValidators.size
             val newValidators = validatorSetChanges.filter { it.value }.count()
-            if (currentValidatorsSize + newValidators >= configuration.validatorsCount) {
-                chainManager.addBlock(blockProducer.genesisBlock)
-                applicationManager.chainManager.runVDF()
-            }
+            if (currentValidatorsSize + newValidators >= configuration.validatorsCount) applicationManager.chainManager.runVDF(blockProducer.genesisBlock)
+
         }
     }
 

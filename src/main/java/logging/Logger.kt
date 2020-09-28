@@ -8,6 +8,10 @@ import java.util.*
  * using IntelliJ IDEA
  */
 
+val Long.toChunkedTimeStamp get() = toString().drop(4).chunked(3).joinToString(" ")
+val timestamp: String get() = System.currentTimeMillis().toChunkedTimeStamp
+
+
 object Logger {
 
     private var currentDebug: DebugType = DebugType.ALL
@@ -31,9 +35,6 @@ object Logger {
             "| ------------------------------------------|\n" +
             "| a = ALL                                   |\n" +
             " -------------------------------------------\n"
-
-    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4).chunked(3).joinToString(" ")
-
 
     /**
      * Prints the given message with the coloring and debug information provided.
