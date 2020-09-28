@@ -18,6 +18,7 @@ import java.net.InetAddress
 class ApplicationManager(configFileContent: String) {
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
+    val timerManager = TimeManager()
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
 
@@ -38,6 +39,7 @@ class ApplicationManager(configFileContent: String) {
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 
     init {
+
         try {
             networkManager.start()
             if (!isTrustedNode) chainManager.requestSync(0)

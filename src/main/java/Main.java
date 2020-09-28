@@ -1,8 +1,10 @@
 import logging.Logger;
 import manager.ApplicationManager;
+import manager.TimeManager;
 import utils.Utils;
 
 import java.net.UnknownHostException;
+import java.util.TimerTask;
 
 /**
  * Created by Mihael Berčič
@@ -14,6 +16,10 @@ import java.net.UnknownHostException;
 public class Main {
 
     public static void main(String[] args) throws UnknownHostException {
+
+
+
+
 
         boolean isPathSpecified = args.length != 0;
 
