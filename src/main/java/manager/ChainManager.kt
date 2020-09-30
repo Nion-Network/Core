@@ -3,7 +3,6 @@ package manager
 import blockchain.Block
 import io.javalin.http.Context
 import logging.Logger
-import logging.toChunkedTimeStamp
 import messages.NewBlockMessageBody
 import messages.RequestBlocksMessageBody
 import messages.ResponseBlocksMessageBody
@@ -29,6 +28,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
     private var isTimerSetup = false
 
+    @Synchronized
     fun startTheTimer() {
         if (!isTimerSetup) {
             Logger.info("Starting the timer...")
@@ -42,34 +42,48 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val state = applicationManager.currentState
         val currentSlot = state.ourSlot
 
-        val slotBlock = lastBlock
-        val delay = slotBlock?.let { slotDuration - (System.currentTimeMillis() - it.timestamp) } ?: slotDuration
+        val currentBlockIndex = currentSlot + state.currentEpoch * configuration.slotCount
+        val slotBlock = chain.getOrNull(currentBlockIndex - 1)
 
-
-
-        Logger.debug("Task for [$currentSlot] is ${mySlotDuties[currentSlot]} --- Chain size: ${chain.size}")
+        Logger.debug(mySlotDuties)
         when (mySlotDuties[currentSlot]) {
             Doodie.PRODUCER -> {
                 val newBlock = slotBlock?.let { blockProducer.createBlock(it) } ?: blockProducer.genesisBlock
                 val message = nodeNetwork.createNewBlockMessage(newBlock)
                 nodeNetwork.broadcast("/block", message)
                 addBlock(newBlock)
+                applicationManager.validatorSetChanges.clear()
             }
-            Doodie.COMMITTEE -> TODO()
-            Doodie.VALIDATOR -> TODO()
+            Doodie.COMMITTEE -> {
+                Logger.info("This slot we're the committee and for now we don't do shit.")
+            }
+            Doodie.VALIDATOR -> {
+                Logger.info("This slot we're the validators and for now we don't do shit.")
+            }
             null -> {
             }
         }
 
-        state.ourSlot++
-        Logger.info("Timer will run again after $delay ms with the slot ${state.ourSlot}!")
-
-        timeManager.runAfter(delay) {
-            runTimer()
+        if (++state.ourSlot <= configuration.slotCount) {
+            val oldBlock = chain.getOrNull(currentBlockIndex)
+            val delay = oldBlock?.let { slotDuration - (System.currentTimeMillis() - it.timestamp) } ?: slotDuration
+            Logger.debug("Task for [${state.currentEpoch}][$currentSlot] is ${mySlotDuties[currentSlot]} --- Chain size: ${chain.size} Next: $delay ms")
+            timeManager.runAfter(delay) { runTimer() }
+        } else {
+            isTimerSetup = false
+            state.currentEpoch++
+            state.ourSlot = 0
+            runVDF()
         }
+
     }
 
     fun addBlock(block: Block) {
+        applicationManager.currentValidators.apply {
+            block.validatorChanges.forEach { (publicKey, change) ->
+                if (change) add(publicKey.apply { Logger.info("Adding one public key!") }) else remove(publicKey.apply { Logger.info("Deleting one public key!") })
+            }
+        }
         chain.add(block)
     }
 
@@ -114,10 +128,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                 addBlock(block)
                 applicationManager.currentState.ourSlot = block.slot
                 applicationManager.currentState.currentEpoch = block.epoch
-                block.validatorChanges.forEach { (publicKey, isAdded) ->
-                    if (isAdded) applicationManager.currentValidators.add(publicKey)
-                    else applicationManager.currentValidators.remove(publicKey)
-                }
             } ?: if (block.epoch == 0 && block.slot == 0 && block.precedentHash.isEmpty()) addBlock(block)
         }
         validatorManager.requestInclusion()
@@ -131,6 +141,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val epoch = newBlock.epoch
         val slot = newBlock.slot
 
+        Logger.debug("New block received: ${newBlock.epoch}x${newBlock.slot}")
         addBlock(newBlock)
         startTheTimer()
     }
