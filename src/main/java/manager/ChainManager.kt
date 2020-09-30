@@ -45,7 +45,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val currentBlockIndex = currentSlot + state.currentEpoch * configuration.slotCount
         val slotBlock = chain.getOrNull(currentBlockIndex - 1)
 
-        Logger.debug(mySlotDuties)
         when (mySlotDuties[currentSlot]) {
             Doodie.PRODUCER -> {
                 val newBlock = slotBlock?.let { blockProducer.createBlock(it) } ?: blockProducer.genesisBlock
@@ -70,10 +69,10 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             Logger.debug("Task for [${state.currentEpoch}][$currentSlot] is ${mySlotDuties[currentSlot]} --- Chain size: ${chain.size} Next: $delay ms")
             timeManager.runAfter(delay) { runTimer() }
         } else {
-            isTimerSetup = false
             state.currentEpoch++
             state.ourSlot = 0
             runVDF()
+            isTimerSetup = false
         }
 
     }
