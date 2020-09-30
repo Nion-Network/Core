@@ -42,38 +42,54 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val state = applicationManager.currentState
         val currentSlot = state.ourSlot
 
-        val currentBlockIndex = currentSlot + state.currentEpoch * configuration.slotCount
-        val slotBlock = chain.getOrNull(currentBlockIndex - 1)
+        val previousBlockIndex = (state.currentEpoch * configuration.slotCount) + currentSlot
+        val slotBlock = chain.getOrNull(previousBlockIndex)
 
+        // TODO FOR DEBUGGING PURPOSES. COMMENTED CODE IS WORKING... looking for retarded bugs.
+        Logger.debug("Previous block index $previousBlockIndex current slot: $currentSlot")
+        timeManager.runAfter(5000) {
+            state.ourSlot++
+            runTimer()
+        }
+
+
+
+        /*
+
+
+        if (slotBlock == null) Logger.error("Slot block is null as fuck with index $previousBlockIndex.")
         when (mySlotDuties[currentSlot]) {
             Doodie.PRODUCER -> {
                 val newBlock = slotBlock?.let { blockProducer.createBlock(it) } ?: blockProducer.genesisBlock
+                Logger.chain("New block has been created at slot $currentSlot.")
                 val message = nodeNetwork.createNewBlockMessage(newBlock)
                 nodeNetwork.broadcast("/block", message)
                 addBlock(newBlock)
                 applicationManager.validatorSetChanges.clear()
             }
             Doodie.COMMITTEE -> {
-                Logger.info("This slot we're the committee and for now we don't do shit.")
             }
             Doodie.VALIDATOR -> {
-                Logger.info("This slot we're the validators and for now we don't do shit.")
             }
             null -> {
             }
         }
 
-        if (++state.ourSlot <= configuration.slotCount) {
-            val oldBlock = chain.getOrNull(currentBlockIndex)
+        if (state.ourSlot + 1 <= configuration.slotCount) {
+            val oldBlock = chain.getOrNull(previousBlockIndex + 1)
             val delay = oldBlock?.let { slotDuration - (System.currentTimeMillis() - it.timestamp) } ?: slotDuration
-            Logger.debug("Task for [${state.currentEpoch}][$currentSlot] is ${mySlotDuties[currentSlot]} --- Chain size: ${chain.size} Next: $delay ms")
-            timeManager.runAfter(delay) { runTimer() }
+            Logger.info("Next timer is going to trigger in $delay ms")
+            timeManager.runAfter(delay) {
+                state.ourSlot++
+                runTimer()
+            }
         } else {
             state.currentEpoch++
             state.ourSlot = 0
             runVDF()
             isTimerSetup = false
         }
+         */
 
     }
 
@@ -122,12 +138,9 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
-            val lastBlock = chain.lastOrNull()
-            lastBlock?.apply {
-                addBlock(block)
-                applicationManager.currentState.ourSlot = block.slot
-                applicationManager.currentState.currentEpoch = block.epoch
-            } ?: if (block.epoch == 0 && block.slot == 0 && block.precedentHash.isEmpty()) addBlock(block)
+            addBlock(block)
+            applicationManager.currentState.ourSlot = block.slot
+            applicationManager.currentState.currentEpoch = block.epoch
         }
         validatorManager.requestInclusion()
     }
@@ -140,9 +153,13 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val epoch = newBlock.epoch
         val slot = newBlock.slot
 
-        Logger.debug("New block received: ${newBlock.epoch}x${newBlock.slot}")
-        addBlock(newBlock)
-        startTheTimer()
+        applicationManager.currentState.apply {
+            if (currentEpoch == epoch && slot == ourSlot) {
+                Logger.debug("New block received: ${newBlock.epoch}x${newBlock.slot}")
+                addBlock(newBlock)
+                startTheTimer()
+            }
+        }
     }
 
 }
