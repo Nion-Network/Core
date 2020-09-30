@@ -22,7 +22,7 @@ class ApplicationManager(configFileContent: String) {
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
 
-    val currentValidators: MutableList<String> = if (isTrustedNode) mutableListOf(crypto.publicKey) else mutableListOf()
+    val currentValidators: MutableSet<String> = if (isTrustedNode) mutableSetOf(crypto.publicKey) else mutableSetOf()
     val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
     val networkManager = NetworkManager(this)
@@ -45,12 +45,6 @@ class ApplicationManager(configFileContent: String) {
             if (!isTrustedNode) chainManager.requestSync(0)
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-    }
-
-    fun changeState() {
-        currentValidators.apply {
-            validatorSetChanges.forEach { (publicKey, isNew) -> if (isNew) add(publicKey) else remove(publicKey) }
         }
     }
 }
