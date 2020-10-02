@@ -1,7 +1,6 @@
 package utils
 
 import logging.Logger.debug
-import logging.Logger.error
 import logging.Logger.info
 
 /**
@@ -19,11 +18,14 @@ class KotlinVDF {
     fun findProof(difficulty: Int, hash: String, epoch: Int): String {
         debug("VDF HASH: $hash for epoch: $epoch")
         killAll()
-        val vdfProcess = runtime.exec("vdf-cli $hash $difficulty -u http://localhost:3000/fuck -b $epoch").apply {
-            waitFor()
-        }.inputStream.reader().readText()
-        error("VDF proof: $vdfProcess")
-        return vdfProcess
+        return ProcessBuilder()
+                .command("vdf-cli", hash, "$difficulty")
+                .redirectErrorStream(true)
+                .start()
+                .inputStream
+                .reader()
+                .readText()
+        return runtime.exec("vdf-cli $hash $difficulty -u http://localhost:3000/fuck -b $epoch").inputStream.bufferedReader().readText()
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {

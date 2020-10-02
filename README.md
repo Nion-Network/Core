@@ -23,7 +23,7 @@ RUN apt-get install default-jre -y
 RUN apt-get install docker.io -y
 
 WORKDIR /
-ADD vdf-cli /usr/bin/vdf-cli
+ADD vdf-cli-new /usr/bin/vdf-cli
 ADD target/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
 
