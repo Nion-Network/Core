@@ -1,10 +1,10 @@
 import logging.Logger;
 import manager.ApplicationManager;
-import manager.TimeManager;
+import utils.KotlinVDF;
 import utils.Utils;
+import utils.VDF;
 
 import java.net.UnknownHostException;
-import java.util.TimerTask;
 
 /**
  * Created by Mihael Berčič
@@ -18,7 +18,10 @@ public class Main {
     public static void main(String[] args) throws UnknownHostException {
 
 
+        KotlinVDF vdf = new KotlinVDF();
+        System.out.println(vdf.findProof(0, "fuck", 0));
 
+        System.exit(-1);
 
 
         boolean isPathSpecified = args.length != 0;
