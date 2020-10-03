@@ -25,7 +25,7 @@ class KotlinVDF {
                 .inputStream
                 .reader()
                 .readText()
-        return runtime.exec("vdf-cli $hash $difficulty -u http://localhost:3000/fuck -b $epoch").inputStream.bufferedReader().readText()
+        return runtime.exec("vdf-cli $hash $difficulty").inputStream.bufferedReader().readText()
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {

@@ -18,7 +18,7 @@ public class Main {
     public static void main(String[] args) throws UnknownHostException {
 
         KotlinVDF vdf = new KotlinVDF();
-        Logger.INSTANCE.error(vdf.findProof(0, "fuck", 0));
+        Logger.INSTANCE.error(vdf.findProof(100, "aa", 0));
 
         System.exit(-1);
 
