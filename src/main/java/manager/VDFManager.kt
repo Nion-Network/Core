@@ -1,14 +1,5 @@
 package manager
 
-import io.javalin.http.Context
-import logging.Logger
-import messages.VdfProofBody
-import org.apache.commons.codec.digest.DigestUtils
-import utils.Utils
-import utils.getMessage
-import java.math.BigInteger
-import kotlin.random.Random
-
 
 /**
  * Created by Mihael Valentin Berčič
@@ -23,6 +14,7 @@ class VDFManager(private val applicationManager: ApplicationManager) {
     private val crypto by lazy { applicationManager.crypto }
     private val chainManager by lazy { applicationManager.chainManager }
 
+    /*
     fun receivedVdf(context: Context) {
 
         Logger.debug("Received vdf!")
@@ -60,10 +52,9 @@ class VDFManager(private val applicationManager: ApplicationManager) {
                 }
             }
             Logger.debug("VDF is starting the tmier from here!")
-            chainManager.startTheTimer()
         }
 
 
     }
-
+    */
 }

@@ -6,7 +6,11 @@ import logging.Logger
 import messages.NewBlockMessageBody
 import messages.RequestBlocksMessageBody
 import messages.ResponseBlocksMessageBody
+import org.apache.commons.codec.digest.DigestUtils
+import state.ChainTask
 import utils.getMessage
+import java.math.BigInteger
+import kotlin.random.Random
 
 /**
  * Created by Mihael Valentin Berčič
@@ -15,83 +19,19 @@ import utils.getMessage
  */
 class ChainManager(private val applicationManager: ApplicationManager) {
 
+    val lastBlock: Block? get() = chain.lastOrNull()
+
     val chain = mutableListOf<Block>()
-    private val configuration by lazy { applicationManager.configuration }
-    private val vdf by lazy { applicationManager.vdf }
+    private val vdf by lazy { applicationManager.kotlinVDF }
+    private val crypto by lazy { applicationManager.crypto }
+    private val dht by lazy { applicationManager.dhtManager }
+    private val timeManager by lazy { applicationManager.timeManager }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
-    private val validatorManager by lazy { applicationManager.validatorManager }
-    private val timeManager by lazy { applicationManager.timerManager }
-
-    // TODO move
-    val mySlotDuties: MutableMap<Int, Doodie> = mutableMapOf()
+    private val configuration by lazy { applicationManager.configuration }
     private val blockProducer by lazy { applicationManager.blockProducer }
+    private val validatorManager by lazy { applicationManager.validatorManager }
 
-    private var isTimerSetup = false
-
-    @Synchronized
-    fun startTheTimer() {
-        if (!isTimerSetup) {
-            Logger.info("Starting the timer...")
-            runTimer()
-            isTimerSetup = true
-        }
-    }
-
-    private fun runTimer() {
-        val slotDuration = configuration.slotDuration
-        val state = applicationManager.currentState
-        val currentSlot = state.ourSlot
-
-        val previousBlockIndex = (state.currentEpoch * configuration.slotCount) + currentSlot
-        val slotBlock = chain.getOrNull(previousBlockIndex)
-
-        // TODO FOR DEBUGGING PURPOSES. COMMENTED CODE IS WORKING... looking for retarded bugs.
-        Logger.debug("Previous block index $previousBlockIndex current slot: $currentSlot")
-        timeManager.runAfter(5000) {
-            state.ourSlot++
-            runTimer()
-        }
-
-
-
-        /*
-
-
-        if (slotBlock == null) Logger.error("Slot block is null as fuck with index $previousBlockIndex.")
-        when (mySlotDuties[currentSlot]) {
-            Doodie.PRODUCER -> {
-                val newBlock = slotBlock?.let { blockProducer.createBlock(it) } ?: blockProducer.genesisBlock
-                Logger.chain("New block has been created at slot $currentSlot.")
-                val message = nodeNetwork.createNewBlockMessage(newBlock)
-                nodeNetwork.broadcast("/block", message)
-                addBlock(newBlock)
-                applicationManager.validatorSetChanges.clear()
-            }
-            Doodie.COMMITTEE -> {
-            }
-            Doodie.VALIDATOR -> {
-            }
-            null -> {
-            }
-        }
-
-        if (state.ourSlot + 1 <= configuration.slotCount) {
-            val oldBlock = chain.getOrNull(previousBlockIndex + 1)
-            val delay = oldBlock?.let { slotDuration - (System.currentTimeMillis() - it.timestamp) } ?: slotDuration
-            Logger.info("Next timer is going to trigger in $delay ms")
-            timeManager.runAfter(delay) {
-                state.ourSlot++
-                runTimer()
-            }
-        } else {
-            state.currentEpoch++
-            state.ourSlot = 0
-            runVDF()
-            isTimerSetup = false
-        }
-         */
-
-    }
+    private var nextTask = ChainTask(Doodie.VALIDATOR)
 
     fun addBlock(block: Block) {
         applicationManager.currentValidators.apply {
@@ -99,16 +39,21 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                 if (change) add(publicKey.apply { Logger.info("Adding one public key!") }) else remove(publicKey.apply { Logger.info("Deleting one public key!") })
             }
         }
+        calculateNextDuties(block.vdfProof)
         chain.add(block)
+
+        when (nextTask.myTask) {
+            Doodie.PRODUCER -> {
+                val newBlock = blockProducer.createBlock(block)
+                val message = nodeNetwork.createNewBlockMessage(newBlock)
+                timeManager.runAfter(1000) { nodeNetwork.broadcast("/voteRequest", message) }
+            }
+            Doodie.COMMITTEE -> TODO()
+            Doodie.VALIDATOR -> TODO()
+        }
     }
 
-    val lastBlock: Block? get() = chain.lastOrNull()
-
-    fun runVDF() {
-        chain.lastOrNull()?.apply { runVDF(this) }
-    }
-
-    fun runVDF(onBlock: Block) = vdf.runVDF(onBlock.difficulty, onBlock.hash, onBlock.epoch)
+    fun runVDF(onBlock: Block) = vdf.findProof(onBlock.difficulty, onBlock.hash, onBlock.epoch)
 
     fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { lastBlock ->
         vdf.verifyProof(lastBlock.difficulty, lastBlock.hash, proof)
@@ -149,23 +94,35 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val message = context.getMessage<NewBlockMessageBody>()
         val body = message.body
         val newBlock = body.block
+        addBlock(newBlock)
+    }
 
-        val epoch = newBlock.epoch
-        val slot = newBlock.slot
+    private fun calculateNextDuties(proof: String) {
+        val hex = DigestUtils.sha256Hex(proof)
+        val seed = BigInteger(hex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+        val random = Random(seed)
+        val ourKey = crypto.publicKey
 
-        applicationManager.currentState.apply {
-            if (currentEpoch == epoch && slot == ourSlot) {
-                Logger.debug("New block received: ${newBlock.epoch}x${newBlock.slot}")
-                addBlock(newBlock)
-                startTheTimer()
-            }
+        val validatorSetCopy = applicationManager.currentValidators.toMutableList().shuffled(random).toMutableList()
+        val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
+        val committee = validatorSetCopy.take(configuration.committeeSize)
+        validatorSetCopy.removeAll(committee)
+
+        val weProduce = blockProducerNode == ourKey
+        val weCommittee = committee.contains(ourKey)
+
+        println("Info for next block:\tWe produce: $weProduce\tWe committee: $weCommittee")
+        val ourRole = when {
+            weProduce -> Doodie.PRODUCER
+            weCommittee -> Doodie.COMMITTEE
+            else -> Doodie.VALIDATOR
         }
+
+        if (ourRole == Doodie.PRODUCER) committee.forEach(dht::sendSearchQuery)
+
+        nextTask = ChainTask(ourRole, committee)
     }
 
 }
 
 enum class Doodie { PRODUCER, COMMITTEE, VALIDATOR }
-/*
-val lastBlock = chain.lastOrNull()
-lastBlock?.apply { vdf.runVDF(lastBlock.difficulty, lastBlock.hash, lastBlock.epoch) }
-*/
