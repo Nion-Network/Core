@@ -17,10 +17,11 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     val nodeNetwork = NodeNetwork(applicationManager)
     private val configuration = applicationManager.configuration
 
-    private val dhtProtocol by lazy { applicationManager.dhtProtocol }
+    private val dhtProtocol by lazy { applicationManager.dhtManager }
     private val vdfManager by lazy { applicationManager.vdfManager }
     private val chainManager by lazy { applicationManager.chainManager }
     private val validatorManager by lazy { applicationManager.validatorManager }
+    private val committeeManager by lazy { applicationManager.committeeManager }
 
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
@@ -36,10 +37,11 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
         "/search" get { this.queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
 
         "/include" post { validatorManager.validatorSetInclusionRequest(this) }
-        "/vdf" post { vdfManager.receivedVdf(this) }
         "/syncRequest" post { chainManager.syncRequestReceived(this) } //we were asked for our blocks
         "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
         "/block" post { chainManager.blockReceived(this) }
+        "/voteRequest" post { committeeManager.voteRequest(this) }
+        "/vote" post {  }
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
@@ -80,22 +82,4 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
      * @param block Response lambda that will execute on POST request.
      */
     private infix fun String.post(block: Context.() -> Unit): Javalin = application.post(this, block)
-
-    /*
-    /**
-     * Initiates the given protocol and passes the payload to it.
-     *
-     * @param protocol Chosen protocol.
-     * @param payload Payload to be sent.
-     */
-    fun initiate(protocol: ProtocolTasks, payload: Any) {
-        Logger.info("Initiating protocol task $protocol")
-        when (protocol) {
-            ProtocolTasks.newBlock -> blockPropagation.broadcast(payload as BlockData)
-            ProtocolTasks.requestBlocks -> blockPropagation.requestBlocks(payload as Int)
-            ProtocolTasks.requestInclusion -> consensus.requestInclusion(payload as String)
-        }
-    }
-
-     */
 }

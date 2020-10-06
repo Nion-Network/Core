@@ -12,7 +12,6 @@ class KotlinVDF {
 
     private val runtime: Runtime by lazy { Runtime.getRuntime() }
 
-
     private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
 
     fun findProof(difficulty: Int, hash: String, epoch: Int): String {
@@ -25,7 +24,6 @@ class KotlinVDF {
                 .inputStream
                 .reader()
                 .readText()
-        return runtime.exec("vdf-cli $hash $difficulty").inputStream.bufferedReader().readText()
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {

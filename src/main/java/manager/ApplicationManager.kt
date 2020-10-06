@@ -6,6 +6,7 @@ import network.NetworkManager
 import protocols.DHT
 import state.State
 import utils.Crypto
+import utils.KotlinVDF
 import utils.Utils
 import utils.VDF
 import java.net.InetAddress
@@ -18,7 +19,7 @@ import java.net.InetAddress
 class ApplicationManager(configFileContent: String) {
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
-    val timerManager = TimeManager()
+    val timeManager = TimeManager()
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
 
@@ -27,14 +28,16 @@ class ApplicationManager(configFileContent: String) {
 
     val networkManager = NetworkManager(this)
 
+    val kotlinVDF = KotlinVDF()
     val vdf = VDF("http://localhost:${configuration.listeningPort}/vdf")
     val vdfManager = VDFManager(this)
-    val dhtProtocol: DHT = DHT(this)
+    val dhtManager: DHT = DHT(this)
 
     // Blockchain related
     val chainManager = ChainManager(this)
     val blockProducer = BlockProducer(this)
     val validatorManager = ValidatorManager(this)
+    val committeeManager = CommitteeManager(this)
 
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 

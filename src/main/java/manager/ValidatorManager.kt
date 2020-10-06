@@ -19,8 +19,13 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
             validatorSetChanges[publicKey] = true
             val currentValidatorsSize = currentValidators.size
             val newValidators = validatorSetChanges.filter { it.value }.count()
-            if (currentValidatorsSize + newValidators >= configuration.validatorsCount) applicationManager.chainManager.runVDF(blockProducer.genesisBlock)
-
+            if (currentValidatorsSize + newValidators >= configuration.validatorsCount && chainManager.chain.isEmpty()) {
+                blockProducer.apply {
+                    val vdf = applicationManager.kotlinVDF.findProof(0, "fuck", 0)
+                    val block = vdf.genesisBlock
+                    chainManager.addBlock(block)
+                }
+            }
         }
     }
 

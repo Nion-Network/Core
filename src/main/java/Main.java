@@ -16,13 +16,6 @@ import java.net.UnknownHostException;
 public class Main {
 
     public static void main(String[] args) throws UnknownHostException {
-
-        KotlinVDF vdf = new KotlinVDF();
-        Logger.INSTANCE.error(vdf.findProof(100, "aa", 0));
-
-        System.exit(-1);
-
-
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.startInputListening();

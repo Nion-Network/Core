@@ -21,6 +21,7 @@ class DHT(private val applicationManager: ApplicationManager) {
     private val nodeNetwork by lazy { networkManager.nodeNetwork }
 
     fun sendSearchQuery(forPublicKey: String) {
+        if (nodeNetwork.nodeMap.containsKey(forPublicKey)) return
         Logger.info("Broadcasting on /query looking for our key owner...")
         nodeNetwork.broadcast("/query", nodeNetwork.createQueryMessage(forPublicKey))
     }
@@ -32,8 +33,10 @@ class DHT(private val applicationManager: ApplicationManager) {
      */
     fun onFound(context: Context) {
         val message: Message<FoundMessage> = context.getMessage()
-        // TODO use message...
-        Logger.info("We got back what we were looking for!")
+        val body = message.body
+        val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
+        nodeNetwork.nodeMap[newNode.publicKey] = newNode
+        Logger.info("We got the IP for public key!")
     }
 
     /**
