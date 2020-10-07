@@ -41,7 +41,7 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
         "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
         "/block" post { chainManager.blockReceived(this) }
         "/voteRequest" post { committeeManager.voteRequest(this) }
-        "/vote" post {  }
+        "/vote" post { chainManager.voteReceived(this) }
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")

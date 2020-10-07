@@ -21,8 +21,11 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
             val newValidators = validatorSetChanges.filter { it.value }.count()
             if (currentValidatorsSize + newValidators >= configuration.validatorsCount && chainManager.chain.isEmpty()) {
                 blockProducer.apply {
-                    val vdf = applicationManager.kotlinVDF.findProof(0, "fuck", 0)
+                    val vdf = applicationManager.kotlinVDF.findProof(configuration.initialDifficulty, "FFFF", 0)
+
                     val block = vdf.genesisBlock
+                    Logger.debug("Broadcasting genesis block...")
+                    nodeNetwork.broadcast("/block", nodeNetwork.createNewBlockMessage(block))
                     chainManager.addBlock(block)
                 }
             }

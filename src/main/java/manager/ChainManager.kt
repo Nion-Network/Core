@@ -1,6 +1,7 @@
 package manager
 
 import blockchain.Block
+import blockchain.BlockVote
 import io.javalin.http.Context
 import logging.Logger
 import messages.NewBlockMessageBody
@@ -21,6 +22,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
     val lastBlock: Block? get() = chain.lastOrNull()
 
+    val votes = mutableListOf<BlockVote>()
     val chain = mutableListOf<Block>()
     private val vdf by lazy { applicationManager.kotlinVDF }
     private val crypto by lazy { applicationManager.crypto }
@@ -33,23 +35,36 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
     private var nextTask = ChainTask(Doodie.VALIDATOR)
 
+
     fun addBlock(block: Block) {
+        chain.add(block)
         applicationManager.currentValidators.apply {
             block.validatorChanges.forEach { (publicKey, change) ->
-                if (change) add(publicKey.apply { Logger.info("Adding one public key!") }) else remove(publicKey.apply { Logger.info("Deleting one public key!") })
+                if (change) add(publicKey.apply { Logger.info("Adding one public key!") })
+                else remove(publicKey.apply { Logger.info("Deleting one public key!") })
             }
         }
         calculateNextDuties(block.vdfProof)
-        chain.add(block)
-
+        votes.clear()
         when (nextTask.myTask) {
             Doodie.PRODUCER -> {
                 val newBlock = blockProducer.createBlock(block)
                 val message = nodeNetwork.createNewBlockMessage(newBlock)
-                timeManager.runAfter(1000) { nodeNetwork.broadcast("/voteRequest", message) }
+                timeManager.runAfter(1000) {
+                    nodeNetwork.broadcast("/voteRequest", message)
+                }
+                timeManager.runAfter(configuration.slotDuration * 2 / 3) {
+                    val votesAmount = votes.size
+                    newBlock.vdfProof = votes[0].vdfProof
+                    val broadcastMessage = nodeNetwork.createNewBlockMessage(newBlock)
+                    Logger.debug("Broadcasting what we have collected... We got $votesAmount votes...")
+                    nodeNetwork.broadcast("/block", broadcastMessage)
+                    addBlock(newBlock)
+                    applicationManager.validatorSetChanges.clear()
+                }
             }
-            Doodie.COMMITTEE -> TODO()
-            Doodie.VALIDATOR -> TODO()
+            Doodie.COMMITTEE -> Logger.debug("We're committee the next block...")
+            Doodie.VALIDATOR -> Logger.debug("We're validator the next block...")
         }
     }
 
@@ -83,7 +98,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
-            addBlock(block)
+            chain.add(block)
             applicationManager.currentState.ourSlot = block.slot
             applicationManager.currentState.currentEpoch = block.epoch
         }
@@ -94,10 +109,12 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val message = context.getMessage<NewBlockMessageBody>()
         val body = message.body
         val newBlock = body.block
-        addBlock(newBlock)
+        Logger.chain("Block received...")
+        if (newBlock.precedentHash == lastBlock?.hash ?: "") addBlock(newBlock)
     }
 
     private fun calculateNextDuties(proof: String) {
+        Logger.error("Calculating duties with proof: $proof")
         val hex = DigestUtils.sha256Hex(proof)
         val seed = BigInteger(hex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val random = Random(seed)
@@ -111,7 +128,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val weProduce = blockProducerNode == ourKey
         val weCommittee = committee.contains(ourKey)
 
-        println("Info for next block:\tWe produce: $weProduce\tWe committee: $weCommittee")
+        Logger.info("Info for next block[${chain.size}] :\tWe produce: $weProduce\tWe committee: $weCommittee")
         val ourRole = when {
             weProduce -> Doodie.PRODUCER
             weCommittee -> Doodie.COMMITTEE
@@ -121,6 +138,11 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         if (ourRole == Doodie.PRODUCER) committee.forEach(dht::sendSearchQuery)
 
         nextTask = ChainTask(ourRole, committee)
+    }
+
+    fun voteReceived(context: Context) {
+        val message = context.getMessage<BlockVote>()
+        votes.add(message.body)
     }
 
 }
