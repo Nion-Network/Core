@@ -2,11 +2,9 @@ package utils
 
 import abstraction.Message
 import abstraction.NetworkRequestType
-import abstraction.Node
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
-import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.net.HttpURLConnection
@@ -56,5 +54,4 @@ class Utils {
 
 }
 
-val Context.senderNode: Node? get() = knownNodes[ip()]
 inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)

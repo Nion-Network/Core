@@ -1,12 +1,12 @@
 package manager
 
-import blockchain.Block
 import blockchain.BlockVote
 import blockchain.VoteType
 import io.javalin.http.Context
 import logging.Logger
+import messages.NewBlockMessageBody
+import network.knownNodes
 import utils.getMessage
-import utils.senderNode
 
 /**
  * Created by Mihael Valentin Berčič
@@ -20,15 +20,20 @@ class CommitteeManager(applicationManager: ApplicationManager) {
     private val networkManager by lazy { applicationManager.networkManager }
 
     fun voteRequest(context: Context) {
-        val message = context.getMessage<Block>()
-        val fromNode = context.senderNode
-        val block = message.body
+        // println(context.body())
+        val message = context.getMessage<NewBlockMessageBody>()
+        val body = message.body
+        val fromNode = knownNodes[message.publicKey]
+        val block = body.block
         var vdfFound = false
 
+        Logger.info("Vote request has been received...")
         fromNode?.also { senderNode ->
-            timeManager.runAfter(1000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 (sending skip block)") }
+            timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
 
-            val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch).also { vdfFound = true }
+            val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
+            vdfFound = true
+            Logger.debug("ProofFound set to $vdfFound")
             val blockVote = BlockVote(block.hash, VoteType.FOR, proof)
             val messageToSend = networkManager.nodeNetwork.createVoteMessage(blockVote)
             senderNode.sendMessage("/vote", messageToSend)

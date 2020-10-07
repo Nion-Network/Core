@@ -8,6 +8,7 @@ import manager.ApplicationManager
 import messages.FoundMessage
 import messages.IdentificationMessage
 import messages.QueryMessageBody
+import network.knownNodes
 import utils.getMessage
 
 /**
@@ -21,7 +22,7 @@ class DHT(private val applicationManager: ApplicationManager) {
     private val nodeNetwork by lazy { networkManager.nodeNetwork }
 
     fun sendSearchQuery(forPublicKey: String) {
-        if (nodeNetwork.nodeMap.containsKey(forPublicKey)) return
+        if (knownNodes.containsKey(forPublicKey)) return
         Logger.info("Broadcasting on /query looking for our key owner...")
         nodeNetwork.broadcast("/query", nodeNetwork.createQueryMessage(forPublicKey))
     }
@@ -35,7 +36,7 @@ class DHT(private val applicationManager: ApplicationManager) {
         val message: Message<FoundMessage> = context.getMessage()
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
-        nodeNetwork.nodeMap[newNode.publicKey] = newNode
+        knownNodes[newNode.publicKey] = newNode
         Logger.info("We got the IP for public key!")
     }
 
@@ -50,7 +51,7 @@ class DHT(private val applicationManager: ApplicationManager) {
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
 
-        nodeNetwork.nodeMap[lookingFor]?.apply {
+        knownNodes[lookingFor]?.apply {
             val foundMessage = nodeNetwork.createGenericsMessage(FoundMessage(ip, port, publicKey))
             body.node.sendMessage("/found", foundMessage)
         } ?: nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/query", message) }
@@ -69,7 +70,7 @@ class DHT(private val applicationManager: ApplicationManager) {
 
         if (!nodeNetwork.isFull) body.node.apply {
             Logger.debug("Node [$ip] has been accepted into the network...")
-            nodeNetwork.nodeMap[publicKey] = this
+            knownNodes[publicKey] = this
             sendMessage("/joined", nodeNetwork.createIdentificationMessage())
         } else nodeNetwork.broadcast("/join", message)
         context.status(200)
@@ -81,7 +82,7 @@ class DHT(private val applicationManager: ApplicationManager) {
         if (confirmed) {
             val acceptorNode: Node = message.body.node
             Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
-            nodeNetwork.nodeMap[acceptorNode.publicKey] = acceptorNode
+            knownNodes[acceptorNode.publicKey] = acceptorNode
             nodeNetwork.isInNetwork = true
         }
         Logger.debug("We were accepted into the network!")
