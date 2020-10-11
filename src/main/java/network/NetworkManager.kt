@@ -76,7 +76,7 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
      */
     private infix fun String.get(block: Context.() -> Unit): Javalin = application.get(this, block)
 
-    /**
+    /**ValidatorManager
      *  Set networking to respond using given lambda block to provided path on POST request.
      *
      * @param block Response lambda that will execute on POST request.

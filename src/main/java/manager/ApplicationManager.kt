@@ -23,6 +23,7 @@ class ApplicationManager(configFileContent: String) {
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
 
+
     val currentValidators: MutableSet<String> = if (isTrustedNode) mutableSetOf(crypto.publicKey) else mutableSetOf()
     val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
@@ -38,6 +39,9 @@ class ApplicationManager(configFileContent: String) {
     val blockProducer = BlockProducer(this)
     val validatorManager = ValidatorManager(this)
     val committeeManager = CommitteeManager(this)
+
+    //InfluxDB
+    val dasboardManager = DasboardManager(this)
 
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 

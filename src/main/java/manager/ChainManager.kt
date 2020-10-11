@@ -49,6 +49,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         when (nextTask.myTask) {
             Doodie.PRODUCER -> {
                 val newBlock = blockProducer.createBlock(block)
+                applicationManager.dasboardManager.newBlockProduced(newBlock)
                 val message = nodeNetwork.createNewBlockMessage(newBlock)
                 timeManager.runAfter(1000) {
                     nodeNetwork.broadcast("/voteRequest", message)
