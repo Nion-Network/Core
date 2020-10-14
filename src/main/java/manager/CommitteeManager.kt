@@ -20,20 +20,18 @@ class CommitteeManager(applicationManager: ApplicationManager) {
     private val networkManager by lazy { applicationManager.networkManager }
 
     fun voteRequest(context: Context) {
-        // println(context.body())
         val message = context.getMessage<NewBlockMessageBody>()
         val body = message.body
         val fromNode = knownNodes[message.publicKey]
         val block = body.block
         var vdfFound = false
 
-        Logger.info("Vote request has been received...")
+        // Logger.info("Vote request has been received...")
         fromNode?.also { senderNode ->
             timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
 
             val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
             vdfFound = true
-            Logger.debug("ProofFound set to $vdfFound")
             val blockVote = BlockVote(block.hash, VoteType.FOR, proof)
             val messageToSend = networkManager.nodeNetwork.createVoteMessage(blockVote)
             senderNode.sendMessage("/vote", messageToSend)

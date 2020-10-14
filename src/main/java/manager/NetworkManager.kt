@@ -1,9 +1,10 @@
-package network
+package manager
 
 import io.javalin.Javalin
 import io.javalin.http.Context
+import io.javalin.http.ForbiddenResponse
 import logging.Logger
-import manager.ApplicationManager
+import network.NodeNetwork
 import utils.Utils
 import utils.networkHistory
 
@@ -65,7 +66,12 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
             exception.printStackTrace()
         }
 
-        application.before { if (networkHistory.containsKey(it.header("hex"))) Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!") }
+        application.before {
+            if (networkHistory.containsKey(it.header("hex"))){
+                // Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!")
+                throw ForbiddenResponse("NO MEANS NO")
+            }
+        }
     }
 
 

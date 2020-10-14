@@ -11,15 +11,16 @@ import manager.ApplicationManager
 class BlockProducer(private val applicationManager: ApplicationManager) {
 
     private val currentState = applicationManager.currentState
+    private val initialDifficulty = applicationManager.configuration.initialDifficulty
     private val currentTime: Long get() = System.currentTimeMillis()
 
-    val String.genesisBlock: Block get() = Block(0, 0, applicationManager.configuration.initialDifficulty, currentTime, 0, validatorChanges = applicationManager.validatorSetChanges, vdfProof = this)
+    fun genesisBlock(vdfProof: String): Block = Block(0, 0, initialDifficulty, currentTime, 0, validatorChanges = applicationManager.validatorSetChanges.toMap(), vdfProof = vdfProof)
 
     fun createBlock(previousBlock: Block, vdfProof: String = ""): Block = Block(
             epoch = currentState.currentEpoch,
-            slot = currentState.ourSlot,
+            slot = currentState.currentSlot,
             difficulty = currentState.currentDifficulty,
-            timestamp = System.currentTimeMillis(),
+            timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
             validatorChanges = applicationManager.validatorSetChanges,
