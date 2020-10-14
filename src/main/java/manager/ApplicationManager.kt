@@ -1,8 +1,9 @@
 package manager
 
+import blockchain.Block
 import blockchain.BlockProducer
 import configuration.Configuration
-import network.NetworkManager
+import logging.Logger
 import protocols.DHT
 import state.State
 import utils.Crypto
@@ -41,11 +42,18 @@ class ApplicationManager(configFileContent: String) {
 
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 
+    fun updateValidatorSet(block: Block) {
+        block.validatorChanges.forEach { (publicKey, change) ->
+            if (change) currentValidators.add(publicKey).apply { Logger.info("Adding one public key!") }
+            else currentValidators.remove(publicKey).apply { Logger.info("Deleting one public key!") }
+        }
+    }
+
     init {
 
         try {
             networkManager.start()
-            if (!isTrustedNode) chainManager.requestSync(0)
+            if (!isTrustedNode) chainManager.requestSync()
         } catch (e: Exception) {
             e.printStackTrace()
         }

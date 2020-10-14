@@ -69,7 +69,6 @@ class DHT(private val applicationManager: ApplicationManager) {
         val body = message.body
 
         if (!nodeNetwork.isFull) body.node.apply {
-            Logger.debug("Node [$ip] has been accepted into the network...")
             knownNodes[publicKey] = this
             sendMessage("/joined", nodeNetwork.createIdentificationMessage())
         } else nodeNetwork.broadcast("/join", message)

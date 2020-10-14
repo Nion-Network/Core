@@ -10,21 +10,27 @@ import utils.getMessage
 class ValidatorManager(private val applicationManager: ApplicationManager) {
 
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
+    private val minValidatorsCount by lazy { applicationManager.configuration.validatorsCount }
+    private val initialDifficulty by lazy { applicationManager.configuration.initialDifficulty }
 
     fun validatorSetInclusionRequest(context: Context) {
         val message: Message<RequestInclusionBody> = context.getMessage()
         val publicKey = message.publicKey
-        Logger.consensus("Received inclusion request from: ${DigestUtils.sha256Hex(publicKey)}")
+
+        Logger.consensus("Received one inclusion request... ") // from: ${DigestUtils.sha256Hex(publicKey)}")
+
         applicationManager.apply {
             validatorSetChanges[publicKey] = true
+
             val currentValidatorsSize = currentValidators.size
             val newValidators = validatorSetChanges.filter { it.value }.count()
-            if (currentValidatorsSize + newValidators >= configuration.validatorsCount && chainManager.chain.isEmpty()) {
-                blockProducer.apply {
-                    val vdf = applicationManager.kotlinVDF.findProof(configuration.initialDifficulty, "FFFF", 0)
 
-                    val block = vdf.genesisBlock
+            if (currentValidatorsSize + newValidators >= minValidatorsCount && chainManager.isChainEmpty) {
+                blockProducer.apply {
+                    val vdfProof = applicationManager.kotlinVDF.findProof(initialDifficulty, "FFFF", 0)
+                    val block = genesisBlock(vdfProof)
                     Logger.debug("Broadcasting genesis block...")
+
                     nodeNetwork.broadcast("/block", nodeNetwork.createNewBlockMessage(block))
                     chainManager.addBlock(block)
                 }
