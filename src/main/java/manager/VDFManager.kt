@@ -1,4 +1,4 @@
-package utils
+package manager
 
 import logging.Logger.debug
 import logging.Logger.info
