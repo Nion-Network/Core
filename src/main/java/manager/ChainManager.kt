@@ -29,7 +29,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
     private val dhtManager by lazy { applicationManager.dhtManager }
     private val currentState by lazy { applicationManager.currentState }
-    private val vdfManager by lazy { applicationManager.kotlinVDF }
+    private val vdfManager by lazy { applicationManager.vdfManager }
     private val crypto by lazy { applicationManager.crypto }
     private val timeManager by lazy { applicationManager.timeManager }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
@@ -43,7 +43,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             currentSlot = block.slot
             currentEpoch = block.epoch
         }
-
 
         applicationManager.updateValidatorSet(block)
         chain.add(block)

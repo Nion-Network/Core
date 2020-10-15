@@ -16,7 +16,7 @@ import utils.getMessage
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DHT(private val applicationManager: ApplicationManager) {
+class DHTManager(private val applicationManager: ApplicationManager) {
 
     private val networkManager by lazy { applicationManager.networkManager }
     private val nodeNetwork by lazy { networkManager.nodeNetwork }

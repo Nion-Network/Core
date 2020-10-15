@@ -19,7 +19,6 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     private val configuration = applicationManager.configuration
 
     private val dhtProtocol by lazy { applicationManager.dhtManager }
-    private val vdfManager by lazy { applicationManager.vdfManager }
     private val chainManager by lazy { applicationManager.chainManager }
     private val validatorManager by lazy { applicationManager.validatorManager }
     private val committeeManager by lazy { applicationManager.committeeManager }
