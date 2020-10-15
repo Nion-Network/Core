@@ -9,7 +9,6 @@ import state.State
 import utils.Crypto
 import utils.KotlinVDF
 import utils.Utils
-import utils.VDF
 import java.net.InetAddress
 
 /**
@@ -20,19 +19,18 @@ import java.net.InetAddress
 class ApplicationManager(configFileContent: String) {
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
-    val timeManager = TimeManager()
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
+    val timeManager = TimeManager()
 
-    val currentValidators: MutableSet<String> = if (isTrustedNode) mutableSetOf(crypto.publicKey) else mutableSetOf()
+    val currentValidators: MutableSet<String> = mutableSetOf()
     val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
     val networkManager = NetworkManager(this)
 
     val kotlinVDF = KotlinVDF()
-    val vdf = VDF("http://localhost:${configuration.listeningPort}/vdf")
     val vdfManager = VDFManager(this)
-    val dhtManager: DHT = DHT(this)
+    val dhtManager = DHT(this)
 
     // Blockchain related
     val chainManager = ChainManager(this)

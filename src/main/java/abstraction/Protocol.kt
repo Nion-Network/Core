@@ -1,4 +1,4 @@
-@file:Suppress("EnumEntryName")
+// TODO rename or move
 
 package abstraction
 
@@ -11,7 +11,6 @@ import utils.Utils
  */
 
 enum class NetworkRequestType { GET, POST }
-enum class ProtocolTasks { newBlock, requestBlocks, requestInclusion }
 
 /**
  * Message with body of type T.

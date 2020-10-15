@@ -14,7 +14,15 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
     private val initialDifficulty = applicationManager.configuration.initialDifficulty
     private val currentTime: Long get() = System.currentTimeMillis()
 
-    fun genesisBlock(vdfProof: String): Block = Block(0, 0, initialDifficulty, currentTime, 0, validatorChanges = applicationManager.validatorSetChanges.toMap(), vdfProof = vdfProof)
+    fun genesisBlock(vdfProof: String): Block = Block(
+            epoch = 0,
+            slot = 0,
+            difficulty = initialDifficulty,
+            timestamp = currentTime,
+            committeeIndex = 0,
+            validatorChanges = applicationManager.validatorSetChanges.toMap(),
+            vdfProof = vdfProof
+    )
 
     fun createBlock(previousBlock: Block, vdfProof: String = ""): Block = Block(
             epoch = currentState.currentEpoch,
@@ -23,7 +31,7 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
-            validatorChanges = applicationManager.validatorSetChanges,
+            validatorChanges = applicationManager.validatorSetChanges.toMap(),
             precedentHash = previousBlock.hash
     )
 }
