@@ -8,7 +8,7 @@ import logging.Logger.info
  * on 02/10/2020 at 16:59
  * using IntelliJ IDEA
  */
-class KotlinVDF {
+class VDFManager {
 
     private val runtime: Runtime by lazy { Runtime.getRuntime() }
 

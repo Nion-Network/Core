@@ -4,7 +4,6 @@ import abstraction.Message
 import io.javalin.http.Context
 import logging.Logger
 import messages.RequestInclusionBody
-import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
 
 class ValidatorManager(private val applicationManager: ApplicationManager) {
@@ -27,7 +26,7 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
 
             if (currentValidatorsSize + newValidators >= minValidatorsCount && chainManager.isChainEmpty) {
                 blockProducer.apply {
-                    val vdfProof = applicationManager.kotlinVDF.findProof(initialDifficulty, "FFFF", 0)
+                    val vdfProof = applicationManager.vdfManager.findProof(initialDifficulty, "FFFF", 0)
                     val block = genesisBlock(vdfProof)
                     Logger.debug("Broadcasting genesis block...")
 

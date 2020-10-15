@@ -15,7 +15,7 @@ import utils.getMessage
  */
 class CommitteeManager(applicationManager: ApplicationManager) {
 
-    private val vdfManager by lazy { applicationManager.kotlinVDF }
+    private val vdfManager by lazy { applicationManager.vdfManager }
     private val timeManager by lazy { applicationManager.timeManager }
     private val networkManager by lazy { applicationManager.networkManager }
 

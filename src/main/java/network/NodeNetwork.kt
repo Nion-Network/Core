@@ -60,7 +60,6 @@ class NodeNetwork(applicationManager: ApplicationManager) {
 
     fun <T> sendMessageToRandomNodes(path: String, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(path, message) }
 
-    fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
     fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(ourNode, lookingFor))
     fun createNewBlockMessage(block: Block): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
     fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(ourNode, height))
