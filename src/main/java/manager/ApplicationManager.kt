@@ -1,14 +1,10 @@
 package manager
 
-import blockchain.BlockProducer
-import configuration.Configuration
-import network.NetworkManager
-import protocols.DHT
-import state.State
+import chain.BlockProducer
+import data.*
+import logging.Logger
 import utils.Crypto
-import utils.KotlinVDF
 import utils.Utils
-import utils.VDF
 import java.net.InetAddress
 
 /**
@@ -19,39 +15,60 @@ import java.net.InetAddress
 class ApplicationManager(configFileContent: String) {
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
-    val timeManager = TimeManager()
     val currentState = State(0, 0, 0, configuration.initialDifficulty)
     val crypto = Crypto(".")
+    val timeManager = TimeManager()
 
-
-    val currentValidators: MutableSet<String> = if (isTrustedNode) mutableSetOf(crypto.publicKey) else mutableSetOf()
-    val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
-
-    val networkManager = NetworkManager(this)
-
-    val kotlinVDF = KotlinVDF()
-    val vdf = VDF("http://localhost:${configuration.listeningPort}/vdf")
-    val vdfManager = VDFManager(this)
-    val dhtManager: DHT = DHT(this)
-
-    // Blockchain related
+    val vdfManager = VDFManager()
+    val dhtManager = DHTManager(this)
     val chainManager = ChainManager(this)
     val blockProducer = BlockProducer(this)
+    val networkManager = NetworkManager(this)
     val validatorManager = ValidatorManager(this)
     val committeeManager = CommitteeManager(this)
 
-    //InfluxDB
-    val dasboardManager = DasboardManager(this)
 
+    val isIncluded: Boolean get() = currentValidators.contains(crypto.publicKey)
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 
-    init {
+    val currentValidators: MutableSet<String> = mutableSetOf()
+    val validatorSetChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
+    private val myIP: String get() = InetAddress.getLocalHost().hostAddress
+    private val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
+
+
+    init {
         try {
+            Logger.trace("My IP is $myIP")
             networkManager.start()
-            if (!isTrustedNode) chainManager.requestSync(0)
+            if (!isTrustedNode) chainManager.requestSync()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
+
+    val identificationMessage: Message<Node> get() = generateMessage(ourNode)
+
+    fun updateValidatorSet(block: Block) = block.validatorChanges.forEach { (publicKey, change) ->
+        if (change) currentValidators.add(publicKey).apply { Logger.info("Adding one public key!") }
+        else currentValidators.remove(publicKey).apply { Logger.info("Deleting one public key!") }
+    }
+
+    /**
+     * Creates DHT search query message looking for a node with specified public key.
+     *
+     * @param lookingFor Public key of the node we're looking for.
+     * @return Message with body of type QueryMessage.
+     */
+    fun createQueryMessage(lookingFor: String): Message<QueryMessage> = generateMessage(QueryMessage(ourNode, lookingFor))
+
+    /**
+     * Create a generics message ready to be sent across the network.
+     *
+     * @param T Message body class type
+     * @param data Body of type T to be serialized into JSON.
+     * @return Message with the signed body type of T, current publicKey and the body itself.
+     */
+    fun <T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
 }

@@ -1,60 +1,39 @@
 package manager
 
+import logging.Logger.debug
+import logging.Logger.info
 
 /**
  * Created by Mihael Valentin Berčič
- * on 25/09/2020 at 14:25
+ * on 02/10/2020 at 16:59
  * using IntelliJ IDEA
  */
-class VDFManager(private val applicationManager: ApplicationManager) {
+class VDFManager {
 
+    private val runtime: Runtime by lazy { Runtime.getRuntime() }
 
-    private val networkManager by lazy { applicationManager.networkManager }
-    private val configuration = applicationManager.configuration
-    private val crypto by lazy { applicationManager.crypto }
-    private val chainManager by lazy { applicationManager.chainManager }
+    private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
 
-    /*
-    fun receivedVdf(context: Context) {
-
-        Logger.debug("Received vdf!")
-
-        val ip = context.ip()
-        val isLocal = ip == "127.0.0.1"
-        val message = if (isLocal) null else context.getMessage<VdfProofBody>()
-        val body = message?.body ?: Utils.gson.fromJson<VdfProofBody>(context.body(), VdfProofBody::class.java)
-
-        val proof = body.proof
-        val epoch = body.block
-        if (isLocal || chainManager.isVDFCorrect(proof)) {
-            val hex = DigestUtils.sha256Hex(proof)
-            val seed = BigInteger(hex, 16)
-                    .remainder(Long.MAX_VALUE.toBigInteger())
-                    .toLong()
-            val random = Random(seed)
-            val ourKey = crypto.publicKey
-
-            for (slot in 0 until configuration.slotCount) {
-                val validatorSetCopy = applicationManager.currentValidators.toMutableList().shuffled(random).toMutableList()
-                val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
-                val committee = validatorSetCopy.take(configuration.committeeSize)
-                validatorSetCopy.removeAll(committee)
-
-                val weProduce = blockProducerNode == ourKey
-                val weCommittee = committee.contains(ourKey)
-
-                println("Info for slot [$slot]:\tWe produce: $weProduce\tWe committee: $weCommittee")
-
-                chainManager.mySlotDuties[slot] = when {
-                    weProduce -> Doodie.PRODUCER
-                    weCommittee -> Doodie.COMMITTEE
-                    else -> Doodie.VALIDATOR
-                }
-            }
-            Logger.debug("VDF is starting the tmier from here!")
-        }
-
-
+    fun findProof(difficulty: Int, hash: String, epoch: Int): String {
+        // debug("VDF HASH: $hash for epoch: $epoch")
+        killAll()
+        return ProcessBuilder()
+                .command("vdf-cli", hash, "$difficulty")
+                .redirectErrorStream(true)
+                .start()
+                .inputStream
+                .reader()
+                .readText()
     }
-    */
+
+    fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
+        debug("Verifying proof: Hash:$hash")
+        val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
+        val processOutput = proofProcess.inputStream.reader().readText()
+        val exitCode = proofProcess.waitFor()
+
+        if (exitCode != 0) info("Verify proof exited with something else than 0! [ Result = $exitCode ]")
+        return exitCode == 0 && processOutput == "Proof is valid"
+    }
+
 }

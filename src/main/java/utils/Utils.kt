@@ -1,7 +1,7 @@
 package utils
 
-import abstraction.Message
-import abstraction.NetworkRequestType
+import data.Message
+import data.NetworkRequestType
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import io.javalin.http.Context
@@ -45,7 +45,7 @@ class Utils {
         /**
          * Returns the file's contents specified with path
          *
-         * @param path
+         * @param patḣ
          * @return File's contents
          */
         fun readFile(path: String): String = File(path).readText()

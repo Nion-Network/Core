@@ -1,9 +1,10 @@
-package network
+package manager
 
 import io.javalin.Javalin
 import io.javalin.http.Context
+import io.javalin.http.ForbiddenResponse
 import logging.Logger
-import manager.ApplicationManager
+import network.NodeNetwork
 import utils.Utils
 import utils.networkHistory
 
@@ -12,13 +13,12 @@ import utils.networkHistory
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(val applicationManager: ApplicationManager) { // , blockChain: BlockChain
+class NetworkManager(val applicationManager: ApplicationManager) {
 
     val nodeNetwork = NodeNetwork(applicationManager)
     private val configuration = applicationManager.configuration
 
     private val dhtProtocol by lazy { applicationManager.dhtManager }
-    private val vdfManager by lazy { applicationManager.vdfManager }
     private val chainManager by lazy { applicationManager.chainManager }
     private val validatorManager by lazy { applicationManager.validatorManager }
     private val committeeManager by lazy { applicationManager.committeeManager }
@@ -29,23 +29,24 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     fun start() {
         "/ping" get { status(200) }
 
-        // DHT protocol
+        // DHT protocol endpoints
+        "/join" post { dhtProtocol.joinRequest(this) }
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-        "/join" post { dhtProtocol.joinRequest(this) }
-        "/search" get { this.queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
+        "/search" get { queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
 
-        "/include" post { validatorManager.validatorSetInclusionRequest(this) }
-        "/syncRequest" post { chainManager.syncRequestReceived(this) } //we were asked for our blocks
-        "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
-        "/block" post { chainManager.blockReceived(this) }
-        "/voteRequest" post { committeeManager.voteRequest(this) }
+        // Blockchain endpoints
         "/vote" post { chainManager.voteReceived(this) }
+        "/block" post { chainManager.blockReceived(this) }
+        "/include" post { validatorManager.validatorSetInclusionRequest(this) }
+        "/syncReply" post { chainManager.syncReplyReceived(this) }
+        "/syncRequest" post { chainManager.syncRequestReceived(this) }
+        "/voteRequest" post { committeeManager.voteRequest(this) }
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
-            val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", nodeNetwork.createIdentificationMessage())
+            val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", applicationManager.identificationMessage)
             Logger.trace("Join response from trusted node: $response")
 
             while (!nodeNetwork.isInNetwork) {
@@ -59,13 +60,8 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     }
 
     init {
-
-        application.exception(Exception::class.java) { exception, context ->
-            Logger.error("Stumbled upon error on request from ${context.ip()}")
-            exception.printStackTrace()
-        }
-
-        application.before { if (networkHistory.containsKey(it.header("hex"))) Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!") }
+        application.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
+        application.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
 

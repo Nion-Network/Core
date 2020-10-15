@@ -1,13 +1,11 @@
-package protocols
+package manager
 
-import abstraction.Message
-import abstraction.Node
+import data.Message
+import data.Node
 import io.javalin.http.Context
 import logging.Logger
-import manager.ApplicationManager
-import messages.FoundMessage
-import messages.IdentificationMessage
-import messages.QueryMessageBody
+import data.FoundMessage
+import data.QueryMessage
 import network.knownNodes
 import utils.getMessage
 
@@ -16,7 +14,7 @@ import utils.getMessage
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DHT(private val applicationManager: ApplicationManager) {
+class DHTManager(private val applicationManager: ApplicationManager) {
 
     private val networkManager by lazy { applicationManager.networkManager }
     private val nodeNetwork by lazy { networkManager.nodeNetwork }
@@ -24,7 +22,7 @@ class DHT(private val applicationManager: ApplicationManager) {
     fun sendSearchQuery(forPublicKey: String) {
         if (knownNodes.containsKey(forPublicKey)) return
         Logger.info("Broadcasting on /query looking for our key owner...")
-        nodeNetwork.broadcast("/query", nodeNetwork.createQueryMessage(forPublicKey))
+        nodeNetwork.broadcast("/query", applicationManager.createQueryMessage(forPublicKey))
     }
 
     /**
@@ -47,14 +45,14 @@ class DHT(private val applicationManager: ApplicationManager) {
      */
     fun onQuery(context: Context) {
         //println("Received query request for ${context.body()}")
-        val message = context.getMessage<QueryMessageBody>()
+        val message = context.getMessage<QueryMessage>()
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
 
         knownNodes[lookingFor]?.apply {
-            val foundMessage = nodeNetwork.createGenericsMessage(FoundMessage(ip, port, publicKey))
+            val foundMessage = applicationManager.generateMessage(FoundMessage(ip, port, publicKey))
             body.node.sendMessage("/found", foundMessage)
-        } ?: nodeNetwork.pickRandomNodes(5).forEach { it.sendMessage("/query", message) }
+        } ?: nodeNetwork.sendMessageToRandomNodes("/query", 5, message)
     }
 
     /**
@@ -65,26 +63,29 @@ class DHT(private val applicationManager: ApplicationManager) {
     fun joinRequest(context: Context) {
         val ip = context.ip()
         Logger.debug("Join request coming in from $ip ...")
-        val message = context.getMessage<IdentificationMessage>()
-        val body = message.body
+        val message = context.getMessage<Node>()
+        val node = message.body
 
-        if (!nodeNetwork.isFull) body.node.apply {
-            Logger.debug("Node [$ip] has been accepted into the network...")
+        if (!nodeNetwork.isFull) node.apply {
             knownNodes[publicKey] = this
-            sendMessage("/joined", nodeNetwork.createIdentificationMessage())
+            sendMessage("/joined", applicationManager.identificationMessage)
         } else nodeNetwork.broadcast("/join", message)
         context.status(200)
     }
 
+    /**
+     * After we've been accepted into the network, the node that has accepted us sends confirmation to this endpoint.
+     *
+     * @param context
+     */
     fun onJoin(context: Context) {
-        val message: Message<IdentificationMessage> = context.getMessage()
+        val message: Message<Node> = context.getMessage()
         val confirmed: Boolean = applicationManager.crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
-            val acceptorNode: Node = message.body.node
-            Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
+            val acceptorNode: Node = message.body
             knownNodes[acceptorNode.publicKey] = acceptorNode
             nodeNetwork.isInNetwork = true
+            Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
         }
-        Logger.debug("We were accepted into the network!")
     }
 }
