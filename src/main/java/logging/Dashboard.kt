@@ -4,6 +4,8 @@ import abstraction.Message
 import common.BlockChain
 import common.BlockData
 import configuration.Configuration
+import data.Block
+import data.Configuration
 import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
@@ -25,7 +27,7 @@ object Dashboard {
         influxDB.setDatabase("PROD")
         if(influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
     }
-    fun newBlockAccepted(blockData: BlockData, crypto: Crypto){
+    fun newBlockAccepted(blockData: Block, crypto: Crypto){
         try {
             val point: Point = Point.measurement("newBlock").time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
                     .addField("nodeId", DigestUtils.sha256Hex(crypto.publicKey))

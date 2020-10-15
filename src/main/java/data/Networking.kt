@@ -20,7 +20,10 @@ data class Configuration(
         val initialDifficulty: Int,
         val validatorsCount: Int,
         val committeeSize: Int,
-        val slotCount: Int) {
+        val slotCount: Int,
+        val influxUrl: String,
+        val influxUsername: String,
+        val influxPassword: String) {
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
 }
 
