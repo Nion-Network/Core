@@ -37,6 +37,9 @@ class ApplicationManager(configFileContent: String) {
     private val myIP: String get() = InetAddress.getLocalHost().hostAddress
     private val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
 
+    //InfluxDB
+    val dasboardManager = DasboardManager(this)
+
 
     init {
         try {
