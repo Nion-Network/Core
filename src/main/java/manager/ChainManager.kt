@@ -1,14 +1,13 @@
 package manager
 
-import blockchain.Block
-import blockchain.BlockVote
+import data.Block
+import data.BlockVote
+import data.ChainTask
+import data.SlotDuty
 import io.javalin.http.Context
 import logging.Logger
-import messages.NewBlockMessageBody
-import messages.RequestBlocksMessageBody
-import messages.ResponseBlocksMessageBody
+import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
-import state.ChainTask
 import utils.getMessage
 import java.math.BigInteger
 import kotlin.random.Random
@@ -20,102 +19,104 @@ import kotlin.random.Random
  */
 class ChainManager(private val applicationManager: ApplicationManager) {
 
-    val lastBlock: Block? get() = chain.lastOrNull()
+    val isChainEmpty: Boolean get() = chain.isEmpty()
 
-    val votes = mutableListOf<BlockVote>()
-    val chain = mutableListOf<Block>()
-    private val vdf by lazy { applicationManager.kotlinVDF }
+    private val lastBlock: Block? get() = chain.lastOrNull()
+    private val votes = mutableListOf<BlockVote>()
+    private val chain = mutableListOf<Block>()
+
+    private val dhtManager by lazy { applicationManager.dhtManager }
+    private val currentState by lazy { applicationManager.currentState }
+    private val vdfManager by lazy { applicationManager.vdfManager }
     private val crypto by lazy { applicationManager.crypto }
-    private val dht by lazy { applicationManager.dhtManager }
     private val timeManager by lazy { applicationManager.timeManager }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
     private val configuration by lazy { applicationManager.configuration }
     private val blockProducer by lazy { applicationManager.blockProducer }
     private val validatorManager by lazy { applicationManager.validatorManager }
 
-    private var nextTask = ChainTask(Doodie.VALIDATOR)
-
 
     fun addBlock(block: Block) {
-        chain.add(block)
-        applicationManager.currentValidators.apply {
-            block.validatorChanges.forEach { (publicKey, change) ->
-                if (change) add(publicKey.apply { Logger.info("Adding one public key!") })
-                else remove(publicKey.apply { Logger.info("Deleting one public key!") })
-            }
+        currentState.apply {
+            currentSlot = block.slot
+            currentEpoch = block.epoch
         }
-        calculateNextDuties(block.vdfProof)
+
+        applicationManager.updateValidatorSet(block)
+        chain.add(block)
         votes.clear()
+        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] ")
+
+        val nextTask = calculateNextDuties(block)
+
         when (nextTask.myTask) {
-            Doodie.PRODUCER -> {
-                val newBlock = blockProducer.createBlock(block)
-                applicationManager.dasboardManager.newBlockProduced(newBlock)
-                val message = nodeNetwork.createNewBlockMessage(newBlock)
-                timeManager.runAfter(1000) {
-                    nodeNetwork.broadcast("/voteRequest", message)
+            SlotDuty.PRODUCER -> {
+                if (++currentState.currentSlot == configuration.slotCount) {
+                    currentState.currentEpoch++
+                    currentState.currentSlot = 0
+                    Logger.debug("Moved to next epoch!")
                 }
+                val newBlock = blockProducer.createBlock(block)
+                val message = applicationManager.generateMessage(newBlock)
+
+                timeManager.runAfter(1000) { nodeNetwork.broadcast("/voteRequest", message) }
+
                 timeManager.runAfter(configuration.slotDuration * 2 / 3) {
-                    val votesAmount = votes.size
                     newBlock.vdfProof = votes[0].vdfProof
-                    val broadcastMessage = nodeNetwork.createNewBlockMessage(newBlock)
-                    Logger.debug("Broadcasting what we have collected... We got $votesAmount votes...")
+                    val votesAmount = votes.size
+                    val broadcastMessage = applicationManager.generateMessage(newBlock)
+
+                    Logger.debug("We got $votesAmount votes and we're broadcasting...")
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     applicationManager.validatorSetChanges.clear()
                 }
             }
-            Doodie.COMMITTEE -> Logger.debug("We're committee the next block...")
-            Doodie.VALIDATOR -> Logger.debug("We're validator the next block...")
+            SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit
         }
     }
 
-    fun runVDF(onBlock: Block) = vdf.findProof(onBlock.difficulty, onBlock.hash, onBlock.epoch)
-
-    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { lastBlock ->
-        vdf.verifyProof(lastBlock.difficulty, lastBlock.hash, proof)
-    } ?: false
-
-    fun requestSync(fromHeight: Int) {
-        Logger.info("Requesting new blocks from $fromHeight")
-        val message = nodeNetwork.createRequestBlocksMessage(fromHeight)
+    fun requestSync() {
+        val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
+        val message = applicationManager.generateMessage(from)
+        Logger.trace("Requesting new blocks from $from")
         nodeNetwork.sendMessageToRandomNodes("/syncRequest", 1, message)
     }
 
     fun syncRequestReceived(context: Context) {
-        val message = context.getMessage<RequestBlocksMessageBody>()
-        val blockMessage = message.body
-        Logger.debug("Received request for sync from epoch: ${blockMessage.epoch}")
-
-        Logger.debug("Sending back a response with blocks to sync...")
-        val blocks = chain.drop(blockMessage.epoch)
-        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blocks)
-        blockMessage.node.sendMessage("/syncReply", responseBlocksMessageBody)
+        val message = context.getMessage<Int>()
+        val blocks = chain.drop(message.body)
+        val responseBlocksMessageBody = applicationManager.generateMessage(blocks)
+        knownNodes[message.publicKey]?.sendMessage("/syncReply", responseBlocksMessageBody)
     }
 
     fun syncReplyReceived(context: Context) {
-        val message = context.getMessage<ResponseBlocksMessageBody>()
-        val body = message.body
-        val blocks = body.blocks
-
+        val message = context.getMessage<Array<Block>>()
+        val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
-            chain.add(block)
-            applicationManager.currentState.ourSlot = block.slot
-            applicationManager.currentState.currentEpoch = block.epoch
+            addBlock(block)
+            currentState.currentSlot = block.slot
+            currentState.currentEpoch = block.epoch
         }
+        Logger.info("Syncing finished...")
         validatorManager.requestInclusion()
     }
 
     fun blockReceived(context: Context) {
-        val message = context.getMessage<NewBlockMessageBody>()
-        val body = message.body
-        val newBlock = body.block
-        Logger.chain("Block received...")
-        if (newBlock.precedentHash == lastBlock?.hash ?: "") addBlock(newBlock)
+        val message = context.getMessage<Block>()
+        val newBlock = message.body
+
+        nodeNetwork.broadcast("/block", message)
+
+        if (newBlock.precedentHash == lastBlock?.hash ?: "") {
+            addBlock(newBlock)
+            if (!applicationManager.isIncluded) validatorManager.requestInclusion()
+        } else requestSync()
     }
 
-    private fun calculateNextDuties(proof: String) {
-        Logger.error("Calculating duties with proof: $proof")
+    private fun calculateNextDuties(block: Block): ChainTask {
+        val proof = block.vdfProof
         val hex = DigestUtils.sha256Hex(proof)
         val seed = BigInteger(hex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val random = Random(seed)
@@ -124,21 +125,18 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val validatorSetCopy = applicationManager.currentValidators.toMutableList().shuffled(random).toMutableList()
         val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
         val committee = validatorSetCopy.take(configuration.committeeSize)
-        validatorSetCopy.removeAll(committee)
 
-        val weProduce = blockProducerNode == ourKey
-        val weCommittee = committee.contains(ourKey)
-
-        Logger.info("Info for next block[${chain.size}] :\tWe produce: $weProduce\tWe committee: $weCommittee")
+        // Logger.error("Block producer is: ${blockProducerNode.drop(30).take(15)}")
         val ourRole = when {
-            weProduce -> Doodie.PRODUCER
-            weCommittee -> Doodie.COMMITTEE
-            else -> Doodie.VALIDATOR
+            blockProducerNode == ourKey -> SlotDuty.PRODUCER
+            committee.contains(ourKey) -> SlotDuty.COMMITTEE
+            else -> SlotDuty.VALIDATOR
         }
 
-        if (ourRole == Doodie.PRODUCER) committee.forEach(dht::sendSearchQuery)
+        Logger.debug("Next task: $ourRole")
 
-        nextTask = ChainTask(ourRole, committee)
+        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dhtManager::sendSearchQuery)
+        return ChainTask(ourRole, committee)
     }
 
     fun voteReceived(context: Context) {
@@ -146,6 +144,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         votes.add(message.body)
     }
 
+    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdfManager.verifyProof(it.difficulty, it.hash, proof) }
+            ?: false
 }
-
-enum class Doodie { PRODUCER, COMMITTEE, VALIDATOR }

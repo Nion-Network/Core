@@ -1,16 +1,10 @@
 package network
 
-import abstraction.Message
-import abstraction.Node
-import blockchain.Block
-import blockchain.BlockVote
-import logging.Logger
+import data.Message
+import data.Node
 import manager.ApplicationManager
-import messages.*
 import org.apache.commons.codec.digest.DigestUtils
-import utils.Utils
 import utils.networkHistory
-import java.net.InetAddress
 
 val knownNodes: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
 
@@ -21,50 +15,40 @@ val knownNodes: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
  */
 class NodeNetwork(applicationManager: ApplicationManager) {
 
-    private val crypto = applicationManager.crypto
-    private val configuration = applicationManager.configuration
-    private val ourNode = Node(crypto.publicKey, myIP, configuration.listeningPort)
-
-    init {
-        Logger.trace("My IP is $myIP")
-    }
-
     var isInNetwork = false
 
-    val myIP: String get() = InetAddress.getLocalHost().hostAddress
-    val isFull get(): Boolean = knownNodes.size >= configuration.maxNodes
+    private val configuration = applicationManager.configuration
 
+    val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
+
+    private fun pickRandomNodes(amount: Int): List<Node> = knownNodes.values.shuffled().take(amount)
+
+    /**
+     * Sends the message to a few randomly chosen nodes from the known nodes.
+     *
+     * @param T Message body type.
+     * @param path Endpoint for the message to go to.
+     * @param spread Amount of nodes to choose (if less are known, all are chosen)
+     * @param message Message with body of type T.
+     */
+    fun <T> sendMessageToRandomNodes(path: String, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(path, message) }
+
+    /**
+     * Broadcasts the specified message to known nodes in the network.
+     *
+     * @param T Message body type.
+     * @param path Endpoint for the message to go to.
+     * @param message Message with body of type T.
+     * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
+     */
     fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
         val hexHash = DigestUtils.sha256Hex(message.signature)
         if (networkHistory.containsKey(hexHash)) return
-        Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
+        // Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
         networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
         for (node in shuffledNodes.take(amountToTake)) node.sendMessage(path, message)
     }
 
-    fun pickRandomNodes(amount: Int): List<Node> = knownNodes.values.shuffled().take(amount)
-
-    /**
-     * Create a generics message ready to be sent across the network.
-     *
-     * @param T Message body class type
-     * @param data Body of type T to be serialized into JSON.
-     * @return Message with the signed body type of T, current publicKey and the body itself.
-     */
-    fun <T> createGenericsMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
-
-    fun createIdentificationMessage(): Message<IdentificationMessage> = createGenericsMessage(IdentificationMessage(ourNode))
-
-
-    fun <T> sendMessageToRandomNodes(path: String, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(path, message) }
-
-    fun createVdfProofMessage(proof: String, block: Int): Message<VdfProofBody> = createGenericsMessage(VdfProofBody(proof, block))
-    fun createQueryMessage(lookingFor: String): Message<QueryMessageBody> = createGenericsMessage(QueryMessageBody(ourNode, lookingFor))
-    fun createNewBlockMessage(block: Block): Message<NewBlockMessageBody> = createGenericsMessage(NewBlockMessageBody(block))
-    fun createRequestBlocksMessage(height: Int): Message<RequestBlocksMessageBody> = createGenericsMessage(RequestBlocksMessageBody(ourNode, height))
-    fun createResponseBlocksMessage(blocks: List<Block>): Message<ResponseBlocksMessageBody> = createGenericsMessage(ResponseBlocksMessageBody(blocks))
-    fun createValidatorInclusionRequestMessage(publicKey: String): Message<RequestInclusionBody> = createGenericsMessage(RequestInclusionBody(publicKey))
-    fun createVoteMessage(vote: BlockVote): Message<BlockVote> = createGenericsMessage(vote)
 }
