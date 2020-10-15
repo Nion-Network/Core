@@ -1,6 +1,8 @@
 package data
 
 import org.apache.commons.codec.digest.DigestUtils
+import org.influxdb.annotation.Column
+import org.influxdb.annotation.Measurement
 
 /**
  * Created by Mihael Valentin Berčič
@@ -14,12 +16,16 @@ data class State(var currentEpoch: Int, var currentSlot: Int, var committeeIndex
 
 data class ChainTask(val myTask: SlotDuty, val committee: List<String> = emptyList())
 
-data class Block(val epoch: Int,
-                 val slot: Int,
-                 val difficulty: Int,
-                 val timestamp: Long,
-                 val committeeIndex: Int,
-                 var vdfProof: String = "",
-                 val precedentHash: String = "",
+
+@Measurement(name = "block")
+data class Block(@Column(name = "epoch")val epoch: Int,
+                 @Column(name = "slot")val slot: Int,
+                 @Column(name = "difficulty")val difficulty: Int,
+                 @Column(name = "timestamp")val timestamp: Long,
+                 @Column(name = "committeeIndex")val committeeIndex: Int,
+                 @Column(name = "blockProducer") val blockProducer: String,
+                 @Column(name = "previousHash", tag = true)val precedentHash: String = "",
+                 @Column(name = "hash", tag = true)val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"),
+                 @Column(name = "votes") var votes: Int,
                  val validatorChanges: Map<String, Boolean> = emptyMap(),
-                 val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"))
+                 var vdfProof: String = "")

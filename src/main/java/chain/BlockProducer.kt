@@ -2,6 +2,7 @@ package chain
 
 import data.Block
 import manager.ApplicationManager
+import org.apache.commons.codec.digest.DigestUtils
 
 /**
  * Created by Mihael Valentin Berčič
@@ -21,17 +22,21 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             difficulty = initialDifficulty,
             timestamp = currentTime,
             committeeIndex = 0,
+            votes = 0,
+            blockProducer = DigestUtils.sha256Hex(applicationManager.crypto.publicKey),
             validatorChanges = applicationManager.validatorSetChanges.toMap(),
             vdfProof = vdfProof
     )
 
-    fun createBlock(previousBlock: Block, vdfProof: String = ""): Block = Block(
+    fun createBlock(previousBlock: Block, vdfProof: String = "", votes:Int =0): Block = Block(
             epoch = currentState.currentEpoch,
             slot = currentState.currentSlot,
             difficulty = currentState.currentDifficulty,
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
+            votes = votes,
+            blockProducer = DigestUtils.sha256Hex(applicationManager.crypto.publicKey),
             validatorChanges = applicationManager.validatorSetChanges.toMap(),
             precedentHash = previousBlock.hash
     )
