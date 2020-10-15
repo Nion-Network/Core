@@ -21,44 +21,44 @@ import kotlin.random.Random
  */
 class ChainManager(private val applicationManager: ApplicationManager) {
 
-    val lastBlock: Block? get() = chain.lastOrNull()
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
-    val votes = mutableListOf<BlockVote>()
-    val chain = mutableListOf<Block>()
+    private val lastBlock: Block? get() = chain.lastOrNull()
+    private val votes = mutableListOf<BlockVote>()
+    private val chain = mutableListOf<Block>()
 
-    private val vdf by lazy { applicationManager.kotlinVDF }
+    private val dhtManager by lazy { applicationManager.dhtManager }
+    private val currentState by lazy { applicationManager.currentState }
+    private val vdfManager by lazy { applicationManager.kotlinVDF }
     private val crypto by lazy { applicationManager.crypto }
-    private val dht by lazy { applicationManager.dhtManager }
     private val timeManager by lazy { applicationManager.timeManager }
     private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
     private val configuration by lazy { applicationManager.configuration }
     private val blockProducer by lazy { applicationManager.blockProducer }
     private val validatorManager by lazy { applicationManager.validatorManager }
-    private val state by lazy { applicationManager.currentState }
 
 
     fun addBlock(block: Block) {
-        if (++state.currentSlot == configuration.slotCount) {
-            state.currentEpoch++
-            state.currentSlot = 0
-            Logger.debug("Moved to next epoch!")
+        currentState.apply {
+            currentSlot = block.slot
+            currentEpoch = block.epoch
         }
 
-        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] ")
 
-        applicationManager.apply {
-            validatorSetChanges.clear()
-            updateValidatorSet(block)
-        }
-
+        applicationManager.updateValidatorSet(block)
         chain.add(block)
         votes.clear()
+        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] ")
 
         val nextTask = calculateNextDuties(block)
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
+                if (++currentState.currentSlot == configuration.slotCount) {
+                    currentState.currentEpoch++
+                    currentState.currentSlot = 0
+                    Logger.debug("Moved to next epoch!")
+                }
                 val newBlock = blockProducer.createBlock(block)
                 val message = nodeNetwork.createNewBlockMessage(newBlock)
 
@@ -70,22 +70,20 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     val broadcastMessage = nodeNetwork.createNewBlockMessage(newBlock)
 
                     Logger.debug("We got $votesAmount votes and we're broadcasting...")
-
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
+                    applicationManager.validatorSetChanges.clear()
                 }
             }
             SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit
         }
     }
 
-    fun runVDF(onBlock: Block) = vdf.findProof(onBlock.difficulty, onBlock.hash, onBlock.epoch)
-
-    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdf.verifyProof(it.difficulty, it.hash, proof) }
+    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdfManager.verifyProof(it.difficulty, it.hash, proof) }
             ?: false
 
     fun requestSync() {
-        val from = state.currentEpoch * configuration.slotCount + state.currentSlot
+        val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
         Logger.info("Requesting new blocks from $from")
         val message = nodeNetwork.createRequestBlocksMessage(from)
         nodeNetwork.sendMessageToRandomNodes("/syncRequest", 1, message)
@@ -108,8 +106,8 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
             addBlock(block)
-            state.currentSlot = block.slot
-            state.currentEpoch = block.epoch
+            currentState.currentSlot = block.slot
+            currentState.currentEpoch = block.epoch
         }
         validatorManager.requestInclusion()
         Logger.info("Syncing finished...")
@@ -138,7 +136,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
         val committee = validatorSetCopy.take(configuration.committeeSize)
 
-        Logger.error("Block producer is: ${blockProducerNode.drop(30).take(15)}")
+        // Logger.error("Block producer is: ${blockProducerNode.drop(30).take(15)}")
         val ourRole = when {
             blockProducerNode == ourKey -> SlotDuty.PRODUCER
             committee.contains(ourKey) -> SlotDuty.COMMITTEE
@@ -147,7 +145,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         Logger.debug("Next task: $ourRole")
 
-        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dht::sendSearchQuery)
+        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dhtManager::sendSearchQuery)
         return ChainTask(ourRole, committee)
     }
 

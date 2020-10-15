@@ -30,19 +30,20 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     fun start() {
         "/ping" get { status(200) }
 
-        // DHT protocol
+        // DHT protocol endpoints
+        "/join" post { dhtProtocol.joinRequest(this) }
         "/query" post { dhtProtocol.onQuery(this) }
         "/found" post { dhtProtocol.onFound(this) }
         "/joined" post { dhtProtocol.onJoin(this) }
-        "/join" post { dhtProtocol.joinRequest(this) }
-        "/search" get { this.queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
+        "/search" get { queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
 
-        "/include" post { validatorManager.validatorSetInclusionRequest(this) }
-        "/syncRequest" post { chainManager.syncRequestReceived(this) } //we were asked for our blocks
-        "/syncReply" post { chainManager.syncReplyReceived(this) } //we received a reply to our request for blocks
-        "/block" post { chainManager.blockReceived(this) }
-        "/voteRequest" post { committeeManager.voteRequest(this) }
+        // Blockchain endpoints
         "/vote" post { chainManager.voteReceived(this) }
+        "/block" post { chainManager.blockReceived(this) }
+        "/include" post { validatorManager.validatorSetInclusionRequest(this) }
+        "/syncReply" post { chainManager.syncReplyReceived(this) }
+        "/syncRequest" post { chainManager.syncRequestReceived(this) }
+        "/voteRequest" post { committeeManager.voteRequest(this) }
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
@@ -60,18 +61,8 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
     }
 
     init {
-
-        application.exception(Exception::class.java) { exception, context ->
-            Logger.error("Stumbled upon error on request from ${context.ip()}")
-            exception.printStackTrace()
-        }
-
-        application.before {
-            if (networkHistory.containsKey(it.header("hex"))){
-                // Logger.error("We've already seen this message on [${it.path()}]... We're ignoring it!")
-                throw ForbiddenResponse("NO MEANS NO")
-            }
-        }
+        application.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
+        application.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
 
