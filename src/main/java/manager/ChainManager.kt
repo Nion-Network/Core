@@ -1,15 +1,13 @@
 package manager
 
-import blockchain.Block
-import blockchain.BlockVote
+import data.Block
+import data.BlockVote
+import data.ChainTask
+import data.SlotDuty
 import io.javalin.http.Context
 import logging.Logger
-import messages.NewBlockMessageBody
-import messages.RequestBlocksMessageBody
-import messages.ResponseBlocksMessageBody
+import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
-import state.ChainTask
-import state.SlotDuty
 import utils.getMessage
 import java.math.BigInteger
 import kotlin.random.Random
@@ -59,14 +57,14 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     Logger.debug("Moved to next epoch!")
                 }
                 val newBlock = blockProducer.createBlock(block)
-                val message = nodeNetwork.createNewBlockMessage(newBlock)
+                val message = applicationManager.generateMessage(newBlock)
 
                 timeManager.runAfter(1000) { nodeNetwork.broadcast("/voteRequest", message) }
 
                 timeManager.runAfter(configuration.slotDuration * 2 / 3) {
                     newBlock.vdfProof = votes[0].vdfProof
                     val votesAmount = votes.size
-                    val broadcastMessage = nodeNetwork.createNewBlockMessage(newBlock)
+                    val broadcastMessage = applicationManager.generateMessage(newBlock)
 
                     Logger.debug("We got $votesAmount votes and we're broadcasting...")
                     nodeNetwork.broadcast("/block", broadcastMessage)
@@ -78,50 +76,43 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         }
     }
 
-    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdfManager.verifyProof(it.difficulty, it.hash, proof) }
-            ?: false
-
     fun requestSync() {
         val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
-        Logger.info("Requesting new blocks from $from")
-        val message = nodeNetwork.createRequestBlocksMessage(from)
+        val message = applicationManager.generateMessage(from)
+        Logger.trace("Requesting new blocks from $from")
         nodeNetwork.sendMessageToRandomNodes("/syncRequest", 1, message)
     }
 
     fun syncRequestReceived(context: Context) {
-        val message = context.getMessage<RequestBlocksMessageBody>()
-        val blockMessage = message.body
-
-        val blocks = chain.drop(blockMessage.epoch)
-        val responseBlocksMessageBody = nodeNetwork.createResponseBlocksMessage(blocks)
-        blockMessage.node.sendMessage("/syncReply", responseBlocksMessageBody)
+        val message = context.getMessage<Int>()
+        val blocks = chain.drop(message.body)
+        val responseBlocksMessageBody = applicationManager.generateMessage(blocks)
+        knownNodes[message.publicKey]?.sendMessage("/syncReply", responseBlocksMessageBody)
     }
 
     fun syncReplyReceived(context: Context) {
-        val message = context.getMessage<ResponseBlocksMessageBody>()
-        val body = message.body
-        val blocks = body.blocks
-
+        val message = context.getMessage<Array<Block>>()
+        val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
             addBlock(block)
             currentState.currentSlot = block.slot
             currentState.currentEpoch = block.epoch
         }
-        validatorManager.requestInclusion()
         Logger.info("Syncing finished...")
+        validatorManager.requestInclusion()
     }
 
     fun blockReceived(context: Context) {
-        val message = context.getMessage<NewBlockMessageBody>()
-        val body = message.body
-        val newBlock = body.block
+        val message = context.getMessage<Block>()
+        val newBlock = message.body
 
         nodeNetwork.broadcast("/block", message)
 
-        // Logger.chain("Block received...")
-        if (newBlock.precedentHash == lastBlock?.hash ?: "") addBlock(newBlock)
-        else requestSync()
+        if (newBlock.precedentHash == lastBlock?.hash ?: "") {
+            addBlock(newBlock)
+            if (!applicationManager.isIncluded) validatorManager.requestInclusion()
+        } else requestSync()
     }
 
     private fun calculateNextDuties(block: Block): ChainTask {
@@ -153,4 +144,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         votes.add(message.body)
     }
 
+    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdfManager.verifyProof(it.difficulty, it.hash, proof) }
+            ?: false
 }

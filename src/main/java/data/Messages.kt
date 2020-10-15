@@ -1,16 +1,16 @@
-// TODO rename or move
-
-package abstraction
+package data
 
 import utils.Utils
 
 /**
  * Created by Mihael Valentin Berčič
- * on 27/03/2020 at 12:11
+ * on 18/04/2020 at 16:33
  * using IntelliJ IDEA
  */
 
-enum class NetworkRequestType { GET, POST }
+data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
+
+data class QueryMessage(val node: Node, val searchingPublicKey: String)
 
 /**
  * Message with body of type T.
@@ -29,26 +29,3 @@ data class Message<T>(val publicKey: String, val signature: String, val body: T,
     val asJson: String get() = Utils.gson.toJson(this)
     val bodyAsString: String get() = Utils.gson.toJson(body)
 }
-
-/**
- * Stores information of some Node in the network.
- *
- * @property publicKey
- * @property ip
- * @property port
- * @property returnAddress String representing URL to access the Node.
- */
-data class Node(val publicKey: String, val ip: String, val port: Int, val returnAddress: String = "http://$ip:port") {
-
-    /**
-     * Sends the given message to current node.
-     *
-     * @param T type of the message body.
-     * @param path http(s) networking path to deliver the message to.
-     * @param message message to be sent to the node.
-     * @return Response code and response
-     */
-    fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo("http://$ip:$port", path, message)
-}
-
-

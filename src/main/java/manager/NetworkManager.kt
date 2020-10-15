@@ -13,7 +13,7 @@ import utils.networkHistory
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(val applicationManager: ApplicationManager) { // , blockChain: BlockChain
+class NetworkManager(val applicationManager: ApplicationManager) {
 
     val nodeNetwork = NodeNetwork(applicationManager)
     private val configuration = applicationManager.configuration
@@ -46,7 +46,7 @@ class NetworkManager(val applicationManager: ApplicationManager) { // , blockCha
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
-            val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", nodeNetwork.createIdentificationMessage())
+            val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", applicationManager.identificationMessage)
             Logger.trace("Join response from trusted node: $response")
 
             while (!nodeNetwork.isInNetwork) {

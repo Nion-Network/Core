@@ -1,5 +1,6 @@
-package blockchain
+package chain
 
+import data.Block
 import manager.ApplicationManager
 
 /**

@@ -1,5 +1,6 @@
 package logging
 
+import data.DebugType
 import java.util.*
 
 /**
@@ -15,8 +16,6 @@ val timestamp: String get() = System.currentTimeMillis().toChunkedTimeStamp
 object Logger {
 
     private var currentDebug: DebugType = DebugType.ALL
-
-    private enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
 
     private const val red = "\u001b[31m"
     private const val blue = "\u001B[34;1m"
