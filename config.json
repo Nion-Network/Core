@@ -9,7 +9,7 @@
   "initialDifficulty": 20000,
   "maxCommittees": 64,
   "broadcastSpread": 3,
-  "validatorsCount": 2,
-  "committeeSize": 2,
+  "validatorsCount": 6,
+  "committeeSize": 3,
   "slotCount": 6
 }
