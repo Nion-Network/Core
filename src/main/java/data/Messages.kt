@@ -3,7 +3,7 @@ package data
 import utils.Utils
 
 /**
- * Created by Mihael Valentin Berčič
+ * Created by Mihael
  * on 18/04/2020 at 16:33
  * using IntelliJ IDEA
  */
