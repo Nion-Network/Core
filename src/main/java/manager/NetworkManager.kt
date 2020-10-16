@@ -39,7 +39,7 @@ class NetworkManager(val applicationManager: ApplicationManager) {
         // Blockchain endpoints
         "/vote" post { chainManager.voteReceived(this) }
         "/block" post { chainManager.blockReceived(this) }
-        "/include" post { validatorManager.validatorSetInclusionRequest(this) }
+        "/include" post { validatorManager.inclusionRequest(this) }
         "/syncReply" post { chainManager.syncReplyReceived(this) }
         "/syncRequest" post { chainManager.syncRequestReceived(this) }
         "/voteRequest" post { committeeManager.voteRequest(this) }

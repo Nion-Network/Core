@@ -69,7 +69,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     Logger.debug("We got $votesAmount votes and we're broadcasting...")
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
-                    applicationManager.validatorSetChanges.clear()
+                    newBlock.validatorChanges.forEach { (key, _) -> applicationManager.validatorSetChanges.remove(key) }
                 }
             }
             SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit
@@ -111,7 +111,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         if (newBlock.precedentHash == lastBlock?.hash ?: "") {
             addBlock(newBlock)
-            if (!applicationManager.isIncluded) validatorManager.requestInclusion()
+            // if (!applicationManager.isIncluded) validatorManager.requestInclusion()
         } else requestSync()
     }
 
