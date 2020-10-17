@@ -1,11 +1,12 @@
 package manager
 
 import data.Block
+import data.BlockVote
+import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
-import logging.Logger
 
 private lateinit var influxDB: InfluxDB
 class DasboardManager(private val applicationManager: ApplicationManager, val configuration: data.Configuration = applicationManager.configuration) {
@@ -18,7 +19,14 @@ class DasboardManager(private val applicationManager: ApplicationManager, val co
     }
 
     fun newBlockProduced(blockData: Block){
-        val point:Point = Point.measurementByPOJO(blockData.javaClass).addFieldsFromPOJO(blockData).build();
+        val point:Point = Point.measurementByPOJO(blockData.javaClass).addFieldsFromPOJO(blockData).build()
+        influxDB.write(point)
+    }
+
+    fun newVote(vote: BlockVote, publicKey: String){
+        val point = Point.measurement("vote").addField("blockHash", vote.blockHash)
+                .addField("signature", DigestUtils.sha256Hex(vote.signature))
+                .addField("validator", DigestUtils.sha256Hex(publicKey)).build()
         influxDB.write(point)
     }
 }
