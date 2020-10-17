@@ -38,7 +38,7 @@ class ApplicationManager(configFileContent: String) {
     private val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
 
     //InfluxDB
-    val dasboardManager = DasboardManager(this)
+    val dashboardManager = DashboardManager(this)
 
 
     init {

@@ -6,9 +6,7 @@ import data.VoteType
 import io.javalin.http.Context
 import logging.Logger
 import network.knownNodes
-import org.apache.commons.codec.cli.Digest
 import org.apache.commons.codec.digest.DigestUtils
-import utils.Crypto
 import utils.getMessage
 
 /**
@@ -23,23 +21,24 @@ class CommitteeManager(private val applicationManager: ApplicationManager) {
 
     fun voteRequest(context: Context) {
         val message = context.getMessage<Block>()
-        val fromNode = knownNodes[message.publicKey]
+        val publicKey = message.publicKey
+        val fromNode = knownNodes[publicKey]
 
         // Logger.info("Vote request has been received...")
-        fromNode?.also { senderNode ->
+        if (fromNode == null) applicationManager.dhtManager.sendSearchQuery(publicKey)
 
-            val block = message.body
-            var vdfFound = false
+        val block = message.body
+        var vdfFound = false
 
-            timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
+        timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
 
-            val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
-            vdfFound = true
-            val blockVote = BlockVote(block.hash, proof, applicationManager.crypto.sign(block.hash),VoteType.FOR)
-            applicationManager.dasboardManager.newVote(blockVote,DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
-            val messageToSend = applicationManager.generateMessage(blockVote)
-            senderNode.sendMessage("/vote", messageToSend)
-        }
+        val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
+        vdfFound = true
+        val blockVote = BlockVote(block.hash, proof, applicationManager.crypto.sign(block.hash), VoteType.FOR)
+        applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
+        val messageToSend = applicationManager.generateMessage(blockVote)
+
+        knownNodes[publicKey]?.sendMessage("/vote", messageToSend)
 
     }
 

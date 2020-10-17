@@ -9,7 +9,7 @@ import org.influxdb.dto.Point
 import org.influxdb.dto.Query
 
 private lateinit var influxDB: InfluxDB
-class DasboardManager(private val applicationManager: ApplicationManager, val configuration: data.Configuration = applicationManager.configuration) {
+class DashboardManager(private val applicationManager: ApplicationManager, val configuration: data.Configuration = applicationManager.configuration) {
 
     init{
         influxDB = InfluxDBFactory.connect(configuration.influxUrl,configuration.influxUsername,configuration.influxPassword)
