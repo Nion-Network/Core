@@ -6,6 +6,9 @@ import data.VoteType
 import io.javalin.http.Context
 import logging.Logger
 import network.knownNodes
+import org.apache.commons.codec.cli.Digest
+import org.apache.commons.codec.digest.DigestUtils
+import utils.Crypto
 import utils.getMessage
 
 /**
@@ -32,11 +35,11 @@ class CommitteeManager(private val applicationManager: ApplicationManager) {
 
             val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
             vdfFound = true
-            val blockVote = BlockVote(block.hash, VoteType.FOR, proof)
+            val blockVote = BlockVote(block.hash, proof, applicationManager.crypto.sign(block.hash),VoteType.FOR)
+            applicationManager.dasboardManager.newVote(blockVote,DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
             val messageToSend = applicationManager.generateMessage(blockVote)
             senderNode.sendMessage("/vote", messageToSend)
         }
-
 
     }
 
