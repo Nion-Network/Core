@@ -68,7 +68,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
                     Logger.debug("We got $votesAmount votes and we're broadcasting...")
                     newBlock.votes = votesAmount
-                    applicationManager.dasboardManager.newBlockProduced(newBlock)
+                    applicationManager.dashboardManager.newBlockProduced(newBlock)
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> applicationManager.validatorSetChanges.remove(key) }
