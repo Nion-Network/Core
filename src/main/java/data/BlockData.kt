@@ -9,11 +9,7 @@ import org.influxdb.annotation.Measurement
  * on 27/03/2020 at 14:11
  * using IntelliJ IDEA
  */
-@Measurement(name = "vote")
-data class BlockVote(@Column(name="hash", tag=true) val blockHash: String,
-                     @Column(name="vdfProof", tag=true) val vdfProof: String = "",
-                     @Column(name="signature", tag=true) val signature: String,
-                     @Column(name="signature") val voteType: VoteType)
+data class BlockVote(val blockHash: String, val vdfProof: String = "", val signature: String, val voteType: VoteType)
 
 data class State(var currentEpoch: Int, var currentSlot: Int, var committeeIndex: Int, var currentDifficulty: Int)
 
