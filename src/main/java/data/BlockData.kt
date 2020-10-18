@@ -9,7 +9,11 @@ import org.influxdb.annotation.Measurement
  * on 27/03/2020 at 14:11
  * using IntelliJ IDEA
  */
-data class BlockVote(val blockHash: String, val vdfProof: String = "", val signature: String, val voteType: VoteType)
+data class BlockVote(val blockHash: String, val signature: String, val voteType: VoteType)
+
+data class VoteRequest(val block: Block, val producer: Node)
+
+data class VoteInformation(val from: String, val timestamp: Long = System.currentTimeMillis())
 
 data class State(var currentEpoch: Int, var currentSlot: Int, var committeeIndex: Int, var currentDifficulty: Int)
 
@@ -17,14 +21,14 @@ data class ChainTask(val myTask: SlotDuty, val committee: List<String> = emptyLi
 
 
 @Measurement(name = "block")
-data class Block(@Column(name = "epoch")val epoch: Int,
-                 @Column(name = "slot")val slot: Int,
-                 @Column(name = "difficulty")val difficulty: Int,
-                 @Column(name = "timestamp")val timestamp: Long,
-                 @Column(name = "committeeIndex")val committeeIndex: Int,
+data class Block(@Column(name = "epoch") val epoch: Int,
+                 @Column(name = "slot") val slot: Int,
+                 @Column(name = "difficulty") val difficulty: Int,
+                 @Column(name = "timestamp") val timestamp: Long,
+                 @Column(name = "committeeIndex") val committeeIndex: Int,
                  @Column(name = "blockProducer", tag = true) val blockProducer: String,
-                 @Column(name = "previousHash", tag = true)val precedentHash: String = "",
-                 @Column(name = "hash", tag = true)val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"),
+                 @Column(name = "previousHash", tag = true) val precedentHash: String = "",
+                 @Column(name = "hash", tag = true) val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"),
                  @Column(name = "votes") var votes: Int,
                  val validatorChanges: Map<String, Boolean> = emptyMap(),
                  var vdfProof: String = "")

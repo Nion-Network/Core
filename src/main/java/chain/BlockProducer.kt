@@ -28,7 +28,7 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             vdfProof = vdfProof
     )
 
-    fun createBlock(previousBlock: Block, vdfProof: String = "", votes:Int =0): Block = Block(
+    fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
             epoch = currentState.currentEpoch,
             slot = currentState.currentSlot,
             difficulty = currentState.currentDifficulty,
