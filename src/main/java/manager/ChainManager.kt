@@ -1,9 +1,6 @@
 package manager
 
-import data.Block
-import data.BlockVote
-import data.ChainTask
-import data.SlotDuty
+import data.*
 import io.javalin.http.Context
 import logging.Logger
 import network.knownNodes
@@ -22,7 +19,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
     private val lastBlock: Block? get() = chain.lastOrNull()
-    private val votes = mutableListOf<BlockVote>()
+    private val votes = mutableMapOf<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
     private val dhtManager by lazy { applicationManager.dhtManager }
@@ -36,6 +33,11 @@ class ChainManager(private val applicationManager: ApplicationManager) {
     private val validatorManager by lazy { applicationManager.validatorManager }
 
 
+    /**
+     * Adds the specified block to the chain and calculates our task for the next slot.
+     *
+     * @param block
+     */
     fun addBlock(block: Block) {
         currentState.apply {
             currentSlot = block.slot
@@ -44,7 +46,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         applicationManager.updateValidatorSet(block)
         chain.add(block)
-        votes.clear()
         Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] ")
 
         val nextTask = calculateNextDuties(block)
@@ -56,28 +57,36 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     currentState.currentSlot = 0
                     Logger.debug("Moved to next epoch!")
                 }
-                val newBlock = blockProducer.createBlock(block)
-                val message = applicationManager.generateMessage(newBlock)
+                val vdfProof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
+                val newBlock = blockProducer.createBlock(block, vdfProof)
+                val voteRequest = VoteRequest(newBlock, applicationManager.ourNode)
+                val message = applicationManager.generateMessage(voteRequest)
 
-                timeManager.runAfter(1000) { nodeNetwork.broadcast("/voteRequest", message) }
+                timeManager.runAfter(500) { nodeNetwork.broadcast("/voteRequest", message) }
 
                 timeManager.runAfter(configuration.slotDuration * 2 / 3) {
-                    newBlock.vdfProof = votes[0].vdfProof
-                    val votesAmount = votes.size
+
+                    val thisBlockVotes = votes[newBlock.hash]
+                    val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = applicationManager.generateMessage(newBlock)
 
                     Logger.debug("We got $votesAmount votes and we're broadcasting...")
                     newBlock.votes = votesAmount
-                    applicationManager.dashboardManager.newBlockProduced(newBlock)
+                    // applicationManager.dashboardManager.newBlockProduced(newBlock)
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> applicationManager.validatorSetChanges.remove(key) }
+
                 }
             }
             SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit
         }
     }
 
+    /**
+     * Request blocks from a random known node needed for synchronization.
+     *
+     */
     fun requestSync() {
         val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
         val message = applicationManager.generateMessage(from)
@@ -85,6 +94,11 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         nodeNetwork.sendMessageToRandomNodes("/syncRequest", 1, message)
     }
 
+    /**
+     * After synchronization request has been received, we send back the blocks node has asked us for.
+     *
+     * @param context Web request context.
+     */
     fun syncRequestReceived(context: Context) {
         val message = context.getMessage<Int>()
         val blocks = chain.drop(message.body)
@@ -92,6 +106,11 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         knownNodes[message.publicKey]?.sendMessage("/syncReply", responseBlocksMessageBody)
     }
 
+    /**
+     * Received blocks for chain synchronization.
+     *
+     * @param context Web request context.
+     */
     fun syncReplyReceived(context: Context) {
         val message = context.getMessage<Array<Block>>()
         val blocks = message.body
@@ -141,11 +160,11 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         return ChainTask(ourRole, committee)
     }
 
+    @Synchronized
     fun voteReceived(context: Context) {
         val message = context.getMessage<BlockVote>()
-        votes.add(message.body)
+        val blockVote = message.body
+        votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }
 
-    fun isVDFCorrect(proof: String) = chain.lastOrNull()?.let { vdfManager.verifyProof(it.difficulty, it.hash, proof) }
-            ?: false
 }

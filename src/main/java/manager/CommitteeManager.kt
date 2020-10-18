@@ -1,12 +1,9 @@
 package manager
 
-import data.Block
 import data.BlockVote
+import data.VoteRequest
 import data.VoteType
 import io.javalin.http.Context
-import logging.Logger
-import network.knownNodes
-import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
 
 /**
@@ -17,29 +14,21 @@ import utils.getMessage
 class CommitteeManager(private val applicationManager: ApplicationManager) {
 
     private val vdfManager by lazy { applicationManager.vdfManager }
-    private val timeManager by lazy { applicationManager.timeManager }
 
     fun voteRequest(context: Context) {
-        val message = context.getMessage<Block>()
-        val publicKey = message.publicKey
-        val fromNode = knownNodes[publicKey]
+        val message = context.getMessage<VoteRequest>()
+        val voteRequest = message.body
+        val block = voteRequest.block
+        val producer = voteRequest.producer
 
-        // Logger.info("Vote request has been received...")
-        if (fromNode == null) applicationManager.dhtManager.sendSearchQuery(publicKey)
-
-        val block = message.body
-        var vdfFound = false
-
-        timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
-
-        val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
-        vdfFound = true
-        val blockVote = BlockVote(block.hash, proof, applicationManager.crypto.sign(block.hash), VoteType.FOR)
-        applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
+        val blockVote = BlockVote(block.hash, applicationManager.crypto.sign(block.hash), VoteType.FOR)
+        // applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
         val messageToSend = applicationManager.generateMessage(blockVote)
 
-        knownNodes[publicKey]?.sendMessage("/vote", messageToSend)
+        val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
+        // if (isValidProof) // TODO
 
+        producer.sendMessage("/vote", messageToSend)
     }
 
 }
