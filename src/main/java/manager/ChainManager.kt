@@ -50,7 +50,12 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         val nextTask = calculateNextDuties(block)
 
-        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] Next task: \u001B[32m${nextTask.myTask}")
+        val textColor = when (nextTask.myTask) {
+            SlotDuty.PRODUCER -> Logger.green
+            SlotDuty.COMMITTEE -> Logger.magenta
+            SlotDuty.VALIDATOR -> Logger.yellow
+        }
+        Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${block.votes}] Next task: $textColor${nextTask.myTask}")
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
@@ -71,7 +76,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = applicationManager.generateMessage(newBlock)
 
-                    Logger.chain("Votes: $votesAmount")
                     newBlock.votes = votesAmount
                     // applicationManager.dashboardManager.newBlockProduced(newBlock)
                     nodeNetwork.broadcast("/block", broadcastMessage)
