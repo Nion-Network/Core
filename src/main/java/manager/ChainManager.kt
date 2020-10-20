@@ -52,9 +52,10 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
-            SlotDuty.COMMITTEE -> Logger.magenta
-            SlotDuty.VALIDATOR -> Logger.yellow
+            SlotDuty.COMMITTEE -> Logger.blue
+            SlotDuty.VALIDATOR -> Logger.white
         }
+
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${block.votes}] Next task: $textColor${nextTask.myTask}")
 
         when (nextTask.myTask) {
@@ -68,7 +69,9 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                 val voteRequest = VoteRequest(newBlock, applicationManager.ourNode)
                 val message = applicationManager.generateMessage(voteRequest)
 
-                timeManager.runAfter(500) { nodeNetwork.broadcast("/voteRequest", message) }
+                timeManager.runAfter(500) {
+                    nextTask.committee.forEach { key -> knownNodes[key]?.sendMessage("/voteRequest", message) }
+                }
 
                 timeManager.runAfter(configuration.slotDuration * 2 / 3) {
 
