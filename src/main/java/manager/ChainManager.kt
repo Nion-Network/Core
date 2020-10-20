@@ -39,6 +39,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
      * @param block
      */
     fun addBlock(block: Block) {
+
         currentState.apply {
             currentSlot = block.slot
             currentEpoch = block.epoch
@@ -46,16 +47,16 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
         applicationManager.updateValidatorSet(block)
         chain.add(block)
-        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] ")
 
         val nextTask = calculateNextDuties(block)
+
+        Logger.chain("Added block with [epoch][slot] => [${block.epoch}][${block.slot}] Next task: \u001B[32m${nextTask.myTask}")
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 if (++currentState.currentSlot == configuration.slotCount) {
                     currentState.currentEpoch++
                     currentState.currentSlot = 0
-                    Logger.debug("Moved to next epoch!")
                 }
                 val vdfProof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
                 val newBlock = blockProducer.createBlock(block, vdfProof)
@@ -70,7 +71,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = applicationManager.generateMessage(newBlock)
 
-                    Logger.debug("We got $votesAmount votes and we're broadcasting...")
+                    Logger.chain("Votes: $votesAmount")
                     newBlock.votes = votesAmount
                     // applicationManager.dashboardManager.newBlockProduced(newBlock)
                     nodeNetwork.broadcast("/block", broadcastMessage)
@@ -153,8 +154,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             committee.contains(ourKey) -> SlotDuty.COMMITTEE
             else -> SlotDuty.VALIDATOR
         }
-
-        Logger.debug("Next task: $ourRole")
 
         if (ourRole == SlotDuty.PRODUCER) committee.forEach(dhtManager::sendSearchQuery)
         return ChainTask(ourRole, committee)

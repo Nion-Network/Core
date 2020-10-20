@@ -53,8 +53,7 @@ class ApplicationManager(configFileContent: String) {
     val identificationMessage: Message<Node> get() = generateMessage(ourNode)
 
     fun updateValidatorSet(block: Block) = block.validatorChanges.forEach { (publicKey, change) ->
-        if (change) currentValidators.add(publicKey).apply { Logger.info("Adding one public key!") }
-        else currentValidators.remove(publicKey).apply { Logger.info("Deleting one public key!") }
+        if (change) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
     }
 
     /**

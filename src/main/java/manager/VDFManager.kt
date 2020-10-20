@@ -1,6 +1,5 @@
 package manager
 
-import logging.Logger.debug
 import logging.Logger.info
 
 /**
@@ -15,7 +14,6 @@ class VDFManager {
     private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
 
     fun findProof(difficulty: Int, hash: String, epoch: Int): String {
-        // debug("VDF HASH: $hash for epoch: $epoch")
         killAll()
         return ProcessBuilder()
                 .command("vdf-cli", hash, "$difficulty")
@@ -27,9 +25,8 @@ class VDFManager {
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
-        debug("Verifying proof: Hash:$hash")
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
-        val processOutput = proofProcess.inputStream.reader().readText()
+        val processOutput = proofProcess.inputStream.reader().readText().trim()
         val exitCode = proofProcess.waitFor()
 
         if (exitCode != 0) info("Verify proof exited with something else than 0! [ Result = $exitCode ]")

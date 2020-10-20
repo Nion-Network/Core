@@ -26,9 +26,7 @@ class CommitteeManager(private val applicationManager: ApplicationManager) {
         val messageToSend = applicationManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
-        // if (isValidProof) // TODO
-
-        producer.sendMessage("/vote", messageToSend)
+        if (isValidProof) producer.sendMessage("/vote", messageToSend)
     }
 
 }
