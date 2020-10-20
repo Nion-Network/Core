@@ -17,15 +17,15 @@ object Logger {
 
     private var currentDebug: DebugType = DebugType.ALL
 
-    private const val red = "\u001b[31m"
-    private const val blue = "\u001B[34;1m"
-    private const val cyan = "\u001b[36m"
-    private const val green = "\u001b[32m"
-    private const val black = "\u001b[30m"
-    private const val yellow = "\u001b[33m"
-    private const val magenta = "\u001b[35m"
-    private const val white = "\u001b[37m"
-    private const val reset = "\u001B[0m"
+    const val red = "\u001b[31m"
+    const val blue = "\u001B[34;1m"
+    const val cyan = "\u001b[36m"
+    const val green = "\u001b[32m"
+    const val black = "\u001b[30m"
+    const val yellow = "\u001b[33m"
+    const val magenta = "\u001b[35m"
+    const val white = "\u001b[37m"
+    const val reset = "\u001B[0m"
 
     private const val informationString = " -------------------------------------------\n" +
             "| ${red}Debug information$reset                         |\n" +
