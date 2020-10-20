@@ -21,7 +21,6 @@ class DHTManager(private val applicationManager: ApplicationManager) {
 
     fun sendSearchQuery(forPublicKey: String) {
         if (knownNodes.containsKey(forPublicKey)) return
-        Logger.info("Broadcasting on /query looking for our key owner...")
         nodeNetwork.broadcast("/query", applicationManager.createQueryMessage(forPublicKey))
     }
 
@@ -35,7 +34,6 @@ class DHTManager(private val applicationManager: ApplicationManager) {
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
         knownNodes[newNode.publicKey] = newNode
-        Logger.info("We got the IP for public key!")
     }
 
     /**
