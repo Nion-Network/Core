@@ -4,6 +4,7 @@ import data.BlockVote
 import data.VoteRequest
 import data.VoteType
 import io.javalin.http.Context
+import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
 
 /**
@@ -22,7 +23,7 @@ class CommitteeManager(private val applicationManager: ApplicationManager) {
         val producer = voteRequest.producer
 
         val blockVote = BlockVote(block.hash, applicationManager.crypto.sign(block.hash), VoteType.FOR)
-        // applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
+        applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
         val messageToSend = applicationManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
