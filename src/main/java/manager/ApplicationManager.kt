@@ -37,7 +37,7 @@ class ApplicationManager(configFileContent: String) {
     private val myIP: String get() = InetAddress.getLocalHost().hostAddress
 
     //InfluxDB
-    // val dashboardManager = DashboardManager(this)
+    val dashboardManager = DashboardManager(this)
 
 
     init {

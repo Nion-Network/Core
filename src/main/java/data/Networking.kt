@@ -23,7 +23,8 @@ data class Configuration(
         val slotCount: Int,
         val influxUrl: String,
         val influxUsername: String,
-        val influxPassword: String
+        val influxPassword: String,
+        val dashboardEnabled : Boolean
 ) {
 
 

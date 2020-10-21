@@ -14,6 +14,7 @@
   "slotCount": 6,
   "influxUrl" : "http://88.200.63.190:8086",
   "influxUsername" : "edge",
-  "influxPassword" : "e1d2g3e4"
+  "influxPassword" : "e1d2g3e4",
+  "dashboardEnabled" : true
 
 }
