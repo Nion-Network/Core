@@ -24,7 +24,8 @@ data class Configuration(
         val influxUrl: String,
         val influxUsername: String,
         val influxPassword: String,
-        val dashboardEnabled : Boolean
+        val dashboardEnabled : Boolean,
+        val targetBlockTime: Double
 ) {
 
 

@@ -31,7 +31,7 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
     fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
             epoch = currentState.currentEpoch,
             slot = currentState.currentSlot,
-            difficulty = currentState.currentDifficulty,
+            difficulty = adjustDifficulty(previousBlock),
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
@@ -40,4 +40,28 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             validatorChanges = applicationManager.validatorSetChanges.toMap(),
             precedentHash = previousBlock.hash
     )
+    fun adjustDifficulty(previousBlock: Block): Int {
+        val deltaT:Long = System.currentTimeMillis() -  previousBlock.timestamp
+        val ratio: Double = deltaT / applicationManager.configuration.targetBlockTime
+        var difficulty: Double = 0.0
+        when {
+            ratio>0 -> {
+                difficulty = previousBlock.difficulty + (previousBlock.difficulty * (1-ratio))
+                if(difficulty<=0){
+                    return 100
+                }
+                return difficulty.toInt()
+            }
+            ratio<0 -> {
+                difficulty = previousBlock.difficulty - (previousBlock.difficulty * (1-ratio))
+                if(difficulty<=0){
+                    return 100
+                }
+                return difficulty.toInt()
+            }
+            else -> {
+                return previousBlock.difficulty
+            }
+        }
+    }
 }
