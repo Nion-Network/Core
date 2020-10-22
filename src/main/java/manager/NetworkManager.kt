@@ -36,11 +36,7 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
         Thread {
             try {
-                while (true) {
-                    val message = messageQueue.take()
-                    message.apply { second(first) }
-                    Logger.error("${messageQueue.size} left!")
-                }
+                while (true) messageQueue.take().apply { second(first) }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
             }
