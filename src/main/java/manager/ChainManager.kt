@@ -1,11 +1,9 @@
 package manager
 
 import data.*
-import io.javalin.http.Context
 import logging.Logger
 import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
-import utils.getMessage
 import utils.toMessage
 import java.math.BigInteger
 import kotlin.random.Random
@@ -105,10 +103,10 @@ class ChainManager(private val applicationManager: ApplicationManager) {
     /**
      * After synchronization request has been received, we send back the blocks node has asked us for.
      *
-     * @param context Web request context.
+     * @param body Web request body.
      */
-    fun syncRequestReceived(context: Context) {
-        val message = context.getMessage<Int>()
+    fun syncRequestReceived(body: String) {
+        val message = body.toMessage<Int>()
         val blocks = chain.drop(message.body)
         val responseBlocksMessageBody = applicationManager.generateMessage(blocks)
         knownNodes[message.publicKey]?.sendMessage("/syncReply", responseBlocksMessageBody)
