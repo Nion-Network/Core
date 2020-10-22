@@ -4,6 +4,7 @@ import data.BlockVote
 import data.VoteRequest
 import data.VoteType
 import io.javalin.http.Context
+import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
 
@@ -27,6 +28,11 @@ class CommitteeManager(private val applicationManager: ApplicationManager) {
         val messageToSend = applicationManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
+        if(!isValidProof) {
+            Logger.error("PROOF IS VERY VERY WRONG")
+            Logger.debug(block)
+
+        }
         if (isValidProof) producer.sendMessage("/vote", messageToSend)
     }
 

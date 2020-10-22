@@ -26,8 +26,9 @@ class ApplicationManager(configFileContent: String) {
     val networkManager = NetworkManager(this)
     val validatorManager = ValidatorManager(this)
     val committeeManager = CommitteeManager(this)
+    val dashboardManager = DashboardManager(this)
 
-
+    var isIncluded: Boolean = false
     val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == configuration.trustedNodeIP && configuration.trustedNodePort == configuration.listeningPort
 
     val currentValidators: MutableSet<String> = mutableSetOf()
@@ -35,9 +36,6 @@ class ApplicationManager(configFileContent: String) {
 
     val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
     private val myIP: String get() = InetAddress.getLocalHost().hostAddress
-
-    //InfluxDB
-    val dashboardManager = DashboardManager(this)
 
 
     init {

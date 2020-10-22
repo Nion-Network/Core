@@ -1,9 +1,9 @@
 package utils
 
-import data.Message
-import data.NetworkRequestType
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import data.Message
+import data.NetworkRequestType
 import io.javalin.http.Context
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
@@ -54,4 +54,5 @@ class Utils {
 
 }
 
-inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
+inline fun <reified T> String.toMessage() = Utils.gson.fromJson<Message<T>>(this, TypeToken.getParameterized(Message::class.java, T::class.java).type)
+inline fun <reified T> Context.getMessage(): Message<T> = body().toMessage()
