@@ -6,6 +6,7 @@ import logging.Logger
 import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
 import utils.getMessage
+import utils.toMessage
 import java.math.BigInteger
 import kotlin.random.Random
 
@@ -39,7 +40,6 @@ class ChainManager(private val applicationManager: ApplicationManager) {
      * @param block
      */
     fun addBlock(block: Block) {
-
         currentState.apply {
             currentSlot = block.slot
             currentEpoch = block.epoch
@@ -119,8 +119,8 @@ class ChainManager(private val applicationManager: ApplicationManager) {
      *
      * @param context Web request context.
      */
-    fun syncReplyReceived(context: Context) {
-        val message = context.getMessage<Array<Block>>()
+    fun syncReplyReceived(body: String) {
+        val message = body.toMessage<Array<Block>>()
         val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
@@ -129,18 +129,19 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             currentState.currentEpoch = block.epoch
         }
         Logger.info("Syncing finished...")
-        validatorManager.requestInclusion()
+        if (blocks.isEmpty()) validatorManager.requestInclusion()
     }
 
-    fun blockReceived(context: Context) {
-        val message = context.getMessage<Block>()
+    fun blockReceived(body: String) {
+        val message = body.toMessage<Block>() // TODO fucking make this shit prettier
         val newBlock = message.body
 
         nodeNetwork.broadcast("/block", message)
 
+        if (newBlock.validatorChanges[crypto.publicKey] == true) applicationManager.isIncluded = true
         if (newBlock.precedentHash == lastBlock?.hash ?: "") {
             addBlock(newBlock)
-            // if (!applicationManager.isIncluded) validatorManager.requestInclusion()
+            if (!applicationManager.isIncluded) validatorManager.requestInclusion()
         } else requestSync()
     }
 
@@ -166,9 +167,8 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         return ChainTask(ourRole, committee)
     }
 
-    @Synchronized
-    fun voteReceived(context: Context) {
-        val message = context.getMessage<BlockVote>()
+    fun voteReceived(body: String) {
+        val message = body.toMessage<BlockVote>()
         val blockVote = message.body
         votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }

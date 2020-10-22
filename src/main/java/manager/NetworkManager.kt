@@ -1,5 +1,9 @@
 package manager
 
+import data.EndPoint
+import data.EndPoint.*
+import data.NetworkRequestType.GET
+import data.NetworkRequestType.POST
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
@@ -7,6 +11,7 @@ import logging.Logger
 import network.NodeNetwork
 import utils.Utils
 import utils.networkHistory
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Created by Mihael Valentin Berčič
@@ -25,24 +30,36 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
+    private val messageQueue = LinkedBlockingQueue<Pair<String, (String) -> Unit>>()
 
     fun start() {
-        "/ping" get { status(200) }
 
-        // DHT protocol endpoints
-        "/join" post { dhtProtocol.joinRequest(this) }
-        "/query" post { dhtProtocol.onQuery(this) }
-        "/found" post { dhtProtocol.onFound(this) }
-        "/joined" post { dhtProtocol.onJoin(this) }
-        "/search" get { queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
+        Thread {
+            try {
+                while (true) {
+                    val message = messageQueue.take()
+                    message.apply { second(first) }
+                    Logger.error("${messageQueue.size} left!")
+                }
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }.start()
 
-        // Blockchain endpoints
-        "/vote" post { chainManager.voteReceived(this) }
-        "/block" post { chainManager.blockReceived(this) }
-        "/include" post { validatorManager.inclusionRequest(this) }
-        "/syncReply" post { chainManager.syncReplyReceived(this) }
-        "/syncRequest" post { chainManager.syncRequestReceived(this) }
-        "/voteRequest" post { committeeManager.voteRequest(this) }
+        SEARCH run { queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
+
+        PING run { status(200) }
+        JOIN run dhtProtocol::joinRequest
+        QUERY run dhtProtocol::onQuery
+        FOUND run dhtProtocol::onFound
+        JOINED run dhtProtocol::onJoin
+        INCLUDE run validatorManager::inclusionRequest
+        SYNC_REQUEST run chainManager::syncRequestReceived
+        VOTE_REQUEST run committeeManager::voteRequest
+
+        VOTE queue chainManager::voteReceived
+        BLOCK queue chainManager::blockReceived
+        SYNC_REPLY queue chainManager::syncReplyReceived
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
@@ -78,4 +95,20 @@ class NetworkManager(val applicationManager: ApplicationManager) {
      * @param block Response lambda that will execute on POST request.
      */
     private infix fun String.post(block: Context.() -> Unit): Javalin = application.post(this, block)
+
+    private infix fun EndPoint.run(block: Context.() -> Unit): Javalin = when (requestType) {
+        GET -> path get block
+        POST -> path post block
+    }
+
+    private infix fun EndPoint.queue(block: String.() -> Unit) = when (requestType) {
+        GET -> path get { }
+        POST -> path post {
+            try {
+                messageQueue.put(body() to block)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }
