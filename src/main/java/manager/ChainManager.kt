@@ -94,7 +94,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
      *
      */
     fun requestSync() {
-        val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
+        val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot + 1
         val message = applicationManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
         nodeNetwork.sendMessageToRandomNodes("/syncRequest", 1, message)
@@ -140,7 +140,10 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         if (newBlock.precedentHash == lastBlock?.hash ?: "") {
             addBlock(newBlock)
             if (!applicationManager.isIncluded) validatorManager.requestInclusion()
-        } else requestSync()
+        } else if (lastBlock?.hash != newBlock.hash){
+            Logger.error("Precedent and last is not equal! \n\t ${newBlock.precedentHash} \t ${lastBlock?.hash}\n\t ${newBlock.hash}")
+            requestSync()
+        }
     }
 
     private fun calculateNextDuties(block: Block): ChainTask {
