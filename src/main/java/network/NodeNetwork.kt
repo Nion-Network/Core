@@ -43,7 +43,6 @@ class NodeNetwork(applicationManager: ApplicationManager) {
      */
     fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
         val hexHash = DigestUtils.sha256Hex(message.signature)
-        if (networkHistory.containsKey(hexHash)) return
         // Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
         networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()

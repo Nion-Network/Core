@@ -18,7 +18,7 @@ enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
 
 
 enum class EndPoint(val requestType: NetworkRequestType, val path: String) {
-    PING(POST, "/ping"),
+    PING(GET, "/ping"),
     JOIN(POST, "/join"),
     INCLUDE(POST, "/include"),
     QUERY(POST, "/query"),

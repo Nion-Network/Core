@@ -50,7 +50,7 @@ class NetworkManager(val applicationManager: ApplicationManager) {
         FOUND run dhtProtocol::onFound
         JOINED run dhtProtocol::onJoin
         INCLUDE run validatorManager::inclusionRequest
-        SYNC_REQUEST run chainManager::syncRequestReceived
+        SYNC_REQUEST queue chainManager::syncRequestReceived
         VOTE_REQUEST run committeeManager::voteRequest
 
         VOTE queue chainManager::voteReceived
@@ -73,7 +73,11 @@ class NetworkManager(val applicationManager: ApplicationManager) {
     }
 
     init {
-        application.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
+        application.before {
+            val hex = it.header("hex")
+            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
+            else if(hex != null) networkHistory[hex] = System.currentTimeMillis()
+        }
         application.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
@@ -99,12 +103,6 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
     private infix fun EndPoint.queue(block: String.() -> Unit) = when (requestType) {
         GET -> path get { }
-        POST -> path post {
-            try {
-                messageQueue.put(body() to block)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        POST -> path post { messageQueue.put(body() to block) }
     }
 }
