@@ -50,12 +50,12 @@ class NetworkManager(val applicationManager: ApplicationManager) {
         FOUND run dhtProtocol::onFound
         JOINED run dhtProtocol::onJoin
         INCLUDE run validatorManager::inclusionRequest
-        SYNC_REQUEST queue chainManager::syncRequestReceived
         VOTE_REQUEST run committeeManager::voteRequest
 
         VOTE queue chainManager::voteReceived
         BLOCK queue chainManager::blockReceived
         SYNC_REPLY queue chainManager::syncReplyReceived
+        SYNC_REQUEST queue chainManager::syncRequestReceived
 
         if (!applicationManager.isTrustedNode) {
             Logger.trace("Sending join request to our trusted node...")
@@ -76,7 +76,7 @@ class NetworkManager(val applicationManager: ApplicationManager) {
         application.before {
             val hex = it.header("hex")
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
-            else if(hex != null) networkHistory[hex] = System.currentTimeMillis()
+            else if (hex != null) networkHistory[hex] = System.currentTimeMillis()
         }
         application.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
