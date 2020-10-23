@@ -12,7 +12,9 @@ import logging.Logger
 import network.NodeNetwork
 import utils.Utils
 import utils.networkHistory
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Mihael Valentin Berčič
@@ -35,13 +37,17 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
     fun start() {
 
-        Thread {
-            try {
-                while (true) messageQueue.take().apply { if (!networkHistory.containsKey(hex)) execute(body) }
-            } catch (e: java.lang.Exception) {
-                e.printStackTrace()
+        Thread { while (true) messageQueue.take().apply { if (!networkHistory.containsKey(hex)) execute(body) } }.start()
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
+            networkHistory.toList().forEach { (messageHex, timestamp) ->
+                val difference = System.currentTimeMillis() - timestamp
+                val seenMinutesAgo = TimeUnit.MILLISECONDS.toMinutes(difference)
+                if (seenMinutesAgo >= configuration.historyMinuteClearance) {
+                    Logger.info("Clearing message that was seen: $seenMinutesAgo")
+                    networkHistory.remove(messageHex)
+                }
             }
-        }.start()
+        }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
 
         SEARCH run { queryParam("pub_key")?.apply { dhtProtocol.sendSearchQuery(this) } }
 

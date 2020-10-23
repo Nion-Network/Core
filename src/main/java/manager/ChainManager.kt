@@ -4,7 +4,6 @@ import data.*
 import logging.Logger
 import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
-import utils.networkHistory
 import utils.toMessage
 import java.math.BigInteger
 import kotlin.random.Random
@@ -55,7 +54,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
             SlotDuty.VALIDATOR -> Logger.white
         }
 
-        Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${block.votes}] Next task: $textColor${nextTask.myTask}")
+        Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {

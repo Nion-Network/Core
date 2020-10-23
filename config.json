@@ -12,10 +12,11 @@
   "validatorsCount": 5,
   "committeeSize": 4,
   "slotCount": 6,
-  "influxUrl" : "http://88.200.63.190:8086",
-  "influxUsername" : "edge",
-  "influxPassword" : "e1d2g3e4",
-  "dashboardEnabled" : false,
-  "targetBlockTime" : 7000
-
+  "influxUrl": "http://88.200.63.190:8086",
+  "influxUsername": "edge",
+  "influxPassword": "e1d2g3e4",
+  "dashboardEnabled": false,
+  "targetBlockTime": 7000,
+  "historyMinuteClearance": 30,
+  "historyCleaningFrequency": 15
 }
