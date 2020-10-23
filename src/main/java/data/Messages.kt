@@ -1,5 +1,6 @@
 package data
 
+import org.apache.commons.codec.digest.DigestUtils
 import utils.Utils
 
 /**
@@ -11,6 +12,8 @@ import utils.Utils
 data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
 
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
+
+data class QueuedMessage(val hex: String, val body: String, val execute: (String) -> Unit)
 
 /**
  * Message with body of type T.
@@ -25,7 +28,7 @@ data class QueryMessage(val node: Node, val searchingPublicKey: String)
  * @property asJson returns JSON of the data class.
  * @property bodyAsString returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis()) {
+data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val hex: String = DigestUtils.sha256Hex(signature)) {
     val asJson: String get() = Utils.gson.toJson(this)
     val bodyAsString: String get() = Utils.gson.toJson(body)
 }

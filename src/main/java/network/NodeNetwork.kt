@@ -3,7 +3,6 @@ package network
 import data.Message
 import data.Node
 import manager.ApplicationManager
-import org.apache.commons.codec.digest.DigestUtils
 import utils.networkHistory
 
 val knownNodes: HashMap<String, Node> = hashMapOf()    // <PublicKey, Node>
@@ -42,8 +41,7 @@ class NodeNetwork(applicationManager: ApplicationManager) {
      * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
      */
     fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
-        val hexHash = DigestUtils.sha256Hex(message.signature)
-        // Logger.debug("Broadcasting a message to path $path [limited = $limited]...")
+        val hexHash = message.hex
         networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size

@@ -4,6 +4,7 @@ import data.*
 import logging.Logger
 import network.knownNodes
 import org.apache.commons.codec.digest.DigestUtils
+import utils.networkHistory
 import utils.toMessage
 import java.math.BigInteger
 import kotlin.random.Random
@@ -140,9 +141,10 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         if (newBlock.precedentHash == lastBlock?.hash ?: "") {
             addBlock(newBlock)
             if (!applicationManager.isIncluded) validatorManager.requestInclusion()
-        } else if (lastBlock?.hash != newBlock.hash){
-            Logger.error("Precedent and last is not equal! \n\t ${newBlock.precedentHash} \t ${lastBlock?.hash}\n\t ${newBlock.hash}")
-            requestSync()
+        } else {
+            Logger.error("\t${newBlock.precedentHash}\n\t ${lastBlock?.hash}\n\t ${newBlock.hash}")
+            Logger.error("For block: ${newBlock.epoch} | ${newBlock.slot}")
+            if (lastBlock?.hash != newBlock.hash) requestSync()
         }
     }
 
