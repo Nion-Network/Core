@@ -79,6 +79,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
 
                     newBlock.votes = votesAmount
                     applicationManager.dashboardManager.newBlockProduced(newBlock)
+                    Logger.info("Broadcasting ${newBlock.hash} [PRODUCE]")
                     nodeNetwork.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> applicationManager.validatorSetChanges.remove(key) }
@@ -134,6 +135,7 @@ class ChainManager(private val applicationManager: ApplicationManager) {
         val message = body.toMessage<Block>() // TODO fucking make this shit prettier
         val newBlock = message.body
 
+        // Logger.info("Broadcasting ${newBlock.hash} [ECHO]")
         nodeNetwork.broadcast("/block", message)
 
         if (newBlock.validatorChanges[crypto.publicKey] == true) applicationManager.isIncluded = true
