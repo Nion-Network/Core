@@ -1,7 +1,9 @@
 package network
 
+import data.Block
 import data.Message
 import data.Node
+import logging.Logger
 import manager.ApplicationManager
 import utils.networkHistory
 
