@@ -28,7 +28,7 @@ class Utils {
                 .create()
 
         fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
-            this.addRequestProperty("hex", DigestUtils.sha256Hex(message.signature))
+            this.addRequestProperty("hex", message.hex)
         }
 
         private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->

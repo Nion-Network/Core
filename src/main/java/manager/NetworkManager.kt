@@ -4,6 +4,7 @@ import data.EndPoint
 import data.EndPoint.*
 import data.NetworkRequestType.GET
 import data.NetworkRequestType.POST
+import data.QueuedMessage
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
@@ -30,13 +31,13 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
     private val application = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
-    private val messageQueue = LinkedBlockingQueue<Pair<String, (String) -> Unit>>()
+    private val messageQueue = LinkedBlockingQueue<QueuedMessage>()
 
     fun start() {
 
         Thread {
             try {
-                while (true) messageQueue.take().apply { second(first) }
+                while (true) messageQueue.take().apply { if (!networkHistory.containsKey(hex)) execute(body) }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
             }
@@ -73,11 +74,7 @@ class NetworkManager(val applicationManager: ApplicationManager) {
     }
 
     init {
-        application.before {
-            val hex = it.header("hex")
-            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
-            else if (hex != null) networkHistory[hex] = System.currentTimeMillis()
-        }
+        application.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
         application.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
@@ -103,6 +100,6 @@ class NetworkManager(val applicationManager: ApplicationManager) {
 
     private infix fun EndPoint.queue(block: String.() -> Unit) = when (requestType) {
         GET -> path get { }
-        POST -> path post { messageQueue.put(body() to block) }
+        POST -> path post { header("hex")?.apply { messageQueue.put(QueuedMessage(this, body(), block)) } }
     }
 }
