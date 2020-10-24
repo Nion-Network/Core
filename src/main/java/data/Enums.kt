@@ -2,8 +2,7 @@ package data
 
 import data.NetworkRequestType.GET
 import data.NetworkRequestType.POST
-import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.LinkedBlockingQueue
+import manager.DHTManager
 
 /**
  * Created by Mihael Valentin Berčič

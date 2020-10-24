@@ -13,7 +13,7 @@ data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKe
 
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
 
-data class QueuedMessage(val hex: String, val body: String, val execute: (String) -> Unit)
+data class QueuedMessage<T>(val hex: String, val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block(value) })
 
 /**
  * Message with body of type T.

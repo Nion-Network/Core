@@ -1,38 +1,34 @@
 package manager
 
 import data.BlockVote
+import data.Message
 import data.VoteRequest
 import data.VoteType
-import io.javalin.http.Context
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
-import utils.getMessage
 
 /**
  * Created by Mihael Valentin Berčič
  * on 04/10/2020 at 17:17
  * using IntelliJ IDEA
  */
-class CommitteeManager(private val applicationManager: ApplicationManager) {
+class CommitteeManager(private val networkManager: NetworkManager) {
 
-    private val vdfManager by lazy { applicationManager.vdfManager }
+    private val crypto = networkManager.crypto
+    private val vdfManager = networkManager.vdf
+    private val dashboardManager = networkManager.dashboard
 
-    fun voteRequest(context: Context) {
-        val message = context.getMessage<VoteRequest>()
+    fun voteRequest(message: Message<VoteRequest>) {
         val voteRequest = message.body
         val block = voteRequest.block
         val producer = voteRequest.producer
 
-        val blockVote = BlockVote(block.hash, applicationManager.crypto.sign(block.hash), VoteType.FOR)
-        applicationManager.dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(applicationManager.crypto.publicKey))
-        val messageToSend = applicationManager.generateMessage(blockVote)
+        val blockVote = BlockVote(block.hash, crypto.sign(block.hash), VoteType.FOR)
+        dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
+        val messageToSend = networkManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
-        if(!isValidProof) {
-            Logger.error("PROOF IS VERY VERY WRONG")
-            Logger.debug(block)
-
-        }
+        if (!isValidProof) Logger.error(block)
         if (isValidProof) producer.sendMessage("/vote", messageToSend)
     }
 

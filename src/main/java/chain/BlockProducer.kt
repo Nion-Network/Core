@@ -1,8 +1,10 @@
 package chain
 
 import data.Block
-import manager.ApplicationManager
+import data.Configuration
+import data.State
 import org.apache.commons.codec.digest.DigestUtils
+import utils.Crypto
 
 /**
  * Created by Mihael Valentin Berčič
@@ -10,10 +12,9 @@ import org.apache.commons.codec.digest.DigestUtils
  * using IntelliJ IDEA
  */
 
-class BlockProducer(private val applicationManager: ApplicationManager) {
+class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, private val currentState: State) {
 
-    private val currentState = applicationManager.currentState
-    private val initialDifficulty = applicationManager.configuration.initialDifficulty
+    private val initialDifficulty = configuration.initialDifficulty
     private val currentTime: Long get() = System.currentTimeMillis()
 
     fun genesisBlock(vdfProof: String): Block = Block(
@@ -23,8 +24,8 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             timestamp = currentTime,
             committeeIndex = 0,
             votes = 0,
-            blockProducer = DigestUtils.sha256Hex(applicationManager.crypto.publicKey),
-            validatorChanges = applicationManager.validatorSetChanges.toMap(),
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = currentState.inclusionChanges.toMap(),
             vdfProof = vdfProof
     )
 
@@ -36,8 +37,8 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
             votes = votes,
-            blockProducer = DigestUtils.sha256Hex(applicationManager.crypto.publicKey),
-            validatorChanges = applicationManager.validatorSetChanges.toMap(),
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = currentState.inclusionChanges.toMap(),
             precedentHash = previousBlock.hash
     )
 
@@ -45,7 +46,7 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
         return 10000
 
         val deltaT: Long = System.currentTimeMillis() - previousBlock.timestamp
-        val ratio: Double = deltaT / applicationManager.configuration.targetBlockTime
+        val ratio: Double = deltaT / configuration.targetBlockTime
         var difficulty: Double = 0.0
         when {
             ratio > 0 -> {

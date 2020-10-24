@@ -15,7 +15,13 @@ data class VoteRequest(val block: Block, val producer: Node)
 
 data class VoteInformation(val from: String, val timestamp: Long = System.currentTimeMillis())
 
-data class State(var currentEpoch: Int, var currentSlot: Int, var committeeIndex: Int, var currentDifficulty: Int)
+data class State(var currentEpoch: Int,
+                 var currentSlot: Int,
+                 var committeeIndex: Int,
+                 var currentDifficulty: Int,
+                 val inclusionChanges: MutableMap<String, Boolean>,
+                 val currentValidators: MutableSet<String> = mutableSetOf()
+)
 
 data class ChainTask(val myTask: SlotDuty, val committee: List<String> = emptyList())
 
