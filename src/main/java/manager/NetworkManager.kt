@@ -49,6 +49,11 @@ class NetworkManager(configFileContent: String) {
 
     val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
 
+    init {
+        server.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
+        server.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
+    }
+
     fun start() {
         Logger.trace("My IP is $myIP")
 
@@ -74,11 +79,6 @@ class NetworkManager(configFileContent: String) {
         Logger.debug("Listening on port: " + configuration.listeningPort)
         startQueueThread()
         startHistoryCleanup()
-    }
-
-    init {
-        server.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
-        server.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
 
