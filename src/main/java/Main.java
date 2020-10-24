@@ -1,8 +1,6 @@
 import logging.Logger;
-import manager.ApplicationManager;
+import manager.NetworkManager;
 import utils.Utils;
-
-import java.net.UnknownHostException;
 
 /**
  * Created by Mihael Berčič
@@ -13,7 +11,7 @@ import java.net.UnknownHostException;
 
 public class Main {
 
-    public static void main(String[] args) throws UnknownHostException {
+    public static void main(String[] args) {
         boolean isPathSpecified = args.length != 0;
 
         Logger.INSTANCE.startInputListening();
@@ -23,8 +21,8 @@ public class Main {
 
         String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
 
-        ApplicationManager manager = new ApplicationManager(fileText);
-
+        NetworkManager network = new NetworkManager(fileText);
+        network.start();
     }
 
 }

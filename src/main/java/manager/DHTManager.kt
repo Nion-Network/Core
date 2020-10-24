@@ -4,24 +4,22 @@ import data.FoundMessage
 import data.Message
 import data.Node
 import data.QueryMessage
-import io.javalin.http.Context
 import logging.Logger
-import network.knownNodes
-import utils.getMessage
 
 /**
  * Created by Mihael Valentin Berčič
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DHTManager(private val applicationManager: ApplicationManager) {
+class DHTManager(private val networkManager: NetworkManager) {
 
-    private val networkManager by lazy { applicationManager.networkManager }
-    private val nodeNetwork by lazy { networkManager.nodeNetwork }
+    private val knownNodes = networkManager.knownNodes
+    private val crypto = networkManager.crypto
 
     fun sendSearchQuery(forPublicKey: String) {
         if (knownNodes.containsKey(forPublicKey)) return
-        nodeNetwork.broadcast("/query", applicationManager.createQueryMessage(forPublicKey))
+        val message = networkManager.generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
+        networkManager.broadcast("/query", message)
     }
 
     /**
@@ -29,8 +27,7 @@ class DHTManager(private val applicationManager: ApplicationManager) {
      *
      * @param context Http request context
      */
-    fun onFound(context: Context) {
-        val message: Message<FoundMessage> = context.getMessage()
+    fun onFound(message: Message<FoundMessage>) {
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
         knownNodes[newNode.publicKey] = newNode
@@ -41,16 +38,15 @@ class DHTManager(private val applicationManager: ApplicationManager) {
      *
      * @param context HTTP Context
      */
-    fun onQuery(context: Context) {
+    fun onQuery(message: Message<QueryMessage>) {
         //println("Received query request for ${context.body()}")
-        val message = context.getMessage<QueryMessage>()
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
 
         knownNodes[lookingFor]?.apply {
-            val foundMessage = applicationManager.generateMessage(FoundMessage(ip, port, publicKey))
+            val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
             body.node.sendMessage("/found", foundMessage)
-        } ?: nodeNetwork.broadcast("/query", message)
+        } ?: networkManager.broadcast("/query", message)
     }
 
     /**
@@ -58,17 +54,13 @@ class DHTManager(private val applicationManager: ApplicationManager) {
      *
      * @param context HTTP Context
      */
-    fun joinRequest(context: Context) {
-        val ip = context.ip()
-        Logger.debug("Join request coming in from $ip ...")
-        val message = context.getMessage<Node>()
+    fun joinRequest(message: Message<Node>) {
         val node = message.body
 
-        if (!nodeNetwork.isFull) node.apply {
+        if (!networkManager.isFull) node.apply {
             knownNodes[publicKey] = this
-            sendMessage("/joined", applicationManager.identificationMessage)
-        } else nodeNetwork.broadcast("/join", message)
-        context.status(200)
+            sendMessage("/joined", networkManager.generateMessage(networkManager.ourNode))
+        } else networkManager.broadcast("/join", message)
     }
 
     /**
@@ -76,13 +68,12 @@ class DHTManager(private val applicationManager: ApplicationManager) {
      *
      * @param context
      */
-    fun onJoin(context: Context) {
-        val message: Message<Node> = context.getMessage()
-        val confirmed: Boolean = applicationManager.crypto.verify(message.bodyAsString, message.signature, message.publicKey)
+    fun onJoin(message: Message<Node>) {
+        val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
             val acceptorNode: Node = message.body
             knownNodes[acceptorNode.publicKey] = acceptorNode
-            nodeNetwork.isInNetwork = true
+            networkManager.isInNetwork = true
             Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
         }
     }

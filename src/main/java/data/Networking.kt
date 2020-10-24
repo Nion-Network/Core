@@ -1,6 +1,7 @@
 package data
 
 import utils.Utils
+import java.net.InetAddress
 
 /**
  * Created by Mihael Valentin Berčič
@@ -32,6 +33,7 @@ data class Configuration(
 
 
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
+    val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == trustedNodeIP && trustedNodePort == listeningPort
 }
 
 /**
@@ -42,7 +44,7 @@ data class Configuration(
  * @property port
  * @property returnAddress String representing URL to access the Node.
  */
-data class Node(val publicKey: String, val ip: String, val port: Int, val returnAddress: String = "http://$ip:port") {
+data class Node(val publicKey: String, val ip: String, val port: Int, val returnAddress: String = "http://$ip:$port") {
 
     /**
      * Sends the given message to current node.
