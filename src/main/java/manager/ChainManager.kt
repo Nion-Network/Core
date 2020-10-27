@@ -6,6 +6,7 @@ import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.math.BigInteger
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
 /**
@@ -14,7 +15,6 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 class ChainManager(private val networkManager: NetworkManager) {
-
 
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
@@ -28,7 +28,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val knownNodes = networkManager.knownNodes
 
     private val lastBlock: Block? get() = chain.lastOrNull()
-    private val votes = mutableMapOf<String, MutableList<VoteInformation>>()
+    private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
     val blockProducer = BlockProducer(crypto, configuration, currentState)
@@ -41,6 +41,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      * @param block
      */
     fun addBlock(block: Block) {
+        votes.remove(block.hash)
         currentState.apply {
             currentSlot = block.slot
             currentEpoch = block.epoch
@@ -142,8 +143,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             addBlock(newBlock)
             if (!isIncluded) validatorManager.requestInclusion()
         } else {
-            Logger.error("\tPrecedent: ${newBlock.precedentHash}\tLast: ${lastBlock?.hash}\tNew: ${newBlock.hash}")
-            Logger.error("For block: ${newBlock.epoch} | ${newBlock.slot}")
+            if (lastBlock != null) Logger.error("\n[${newBlock.epoch}][${newBlock.slot}]\nPrecedent: ${newBlock.precedentHash}\nLast: ${lastBlock?.hash}\nNew: ${newBlock.hash}")
             if (lastBlock?.hash != newBlock.hash) requestSync()
         }
     }
