@@ -8,6 +8,7 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
+import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
 import utils.getMessage
@@ -122,6 +123,7 @@ class NetworkManager(configFileContent: String) {
             val difference = System.currentTimeMillis() - timestamp
             if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
         }
+        dashboard.logQueue(networkHistory.size,DigestUtils.sha256Hex(crypto.publicKey))
     }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
 
     /**
