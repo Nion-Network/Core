@@ -58,7 +58,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
 
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
-
+        dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 if (++currentState.currentSlot == configuration.slotCount) {
