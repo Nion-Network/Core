@@ -10,7 +10,7 @@
   "maxCommittees": 64,
   "broadcastSpread": 3,
   "validatorsCount": 8,
-  "committeeSize": 8,
+  "committeeSize": 6,
   "slotCount": 8,
   "influxUrl": "http://88.200.63.190:8086",
   "influxUsername": "edge",
