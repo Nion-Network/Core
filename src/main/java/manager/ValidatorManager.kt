@@ -1,5 +1,6 @@
 package manager
 
+import data.InclusionRequest
 import data.Message
 import logging.Logger
 
@@ -15,9 +16,15 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
     private val inclusionChanges = currentState.inclusionChanges
     private val blockProducer = chainManager.blockProducer
 
-    fun inclusionRequest(message: Message<String>) {
+    fun inclusionRequest(message: Message<InclusionRequest>) {
         val publicKey = message.publicKey
+        val inclusionRequest = message.body
 
+        val isSameEpoch = inclusionRequest.currentEpoch == currentState.currentEpoch
+        val isSameSlot = inclusionRequest.currentSlot == currentState.currentSlot
+        val isSynced = isSameEpoch && isSameSlot
+
+        if (!isSynced) return
         Logger.consensus("Received one inclusion request... ")
 
         currentState.inclusionChanges[publicKey] = true
@@ -40,7 +47,8 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
 
     fun requestInclusion() {
         Logger.debug("Requesting inclusion...")
-        val message = networkManager.generateMessage(networkManager.crypto.publicKey)
+        val inclusionRequest = InclusionRequest(currentState.currentEpoch, currentState.currentSlot, networkManager.crypto.publicKey)
+        val message = networkManager.generateMessage(inclusionRequest)
         networkManager.broadcast("/include", message)
     }
 

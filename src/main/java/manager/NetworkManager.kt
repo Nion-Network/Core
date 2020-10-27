@@ -13,6 +13,7 @@ import utils.Crypto
 import utils.Utils
 import utils.getMessage
 import java.net.InetAddress
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -34,7 +35,7 @@ class NetworkManager(configFileContent: String) {
     val dht = DHTManager(this)
     val dashboard = DashboardManager(configuration)
 
-    private val networkHistory = hashMapOf<String, Long>()
+    private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageQueue = LinkedBlockingQueue<QueuedMessage<*>>()
     private val startingInclusionSet = if (configuration.isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
@@ -51,7 +52,11 @@ class NetworkManager(configFileContent: String) {
     val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
 
     init {
-        server.before { if (networkHistory.containsKey(it.header("hex"))) throw ForbiddenResponse("NO MEANS NO") }
+        server.before {
+            val hex = it.header("hex") ?: ""
+            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
+            else networkHistory[hex] = System.currentTimeMillis()
+        }
         server.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
@@ -61,7 +66,7 @@ class NetworkManager(configFileContent: String) {
         PING run { status(200) }
         SEARCH run { queryParam("pub_key")?.apply { dht.sendSearchQuery(this) } }
 
-        JOIN processMessage dht::joinRequest
+        JOIN queueMessage dht::joinRequest
         QUERY processMessage dht::onQuery
 
         FOUND processMessage dht::onFound
@@ -98,7 +103,7 @@ class NetworkManager(configFileContent: String) {
         }
 
         Logger.debug("We're in the network. Happy networking!")
-        chainManager.requestSync()
+        validatorManager.requestInclusion()
     }
 
     /**
@@ -106,12 +111,7 @@ class NetworkManager(configFileContent: String) {
      *
      */
     private fun startQueueThread() = Thread {
-        while (true) messageQueue.take().apply {
-            if (!networkHistory.containsKey(hex)) {
-                execute()
-                networkHistory[hex] = System.currentTimeMillis()
-            }
-        }
+        while (true) messageQueue.take().apply { execute() }
     }.start()
 
     /**
@@ -123,7 +123,7 @@ class NetworkManager(configFileContent: String) {
             val difference = System.currentTimeMillis() - timestamp
             if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
         }
-        dashboard.logQueue(networkHistory.size,DigestUtils.sha256Hex(crypto.publicKey))
+        dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
     }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
 
     /**
@@ -170,7 +170,12 @@ class NetworkManager(configFileContent: String) {
      */
     private inline infix fun <reified T> EndPoint.queueMessage(noinline block: (Message<T>) -> Unit) = when (requestType) {
         GET -> path get { }
-        POST -> path post { header("hex")?.apply { messageQueue.put(QueuedMessage(this, getMessage(), block)) } }
+        POST -> path post {
+            header("hex")?.apply {
+                Logger.info("Putting [${path()}] message into queue with hex: $this")
+                messageQueue.put(QueuedMessage(this, getMessage(), block))
+            }
+        }
     }
 
     /**
@@ -193,7 +198,7 @@ class NetworkManager(configFileContent: String) {
      */
     fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
         val hexHash = message.hex
-        networkHistory[hexHash] = message.timeStamp
+        if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
         for (node in shuffledNodes.take(amountToTake)) node.sendMessage(path, message)

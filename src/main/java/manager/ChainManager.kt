@@ -68,9 +68,9 @@ class ChainManager(private val networkManager: NetworkManager) {
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 val newBlock = blockProducer.createBlock(block, vdfProof)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-                val message = networkManager.generateMessage(voteRequest)
 
                 runAfter(500) {
+                    val message = networkManager.generateMessage(voteRequest)
                     nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage("/voteRequest", message) }
                 }
 
@@ -96,7 +96,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      * Request blocks from a random known node needed for synchronization.
      *
      */
-    fun requestSync() {
+    private fun requestSync() {
         val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
@@ -142,7 +142,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             addBlock(newBlock)
             if (!isIncluded) validatorManager.requestInclusion()
         } else {
-            Logger.error("\t${newBlock.precedentHash}\n\t ${lastBlock?.hash}\n\t ${newBlock.hash}")
+            Logger.error("\tPrecedent: ${newBlock.precedentHash}\tLast: ${lastBlock?.hash}\tNew: ${newBlock.hash}")
             Logger.error("For block: ${newBlock.epoch} | ${newBlock.slot}")
             if (lastBlock?.hash != newBlock.hash) requestSync()
         }
