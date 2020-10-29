@@ -7,11 +7,14 @@ import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 private lateinit var influxDB: InfluxDB
 
 class DashboardManager(private val configuration: Configuration) {
+
+    private val queue = LinkedBlockingQueue<Point>()
 
     init {
         if (configuration.dashboardEnabled) {
@@ -22,13 +25,19 @@ class DashboardManager(private val configuration: Configuration) {
             influxDB.enableBatch(2000, 1000, TimeUnit.MILLISECONDS);
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
         } else Logger.info("Dashboard disabled")
+        Thread {
+            val point = queue.take()
+            influxDB.apply {
+                write(point)
+                flush()
+            }
+        }.start()
     }
 
     fun newBlockProduced(blockData: Block) {
         if (!configuration.dashboardEnabled) return
         val point: Point = Point.measurementByPOJO(blockData.javaClass).addFieldsFromPOJO(blockData).build()
-        influxDB.write(point)
-        influxDB.flush()
+        queue.add(point)
     }
 
     fun newVote(vote: BlockVote, publicKey: String) {
@@ -38,10 +47,10 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("blockHash", vote.blockHash)
                 .addField("signature", DigestUtils.sha256Hex(vote.signature))
                 .addField("committeeMember", publicKey).build()
-        influxDB.write(point)
-        influxDB.flush()
+        queue.add(point)
     }
-    fun newRole(chainTask: ChainTask, publicKey: String, currentState:State){
+
+    fun newRole(chainTask: ChainTask, publicKey: String, currentState: State) {
         if (!configuration.dashboardEnabled) return
         Logger.debug("Sending new chain task : ${chainTask.myTask}")
         val point = Point.measurement("chainTask")
@@ -49,17 +58,15 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("task", chainTask.myTask.toString())
                 .addField("slot", currentState.currentSlot)
                 .addField("epoch", currentState.currentEpoch).build()
-        influxDB.write(point)
-        influxDB.flush()
+        queue.add(point)
     }
 
-    fun logQueue(queueSize:Int, publicKey: String){
+    fun logQueue(queueSize: Int, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("queueSize")
                 .addField("nodeId", publicKey)
                 .addField("queueSize", queueSize).build()
-        influxDB.write(point)
-        influxDB.flush()
+        queue.add(point)
     }
 }
 
