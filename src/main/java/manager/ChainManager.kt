@@ -40,17 +40,18 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      * @param block
      */
-    fun addBlock(block: Block) {
+    fun addBlock(block: Block, fromSync: Boolean = false) {
         votes.remove(block.hash)
         currentState.apply {
             currentSlot = block.slot
             currentEpoch = block.epoch
         }
 
+        if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
         updateValidatorSet(block)
         chain.add(block)
 
-        val nextTask = calculateNextDuties(block)
+        val nextTask = calculateNextDuties(block, !fromSync)
 
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
@@ -62,11 +63,11 @@ class ChainManager(private val networkManager: NetworkManager) {
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
+                val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 if (++currentState.currentSlot == configuration.slotCount) {
                     currentState.currentEpoch++
                     currentState.currentSlot = 0
                 }
-                val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 val newBlock = blockProducer.createBlock(block, vdfProof)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
@@ -123,12 +124,11 @@ class ChainManager(private val networkManager: NetworkManager) {
         val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
-            addBlock(block)
+            addBlock(block, true)
             currentState.currentSlot = block.slot
             currentState.currentEpoch = block.epoch
         }
         Logger.info("Syncing finished...")
-        if (blocks.isEmpty()) validatorManager.requestInclusion()
     }
 
     fun blockReceived(message: Message<Block>) {
@@ -137,17 +137,15 @@ class ChainManager(private val networkManager: NetworkManager) {
         // Logger.info("Broadcasting ${newBlock.hash} [ECHO]")
         networkManager.broadcast("/block", message)
 
-        if (newBlock.validatorChanges[crypto.publicKey] == true) isIncluded = true
         if (newBlock.precedentHash == lastBlock?.hash ?: "") {
             addBlock(newBlock)
-            if (!isIncluded) validatorManager.requestInclusion()
         } else {
             if (lastBlock != null) Logger.error("\n[${newBlock.epoch}][${newBlock.slot}]\nPrecedent: ${newBlock.precedentHash}\nLast: ${lastBlock?.hash}\nNew: ${newBlock.hash}")
             if (lastBlock?.hash != newBlock.hash) requestSync()
         }
     }
 
-    private fun calculateNextDuties(block: Block): ChainTask {
+    private fun calculateNextDuties(block: Block, askForInclusion: Boolean = true): ChainTask {
         val proof = block.vdfProof
         val hex = DigestUtils.sha256Hex(proof)
         val seed = BigInteger(hex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
@@ -158,14 +156,15 @@ class ChainManager(private val networkManager: NetworkManager) {
         val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
         val committee = validatorSetCopy.take(configuration.committeeSize)
 
-        // Logger.error("Block producer is: ${blockProducerNode.drop(30).take(15)}")
+        if (askForInclusion && !isIncluded) validatorManager.requestInclusion(blockProducerNode)
+
         val ourRole = when {
             blockProducerNode == ourKey -> SlotDuty.PRODUCER
             committee.contains(ourKey) -> SlotDuty.COMMITTEE
             else -> SlotDuty.VALIDATOR
         }
 
-        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dht::sendSearchQuery)
+        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dht::searchFor)
         return ChainTask(ourRole, committee)
     }
 
