@@ -24,10 +24,9 @@ class DashboardManager(private val configuration: Configuration) {
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
             influxDB.enableBatch(2000, 1000, TimeUnit.MILLISECONDS);
             Thread {
-                val point = queue.take()
-                influxDB.apply {
-                    write(point)
-                    flush()
+                while (true) queue.take().apply {
+                    influxDB.write(this)
+                    influxDB.flush()
                 }
             }.start()
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
