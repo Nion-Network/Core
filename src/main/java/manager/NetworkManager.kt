@@ -172,9 +172,10 @@ class NetworkManager(configFileContent: String) {
         GET -> path get { }
         POST -> path post {
             header("hex")?.apply {
-                Logger.info("Putting [${path()}] message into queue with hex: $this")
+                Logger.info("Putting [${path()}] [${messageQueue.size}] message into queue with hex: $this")
                 messageQueue.put(QueuedMessage(this, getMessage(), block))
             }
+            status(200)
         }
     }
 
