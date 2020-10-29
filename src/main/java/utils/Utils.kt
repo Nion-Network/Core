@@ -7,7 +7,6 @@ import data.NetworkRequestType
 import io.javalin.http.Context
 import logging.Logger
 import java.io.File
-import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
@@ -40,10 +39,9 @@ class Utils {
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             }
-        } catch (e:Exception) {
+        } catch (e: Exception) {
             Logger.error("URL error to $url")
-            e.printStackTrace()
-            throw e
+            0 to "FUCKTWAT"
         }
 
         /**

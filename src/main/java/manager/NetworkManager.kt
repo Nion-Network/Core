@@ -43,7 +43,7 @@ class NetworkManager(configFileContent: String) {
 
     private val chainManager = ChainManager(this)
     private val committeeManager = CommitteeManager(this)
-    private val validatorManager = chainManager.validatorManager
+    val validatorManager = chainManager.validatorManager
 
     private val server = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
 
@@ -64,7 +64,7 @@ class NetworkManager(configFileContent: String) {
         Logger.trace("My IP is $myIP")
 
         PING run { status(200) }
-        SEARCH run { queryParam("pub_key")?.apply { dht.sendSearchQuery(this) } }
+        SEARCH run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
 
         JOIN queueMessage dht::joinRequest
         QUERY processMessage dht::onQuery
@@ -75,7 +75,7 @@ class NetworkManager(configFileContent: String) {
 
         VOTE queueMessage chainManager::voteReceived
         BLOCK queueMessage chainManager::blockReceived
-        INCLUDE queueMessage validatorManager::inclusionRequest
+        INCLUDE processMessage validatorManager::inclusionRequest
         SYNC_REPLY queueMessage chainManager::syncReplyReceived
         SYNC_REQUEST queueMessage chainManager::syncRequestReceived
 
@@ -103,7 +103,6 @@ class NetworkManager(configFileContent: String) {
         }
 
         Logger.debug("We're in the network. Happy networking!")
-        validatorManager.requestInclusion()
     }
 
     /**

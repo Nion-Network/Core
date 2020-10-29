@@ -13,10 +13,11 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
+    private val configuration = networkManager.configuration
     private val knownNodes = networkManager.knownNodes
     private val crypto = networkManager.crypto
 
-    fun sendSearchQuery(forPublicKey: String) {
+    infix fun searchFor(forPublicKey: String) {
         if (knownNodes.containsKey(forPublicKey)) return
         val message = networkManager.generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
         networkManager.broadcast("/query", message)
@@ -73,9 +74,13 @@ class DHTManager(private val networkManager: NetworkManager) {
         val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
             val acceptorNode: Node = message.body
-            knownNodes[acceptorNode.publicKey] = acceptorNode
+            val acceptorKey = acceptorNode.publicKey
+            val isTrustedNode = acceptorNode.returnAddress == configuration.trustedHttpAddress
+
+            knownNodes[acceptorKey] = acceptorNode
             networkManager.isInNetwork = true
             Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
+            if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)
         }
     }
 }

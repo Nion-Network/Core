@@ -24,6 +24,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         val isSameSlot = inclusionRequest.currentSlot == currentState.currentSlot
         val isSynced = isSameEpoch && isSameSlot
 
+        println("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
         if (!isSynced) return
         Logger.consensus("Received one inclusion request... ")
 
@@ -45,11 +46,14 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         }
     }
 
-    fun requestInclusion() {
-        Logger.debug("Requesting inclusion...")
+    fun requestInclusion(producerKey: String) {
         val inclusionRequest = InclusionRequest(currentState.currentEpoch, currentState.currentSlot, networkManager.crypto.publicKey)
+        Logger.debug("Requesting inclusion with ${inclusionRequest.currentEpoch} [${inclusionRequest.currentSlot}]...")
         val message = networkManager.generateMessage(inclusionRequest)
-        networkManager.broadcast("/include", message)
+        networkManager.apply {
+            dht searchFor producerKey
+            knownNodes[producerKey]?.sendMessage("/include", message)
+        }
     }
 
 }
