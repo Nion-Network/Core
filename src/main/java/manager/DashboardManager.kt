@@ -17,16 +17,15 @@ class DashboardManager(private val configuration: Configuration) {
     private val queue = LinkedBlockingQueue<Point>()
 
     init {
-        if (configuration.dashboardEnabled) {
+        if (configuration.isTrustedNode) {
             influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
             influxDB.query(Query("CREATE DATABASE PROD"));
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
-            influxDB.enableBatch(2000, 1000, TimeUnit.MILLISECONDS);
+            influxDB.enableBatch(2000, 10000, TimeUnit.MILLISECONDS);
             Thread {
                 while (true) queue.take().apply {
                     influxDB.write(this)
-                    influxDB.flush()
                 }
             }.start()
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
