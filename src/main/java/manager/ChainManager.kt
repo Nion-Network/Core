@@ -86,7 +86,6 @@ class ChainManager(private val networkManager: NetworkManager) {
                     networkManager.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
-
                 }
             }
             SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit

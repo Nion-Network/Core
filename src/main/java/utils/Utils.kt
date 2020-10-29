@@ -5,11 +5,13 @@ import com.google.gson.reflect.TypeToken
 import data.Message
 import data.NetworkRequestType
 import io.javalin.http.Context
+import logging.Logger
 import java.io.File
+import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.*
-import kotlin.concurrent.schedule
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Mihael Berčič
@@ -27,15 +29,21 @@ class Utils {
             this.addRequestProperty("hex", message.hex)
         }
 
-        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = (URL(url).openConnection() as HttpURLConnection).let { connection ->
-            connection.requestMethod = type.name
-            connection.apply(customBlock) // Customization
-            connection.doOutput = body.isNotEmpty()
-            connection.doInput = true
+        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = try {
+            (URL(url).openConnection() as HttpURLConnection).let { connection ->
+                connection.requestMethod = type.name
+                connection.apply(customBlock) // Customization
+                connection.doOutput = body.isNotEmpty()
+                connection.doInput = true
 
-            if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
-            connection.disconnect()
-            return connection.responseCode to connection.responseMessage
+                if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
+                connection.disconnect()
+                return connection.responseCode to connection.responseMessage
+            }
+        } catch (e:Exception) {
+            Logger.error("URL error to $url")
+            e.printStackTrace()
+            throw e
         }
 
         /**
@@ -55,7 +63,7 @@ class Utils {
  * @param delay Time to delay in milliseconds.
  * @param block Lambda to execute after the delay.
  */
-fun runAfter(delay: Long, block: TimerTask.() -> Unit) = Timer(true).schedule(delay, block)
+fun runAfter(delay: Long, block: () -> Unit) = Executors.newSingleThreadScheduledExecutor().schedule(block, delay, TimeUnit.MILLISECONDS)
 
 /**
  * Parses the message with body of type T from the http request using gson (if possible).

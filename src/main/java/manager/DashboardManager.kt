@@ -23,15 +23,16 @@ class DashboardManager(private val configuration: Configuration) {
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
             influxDB.enableBatch(2000, 1000, TimeUnit.MILLISECONDS);
+            Thread {
+                val point = queue.take()
+                influxDB.apply {
+                    write(point)
+                    flush()
+                }
+            }.start()
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
         } else Logger.info("Dashboard disabled")
-        Thread {
-            val point = queue.take()
-            influxDB.apply {
-                write(point)
-                flush()
-            }
-        }.start()
+
     }
 
     fun newBlockProduced(blockData: Block) {
