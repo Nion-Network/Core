@@ -24,9 +24,8 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         val isSameSlot = inclusionRequest.currentSlot == currentState.currentSlot
         val isSynced = isSameEpoch && isSameSlot
 
-        println("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
         if (!isSynced) return
-        Logger.consensus("Received one inclusion request... ")
+        Logger.consensus("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
         currentState.inclusionChanges[publicKey] = true
         networkManager.broadcast("/include", message)
@@ -36,7 +35,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
 
         val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount
         val isChainEmpty = chainManager.isChainEmpty
-        if (isChainEmpty && configuration.isTrustedNode && isEnoughIncluded) {
+        if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
             val vdfProof = vdfManager.findProof(initialDifficulty, "FFFF")
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")

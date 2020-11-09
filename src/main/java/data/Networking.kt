@@ -1,7 +1,6 @@
 package data
 
 import utils.Utils
-import java.net.InetAddress
 
 /**
  * Created by Mihael Valentin Berčič
@@ -13,7 +12,6 @@ data class Configuration(
         val bootstrapNode: String,
         val trustedNodeIP: String,
         val trustedNodePort: Int,
-        val listeningPort: Int,
         val maxNodes: Int,
         val keystorePath: String,
         val slotDuration: Long,
@@ -26,6 +24,7 @@ data class Configuration(
         val influxUsername: String,
         val influxPassword: String,
         val dashboardEnabled: Boolean,
+        val loggingEnabled: Boolean,
         val targetBlockTime: Double,
         val historyMinuteClearance: Int,
         val historyCleaningFrequency: Int
@@ -33,7 +32,6 @@ data class Configuration(
 
 
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
-    val isTrustedNode: Boolean get() = InetAddress.getLocalHost().hostAddress == trustedNodeIP && trustedNodePort == listeningPort
 }
 
 /**

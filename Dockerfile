@@ -15,7 +15,7 @@ ADD vdf-cli vdf-cli
 RUN chmod 777 vdf-cli
 RUN chmod +x vdf-cli
 RUN mv vdf-cli /usr/bin/vdf-cli
-EXPOSE 5000
+# EXPOSE 5000
 CMD java -jar Node.jar
 
 

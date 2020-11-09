@@ -9,8 +9,8 @@ import logging.Logger
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import java.util.*
+import kotlin.concurrent.schedule
 
 /**
  * Created by Mihael Berčič
@@ -28,20 +28,27 @@ class Utils {
             this.addRequestProperty("hex", message.hex)
         }
 
-        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> = try {
-            (URL(url).openConnection() as HttpURLConnection).let { connection ->
+        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
+            val connection = (URL(url).openConnection() as HttpURLConnection)
+            try {
                 connection.requestMethod = type.name
                 connection.apply(customBlock) // Customization
                 connection.doOutput = body.isNotEmpty()
                 connection.doInput = true
-
-                if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use { it.write(body) }
+                connection.connectTimeout = 1000
+                connection.connect()
+                if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use {
+                    it.write(body)
+                    it.close()
+                }
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
+            } catch (e: Exception) {
+                Logger.error("URL error to $url $e")
+            } finally {
+                connection.disconnect()
             }
-        } catch (e: Exception) {
-            Logger.error("URL error to $url")
-            0 to "FUCKTWAT"
+            return 0 to "FUCKTWAT"
         }
 
         /**
@@ -61,7 +68,7 @@ class Utils {
  * @param delay Time to delay in milliseconds.
  * @param block Lambda to execute after the delay.
  */
-fun runAfter(delay: Long, block: () -> Unit) = Executors.newSingleThreadScheduledExecutor().schedule(block, delay, TimeUnit.MILLISECONDS)
+fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.invoke() }
 
 /**
  * Parses the message with body of type T from the http request using gson (if possible).

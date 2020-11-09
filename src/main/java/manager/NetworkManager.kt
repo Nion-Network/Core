@@ -23,13 +23,14 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configFileContent: String) {
+class NetworkManager(configurationPath: String, private val listeningPort: Int) {
 
     var isInNetwork = false
     val knownNodes = mutableMapOf<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val configuration: Configuration = Utils.gson.fromJson<Configuration>(configFileContent, Configuration::class.java)
+    val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
+    val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
     val vdf = VDFManager()
     val dht = DHTManager(this)
@@ -37,7 +38,7 @@ class NetworkManager(configFileContent: String) {
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageQueue = LinkedBlockingQueue<QueuedMessage<*>>()
-    private val startingInclusionSet = if (configuration.isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
+    private val startingInclusionSet = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
     val currentState = State(0, 0, 0, configuration.initialDifficulty, startingInclusionSet)
 
@@ -45,13 +46,14 @@ class NetworkManager(configFileContent: String) {
     private val committeeManager = CommitteeManager(this)
     val validatorManager = chainManager.validatorManager
 
-    private val server = Javalin.create { it.showJavalinBanner = false }.start(configuration.listeningPort)
+    private val server = Javalin.create { it.showJavalinBanner = false }.start(listeningPort)
 
-    private val myIP: String get() = InetAddress.getLocalHost().hostAddress
+    private val myIP: String = InetAddress.getLocalHost().hostAddress
 
-    val ourNode get() = Node(crypto.publicKey, myIP, configuration.listeningPort)
+    val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     init {
+        if (configuration.loggingEnabled || isTrustedNode) Logger.toggleLogging(true)
         server.before {
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
@@ -79,10 +81,10 @@ class NetworkManager(configFileContent: String) {
         SYNC_REPLY queueMessage chainManager::syncReplyReceived
         SYNC_REQUEST queueMessage chainManager::syncRequestReceived
 
-        if (!configuration.isTrustedNode) joinTheNetwork()
+        if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
 
-        Logger.debug("Listening on port: " + configuration.listeningPort)
+        Logger.debug("Listening on port: $listeningPort")
         startQueueThread()
         startHistoryCleanup()
     }
@@ -109,9 +111,7 @@ class NetworkManager(configFileContent: String) {
      * Runs the thread that is in charge of queue processing.
      *
      */
-    private fun startQueueThread() = Thread {
-        while (true) messageQueue.take().apply { execute() }
-    }.start()
+    private fun startQueueThread() = Thread { while (true) messageQueue.take().execute.invoke() }.start()
 
     /**
      * Runs the executor that will clean old messages every X minutes specified in configuration.
@@ -168,12 +168,11 @@ class NetworkManager(configFileContent: String) {
      * @param block Lambda that is executed when message is taken out of queue.
      */
     private inline infix fun <reified T> EndPoint.queueMessage(noinline block: (Message<T>) -> Unit) = when (requestType) {
-        GET -> path get { }
+        GET -> path get { /* TODO */ }
         POST -> path post {
-            header("hex")?.apply {
-                Logger.info("Putting [${path()}] [${messageQueue.size}] message into queue with hex: $this")
-                messageQueue.put(QueuedMessage(this, getMessage(), block))
-            }
+            val hex = header("hex")
+            if (hex != null) messageQueue.put(QueuedMessage(hex, getMessage(), block))
+            Logger.info("Putting [${path()}] [${messageQueue.size}]...")
             status(200)
         }
     }
