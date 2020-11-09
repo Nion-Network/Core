@@ -17,7 +17,7 @@ class DashboardManager(private val configuration: Configuration) {
     private val queue = LinkedBlockingQueue<Point>()
 
     init {
-        if (configuration.isTrustedNode) {
+        if (configuration.dashboardEnabled) {
             influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
             influxDB.query(Query("CREATE DATABASE PROD"));
             influxDB.setDatabase("PROD")
@@ -51,7 +51,7 @@ class DashboardManager(private val configuration: Configuration) {
 
     fun newRole(chainTask: ChainTask, publicKey: String, currentState: State) {
         if (!configuration.dashboardEnabled) return
-        Logger.debug("Sending new chain task : ${chainTask.myTask}")
+        // Logger.debug("Sending new chain task : ${chainTask.myTask}")
         val point = Point.measurement("chainTask")
                 .addField("nodeId", publicKey)
                 .addField("task", chainTask.myTask.toString())
