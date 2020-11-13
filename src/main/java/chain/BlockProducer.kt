@@ -1,7 +1,10 @@
 package chain
 
 import data.Block
-import manager.ApplicationManager
+import data.Configuration
+import data.State
+import org.apache.commons.codec.digest.DigestUtils
+import utils.Crypto
 
 /**
  * Created by Mihael Valentin Berčič
@@ -9,10 +12,9 @@ import manager.ApplicationManager
  * using IntelliJ IDEA
  */
 
-class BlockProducer(private val applicationManager: ApplicationManager) {
+class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, private val currentState: State) {
 
-    private val currentState = applicationManager.currentState
-    private val initialDifficulty = applicationManager.configuration.initialDifficulty
+    private val initialDifficulty = configuration.initialDifficulty
     private val currentTime: Long get() = System.currentTimeMillis()
 
     fun genesisBlock(vdfProof: String): Block = Block(
@@ -21,18 +23,49 @@ class BlockProducer(private val applicationManager: ApplicationManager) {
             difficulty = initialDifficulty,
             timestamp = currentTime,
             committeeIndex = 0,
-            validatorChanges = applicationManager.validatorSetChanges.toMap(),
+            votes = 0,
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = currentState.inclusionChanges.toMap(),
             vdfProof = vdfProof
     )
 
-    fun createBlock(previousBlock: Block, vdfProof: String = ""): Block = Block(
+    fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
             epoch = currentState.currentEpoch,
             slot = currentState.currentSlot,
-            difficulty = currentState.currentDifficulty,
+            difficulty = initialDifficulty,
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,
             vdfProof = vdfProof,
-            validatorChanges = applicationManager.validatorSetChanges.toMap(),
+            votes = votes,
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = currentState.inclusionChanges.toMap(),
             precedentHash = previousBlock.hash
     )
+
+    fun adjustDifficulty(previousBlock: Block): Int {
+        return 10000
+
+        val deltaT: Long = System.currentTimeMillis() - previousBlock.timestamp
+        val ratio: Double = deltaT / configuration.targetBlockTime
+        var difficulty: Double = 0.0
+        when {
+            ratio > 0 -> {
+                difficulty = previousBlock.difficulty + (previousBlock.difficulty * (1 - ratio))
+                if (difficulty <= 0) {
+                    return 100
+                }
+                return difficulty.toInt()
+            }
+            ratio < 0 -> {
+                difficulty = previousBlock.difficulty - (previousBlock.difficulty * (1 - ratio))
+                if (difficulty <= 0) {
+                    return 100
+                }
+                return difficulty.toInt()
+            }
+            else -> {
+                return previousBlock.difficulty
+            }
+        }
+    }
 }

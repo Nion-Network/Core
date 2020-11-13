@@ -1,47 +1,58 @@
 package manager
 
+import data.InclusionRequest
 import data.Message
-import io.javalin.http.Context
 import logging.Logger
-import utils.getMessage
 
-class ValidatorManager(private val applicationManager: ApplicationManager) {
+class ValidatorManager(private val networkManager: NetworkManager, private val chainManager: ChainManager) {
 
-    private val nodeNetwork by lazy { applicationManager.networkManager.nodeNetwork }
-    private val minValidatorsCount by lazy { applicationManager.configuration.validatorsCount }
-    private val initialDifficulty by lazy { applicationManager.configuration.initialDifficulty }
+    private val configuration = networkManager.configuration
+    private val currentState = networkManager.currentState
+    private val vdfManager = networkManager.vdf
 
-    fun inclusionRequest(context: Context) {
-        val message: Message<String> = context.getMessage()
+    private val minValidatorsCount = configuration.validatorsCount
+    private val initialDifficulty = configuration.initialDifficulty
+    private val currentValidators = currentState.currentValidators
+    private val inclusionChanges = currentState.inclusionChanges
+    private val blockProducer = chainManager.blockProducer
+
+    fun inclusionRequest(message: Message<InclusionRequest>) {
         val publicKey = message.publicKey
+        val inclusionRequest = message.body
 
-        applicationManager.apply {
-            Logger.consensus("Received one inclusion request... ")
+        val isSameEpoch = inclusionRequest.currentEpoch == currentState.currentEpoch
+        val isSameSlot = inclusionRequest.currentSlot == currentState.currentSlot
+        val isSynced = isSameEpoch && isSameSlot
 
-            validatorSetChanges[publicKey] = true
-            nodeNetwork.broadcast("/include", message)
+        if (!isSynced) return
+        Logger.consensus("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
-            val currentValidatorsSize = currentValidators.size
-            val newValidators = validatorSetChanges.filter { it.value }.count()
+        currentState.inclusionChanges[publicKey] = true
+        networkManager.broadcast("/include", message)
 
-            val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount
-            val isChainEmpty = chainManager.isChainEmpty
-            if (applicationManager.isTrustedNode && isEnoughIncluded && isChainEmpty) blockProducer.apply {
-                val vdfProof = applicationManager.vdfManager.findProof(initialDifficulty, "FFFF", 0)
-                val block = genesisBlock(vdfProof)
-                Logger.debug("Broadcasting genesis block...")
+        val currentValidatorsSize = currentValidators.size
+        val newValidators = inclusionChanges.filter { it.value }.count()
 
-                nodeNetwork.broadcast("/block", applicationManager.generateMessage(block))
-                chainManager.addBlock(block)
-            }
-
+        val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount
+        val isChainEmpty = chainManager.isChainEmpty
+        if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
+            val vdfProof = vdfManager.findProof(initialDifficulty, "FFFF")
+            val block = blockProducer.genesisBlock(vdfProof)
+            Logger.debug("Broadcasting genesis block...")
+            networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
+            networkManager.broadcast("/block", networkManager.generateMessage(block))
+            chainManager.addBlock(block)
         }
     }
 
-    fun requestInclusion() {
-        Logger.debug("Requesting inclusion...")
-        val message = applicationManager.generateMessage(applicationManager.crypto.publicKey)
-        nodeNetwork.broadcast("/include", message)
+    fun requestInclusion(producerKey: String) {
+        val inclusionRequest = InclusionRequest(currentState.currentEpoch, currentState.currentSlot, networkManager.crypto.publicKey)
+        Logger.debug("Requesting inclusion with ${inclusionRequest.currentEpoch} [${inclusionRequest.currentSlot}]...")
+        val message = networkManager.generateMessage(inclusionRequest)
+        networkManager.apply {
+            dht searchFor producerKey
+            knownNodes[producerKey]?.sendMessage("/include", message)
+        }
     }
 
 }

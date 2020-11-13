@@ -1,8 +1,8 @@
 import logging.Logger;
-import manager.ApplicationManager;
-import utils.Utils;
+import manager.NetworkManager;
 
-import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by Mihael Berčič
@@ -13,18 +13,27 @@ import java.net.UnknownHostException;
 
 public class Main {
 
-    public static void main(String[] args) throws UnknownHostException {
-        boolean isPathSpecified = args.length != 0;
+    public static void main(String[] args) {
+        List<String> arguments = Arrays.asList(args);
 
-        Logger.INSTANCE.startInputListening();
+        int pathArgumentIndex    = arguments.indexOf("-c");
+        int portArgumentIndex    = arguments.indexOf("-p");
+        int loggingArgumentIndex = arguments.indexOf("-l");
+
+        boolean isPathSpecified  = pathArgumentIndex >= 0;
+        boolean isPortSpecified  = portArgumentIndex >= 0;
+        boolean isLoggingEnabled = loggingArgumentIndex >= 0;
+
+        String configurationPath = isPathSpecified ? args[pathArgumentIndex + 1] : "./config.json";
+        int    listeningPort     = isPortSpecified ? Integer.parseInt(args[portArgumentIndex + 1]) : 5000;
+
         Logger.INSTANCE.debug("Starting...");
         Logger.INSTANCE.info("Path for config file specified: " + isPathSpecified);
-        Logger.INSTANCE.info("Using " + (isPathSpecified ? "custom" : "default") + " configuration file...");
+        Logger.INSTANCE.info("Using " + listeningPort + " port.");
+        Logger.INSTANCE.info("Using " + configurationPath + " configuration file...");
 
-        String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
-
-        ApplicationManager manager = new ApplicationManager(fileText);
-
+        NetworkManager network = new NetworkManager(configurationPath, listeningPort);
+        network.start();
     }
 
 }

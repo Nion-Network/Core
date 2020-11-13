@@ -1,43 +1,35 @@
 package manager
 
-import data.Block
 import data.BlockVote
+import data.Message
+import data.VoteRequest
 import data.VoteType
-import io.javalin.http.Context
 import logging.Logger
-import network.knownNodes
-import utils.getMessage
+import org.apache.commons.codec.digest.DigestUtils
 
 /**
  * Created by Mihael Valentin Berčič
  * on 04/10/2020 at 17:17
  * using IntelliJ IDEA
  */
-class CommitteeManager(private val applicationManager: ApplicationManager) {
+class CommitteeManager(private val networkManager: NetworkManager) {
 
-    private val vdfManager by lazy { applicationManager.vdfManager }
-    private val timeManager by lazy { applicationManager.timeManager }
+    private val crypto = networkManager.crypto
+    private val vdfManager = networkManager.vdf
+    private val dashboardManager = networkManager.dashboard
 
-    fun voteRequest(context: Context) {
-        val message = context.getMessage<Block>()
-        val fromNode = knownNodes[message.publicKey]
+    fun voteRequest(message: Message<VoteRequest>) {
+        val voteRequest = message.body
+        val block = voteRequest.block
+        val producer = voteRequest.producer
 
-        // Logger.info("Vote request has been received...")
-        fromNode?.also { senderNode ->
+        val blockVote = BlockVote(block.hash, crypto.sign(block.hash), VoteType.FOR)
+        dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
+        val messageToSend = networkManager.generateMessage(blockVote)
 
-            val block = message.body
-            var vdfFound = false
-
-            timeManager.runAfter(5000) { if (!vdfFound) Logger.debug("This is a TODO in CommitteeManager.kt L#26 ($vdfFound => sending skip block)") }
-
-            val proof = vdfManager.findProof(block.difficulty, block.hash, block.epoch)
-            vdfFound = true
-            val blockVote = BlockVote(block.hash, VoteType.FOR, proof)
-            val messageToSend = applicationManager.generateMessage(blockVote)
-            senderNode.sendMessage("/vote", messageToSend)
-        }
-
-
+        val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
+        if (!isValidProof) Logger.error(block)
+        if (isValidProof) producer.sendMessage("/vote", messageToSend)
     }
 
 }
