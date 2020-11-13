@@ -1,9 +1,22 @@
 {
   "trustedNodeIP": "172.17.0.2",
   "trustedNodePort": 5000,
-  "listeningPort": 5000,
   "keystorePath": ".",
   "maxNodes": 1000,
-  "epochDuration" : 5000,
-  "broadcastSpread" : 3
+  "slotDuration": 3000,
+  "maxCommitteeMembers": 32,
+  "initialDifficulty": 1000,
+  "maxCommittees": 64,
+  "broadcastSpread": 3,
+  "validatorsCount": 8,
+  "committeeSize": 5,
+  "slotCount": 8,
+  "influxUrl": "http://88.200.63.190:8086",
+  "influxUsername": "edge",
+  "influxPassword": "e1d2g3e4",
+  "dashboardEnabled": false,
+  "loggingEnabled": false,
+  "targetBlockTime": 7000,
+  "historyMinuteClearance": 30,
+  "historyCleaningFrequency": 15
 }

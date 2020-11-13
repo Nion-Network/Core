@@ -1,17 +1,8 @@
-import abstraction.ProtocolTasks;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import common.BlockChain;
-import common.BlockData;
-import configuration.Configuration;
 import logging.Logger;
-import network.NetworkManager;
-import utils.Crypto;
-import utils.Utils;
-import utils.VDF;
+import manager.NetworkManager;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by Mihael Berčič
@@ -22,71 +13,27 @@ import java.net.UnknownHostException;
 
 public class Main {
 
-    /**
-     * Logger use:
-     * Java -> Logger.INSTANCE.debug(...)
-     * Kotlin -> Logger.debug(...)
-     */
+    public static void main(String[] args) {
+        List<String> arguments = Arrays.asList(args);
 
-    public static Gson gson = new GsonBuilder()
-            .setPrettyPrinting() // For debugging...
-            .create();
+        int pathArgumentIndex    = arguments.indexOf("-c");
+        int portArgumentIndex    = arguments.indexOf("-p");
+        int loggingArgumentIndex = arguments.indexOf("-l");
 
-    public static void main(String[] args) throws UnknownHostException {
-        boolean isPathSpecified = args.length != 0;
+        boolean isPathSpecified  = pathArgumentIndex >= 0;
+        boolean isPortSpecified  = portArgumentIndex >= 0;
+        boolean isLoggingEnabled = loggingArgumentIndex >= 0;
 
-        Logger.INSTANCE.startInputListening();
+        String configurationPath = isPathSpecified ? args[pathArgumentIndex + 1] : "./config.json";
+        int    listeningPort     = isPortSpecified ? Integer.parseInt(args[portArgumentIndex + 1]) : 5000;
+
         Logger.INSTANCE.debug("Starting...");
         Logger.INSTANCE.info("Path for config file specified: " + isPathSpecified);
-        Logger.INSTANCE.info("Using " + (isPathSpecified ? "custom" : "default") + " configuration file...");
+        Logger.INSTANCE.info("Using " + listeningPort + " port.");
+        Logger.INSTANCE.info("Using " + configurationPath + " configuration file...");
 
-        String fileText = Utils.Companion.readFile(isPathSpecified ? args[0] : "./config.json");
-
-        Configuration  configuration  = gson.fromJson(fileText, Configuration.class);
-        Crypto         crypto         = new Crypto(".");
-        VDF            vdf            = new VDF("http://localhost:" + configuration.getListeningPort() + "/vdf");
-        BlockChain     blockChain     = new BlockChain(crypto, vdf, configuration);
-        NetworkManager networkManager = new NetworkManager(configuration, crypto, blockChain);
-
-        boolean isTrustedNode = InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP());
-
-        String publicKey = crypto.getPublicKey();
-
-        //the bootstrap node should start block production
-        if (isTrustedNode) {
-            Logger.INSTANCE.debug("Set synced and validator to true...");
-            blockChain.setSynced(true);
-            blockChain.setValidator(true);
-            blockChain.addBlock(BlockData.Companion.genesisBlock(publicKey, 200000));
-        }
-
-        // TODO NOT Cool with possible NPEs yo
-
-        //start producing blocks
-        while (InetAddress.getLocalHost().getHostAddress().equals(configuration.getTrustedNodeIP())) { //only trusted node for now
-            if (!blockChain.getChain().isEmpty()) {//oh god
-                BlockData lastBlock = blockChain.getLastBlock();
-                if (lastBlock != null) {
-                    boolean areWeProducers = lastBlock.getConsensusNodes().contains(publicKey);
-                    Logger.INSTANCE.debug("Are we block producers? " + areWeProducers);
-                    if (areWeProducers) {
-                        try {
-                            vdf.runVDF(lastBlock.getDifficulty(), lastBlock.getHash(), lastBlock.getHeight() + 1);
-                            break;
-                        } catch (Exception e) {
-                            Logger.INSTANCE.error(e.getMessage());
-                        }
-                    }
-                }
-            }
-        }
-
-        Logger.INSTANCE.consensus("Requesting inclusion into the validator set");
-        networkManager.initiate(ProtocolTasks.requestInclusion, crypto.getPublicKey());
-        if(blockChain.getChain().isEmpty()) {
-            networkManager.initiate(ProtocolTasks.requestBlocks, 0);
-            Logger.INSTANCE.chain("Cold start, starting chain sync.");
-        }
+        NetworkManager network = new NetworkManager(configurationPath, listeningPort);
+        network.start();
     }
 
 }
