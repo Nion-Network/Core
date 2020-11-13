@@ -4,7 +4,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Utils
 
 /**
- * Created by Mihael
+ * Created by Mihael Valentin Berčič
  * on 18/04/2020 at 16:33
  * using IntelliJ IDEA
  */
