@@ -1,7 +1,7 @@
 package manager
 
-import logging.Logger.debug
 import logging.Logger.info
+import java.util.*
 
 /**
  * Created by Mihael Valentin Berčič
@@ -10,13 +10,24 @@ import logging.Logger.info
  */
 class VDFManager {
 
+    private fun getSaltString(): String {
+        val SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        val salt = StringBuilder()
+        val rnd = Random()
+        while (salt.length < 18) { // length of the random string.
+            val index = (rnd.nextFloat() * SALTCHARS.length).toInt()
+            salt.append(SALTCHARS[index])
+        }
+        return salt.toString()
+    }
+
     private val runtime: Runtime by lazy { Runtime.getRuntime() }
 
     private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
 
-    fun findProof(difficulty: Int, hash: String, epoch: Int): String {
-        // debug("VDF HASH: $hash for epoch: $epoch")
+    fun findProof(difficulty: Int, hash: String): String {
         killAll()
+        return getSaltString()
         return ProcessBuilder()
                 .command("vdf-cli", hash, "$difficulty")
                 .redirectErrorStream(true)
@@ -27,9 +38,9 @@ class VDFManager {
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
-        debug("Verifying proof: Hash:$hash")
+        return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
-        val processOutput = proofProcess.inputStream.reader().readText()
+        val processOutput = proofProcess.inputStream.reader().readText().trim()
         val exitCode = proofProcess.waitFor()
 
         if (exitCode != 0) info("Verify proof exited with something else than 0! [ Result = $exitCode ]")

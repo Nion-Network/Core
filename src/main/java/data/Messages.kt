@@ -1,9 +1,10 @@
 package data
 
+import org.apache.commons.codec.digest.DigestUtils
 import utils.Utils
 
 /**
- * Created by Mihael
+ * Created by Mihael Valentin Berčič
  * on 18/04/2020 at 16:33
  * using IntelliJ IDEA
  */
@@ -11,6 +12,10 @@ import utils.Utils
 data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
 
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
+
+data class InclusionRequest(val currentEpoch: Int, val currentSlot: Int, val nodePublicKey: String)
+
+data class QueuedMessage<T>(val hex: String, val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block(value) })
 
 /**
  * Message with body of type T.
@@ -25,7 +30,7 @@ data class QueryMessage(val node: Node, val searchingPublicKey: String)
  * @property asJson returns JSON of the data class.
  * @property bodyAsString returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis()) {
+data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val hex: String = DigestUtils.sha256Hex(signature)) {
     val asJson: String get() = Utils.gson.toJson(this)
     val bodyAsString: String get() = Utils.gson.toJson(body)
 }
