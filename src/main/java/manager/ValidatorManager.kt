@@ -11,7 +11,7 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
     private val minValidatorsCount by lazy { applicationManager.configuration.validatorsCount }
     private val initialDifficulty by lazy { applicationManager.configuration.initialDifficulty }
 
-    fun validatorSetInclusionRequest(context: Context) {
+    fun inclusionRequest(context: Context) {
         val message: Message<String> = context.getMessage()
         val publicKey = message.publicKey
 
@@ -19,10 +19,14 @@ class ValidatorManager(private val applicationManager: ApplicationManager) {
             Logger.consensus("Received one inclusion request... ")
 
             validatorSetChanges[publicKey] = true
+            nodeNetwork.broadcast("/include", message)
 
             val currentValidatorsSize = currentValidators.size
             val newValidators = validatorSetChanges.filter { it.value }.count()
-            if (currentValidatorsSize + newValidators >= minValidatorsCount && chainManager.isChainEmpty) blockProducer.apply {
+
+            val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount
+            val isChainEmpty = chainManager.isChainEmpty
+            if (applicationManager.isTrustedNode && isEnoughIncluded && isChainEmpty) blockProducer.apply {
                 val vdfProof = applicationManager.vdfManager.findProof(initialDifficulty, "FFFF", 0)
                 val block = genesisBlock(vdfProof)
                 Logger.debug("Broadcasting genesis block...")

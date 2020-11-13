@@ -1,11 +1,11 @@
 package manager
 
+import data.FoundMessage
 import data.Message
 import data.Node
+import data.QueryMessage
 import io.javalin.http.Context
 import logging.Logger
-import data.FoundMessage
-import data.QueryMessage
 import network.knownNodes
 import utils.getMessage
 
@@ -52,7 +52,7 @@ class DHTManager(private val applicationManager: ApplicationManager) {
         knownNodes[lookingFor]?.apply {
             val foundMessage = applicationManager.generateMessage(FoundMessage(ip, port, publicKey))
             body.node.sendMessage("/found", foundMessage)
-        } ?: nodeNetwork.sendMessageToRandomNodes("/query", 5, message)
+        } ?: nodeNetwork.broadcast("/query", message)
     }
 
     /**
