@@ -1,5 +1,6 @@
 package logging
 
+import data.DebugType
 import java.util.*
 
 /**
@@ -8,8 +9,13 @@ import java.util.*
  * using IntelliJ IDEA
  */
 
+val Long.toChunkedTimeStamp get() = toString().drop(4).chunked(3).joinToString(" ")
+val timestamp: String get() = System.currentTimeMillis().toChunkedTimeStamp
+
+
 object Logger {
 
+    private var isLoggingEnabled = false
     private var currentDebug: DebugType = DebugType.ALL
 
     const val red = "\u001b[31m"
@@ -30,37 +36,52 @@ object Logger {
             "| a = ALL                                   |\n" +
             " -------------------------------------------\n"
 
-    private val timestamp: String get() = System.currentTimeMillis().toString().drop(4)// .chunked(3).joinToString(" ")
-
-
+    /**
+     * Prints the given message with the coloring and debug information provided.
+     *
+     * @param debugType
+     * @param message
+     * @param color Text color
+     */
     private fun log(debugType: DebugType, message: Any, color: String = black) {
+        if (!isLoggingEnabled) return
         if (currentDebug == DebugType.ALL || currentDebug == debugType) {
             val typeString = padRight(timestamp) + padRight(debugType.name)
             println("$color$typeString$reset$message")
         }
     }
 
-    fun startInputListening() = Thread {
-        println(informationString)
-        val scanner = Scanner(System.`in`)
-        while (true) {
-            if (scanner.hasNext()) {
-                val next = scanner.next()
-                currentDebug = when (next[0]) {
-                    'd' -> DebugType.DEBUG
-                    'i' -> DebugType.INFO
-                    'e' -> DebugType.ERROR
-                    't' -> DebugType.TRACE
-                    'c' -> DebugType.CHAIN
-                    'x' -> DebugType.CONSENSUS
-                    else -> DebugType.ALL
-                }
-                println("Logging level has changed to $currentDebug")
-                println(informationString)
+    fun toggleLogging(enable: Boolean) {
+        try {
+            isLoggingEnabled = enable
+            if (enable) {
+                Thread {
+                    info(informationString)
+                    val scanner = Scanner(System.`in`)
+                    while (true) {
+                        if (scanner.hasNext()) {
+                            val next = scanner.next()
+                            currentDebug = when (next[0]) {
+                                'd' -> DebugType.DEBUG
+                                'i' -> DebugType.INFO
+                                'e' -> DebugType.ERROR
+                                't' -> DebugType.TRACE
+                                'c' -> DebugType.CHAIN
+                                'x' -> DebugType.CONSENSUS
+                                else -> DebugType.ALL
+                            }
+                            info("Logging level has changed to $currentDebug")
+                            info(informationString)
 
+                        }
+                    }
+                }.start()
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-    }.start()
+
+    }
 
     fun info(message: Any) = log(DebugType.INFO, message, green)
     fun debug(message: Any) = log(DebugType.DEBUG, message, blue)
@@ -72,5 +93,3 @@ object Logger {
     private fun padRight(string: String) = string.padEnd(12)
 
 }
-
-enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }

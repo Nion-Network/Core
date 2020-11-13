@@ -34,11 +34,11 @@ public class Crypto {
                 generator.initialize(2048, new SecureRandom());
                 keyPair = generator.generateKeyPair();
                 Logger.INSTANCE.info("Generated new KeyPair");
-                saveKeyPair(keystorePath,keyPair);
+                // saveKeyPair(keystorePath,keyPair);
                 Logger.INSTANCE.info("Saved KeyPair to: " + keystorePath);
             } catch (NoSuchAlgorithmException ex) {
                 ex.printStackTrace();
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 Logger.INSTANCE.error("Failed saving KeyPair to: " + keystorePath);
                 //ex.printStackTrace(); //non breaking
             }

@@ -15,7 +15,7 @@ ADD vdf-cli vdf-cli
 RUN chmod 777 vdf-cli
 RUN chmod +x vdf-cli
 RUN mv vdf-cli /usr/bin/vdf-cli
-EXPOSE 5000
+# EXPOSE 5000
 CMD java -jar Node.jar
 
 
@@ -29,7 +29,7 @@ CMD java -jar Node.jar
 #FROM openjdk:8-jre
 #EXPOSE 5000
 #COPY --from=builder /home/gradle/src/build/libs/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar ./app.jar
-#COPY --from=builder /home/gradle/src/vdf-cli ./vdf-cli
+#COPY --from=builder /home/gradle/src/vdf-cli-new ./vdf-cli-new
 #COPY --from=builder /home/gradle/src/config.json ./config.json
-#RUN mv vdf-cli /usr/local/bin
+#RUN mv vdf-cli-new /usr/local/bin
 #ENTRYPOINT ["java", "-jar", "./app.jar"]
