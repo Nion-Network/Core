@@ -3,7 +3,8 @@ RUN apt-get update
 RUN apt-get install default-jre -y
 RUN apt-get install libssl-dev -y
 RUN apt-get install libssl1.0.0 libssl-dev -y
-#RUN apt-get install docker.io -y
+RUN apt-get install curl -y
+RUN apt-get install docker.io -y
 
 WORKDIR /
 
@@ -11,6 +12,7 @@ ADD build/libs/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar N
 ADD config.json config.json
 # Copy the current directory contents into the container at /app
 COPY . /app
+ADD dockerStats.sh dockerStats.sh
 ADD vdf-cli vdf-cli
 RUN chmod 777 vdf-cli
 RUN chmod +x vdf-cli

@@ -6,8 +6,10 @@ import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.math.BigInteger
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
+
 
 /**
  * Created by Mihael Valentin Berčič
@@ -173,8 +175,32 @@ class ChainManager(private val networkManager: NetworkManager) {
         votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }
 
+    val nodeGroup = mutableListOf<String>()
+
     fun updateValidatorSet(block: Block) = block.validatorChanges.forEach { (publicKey, change) ->
-        currentState.currentValidators.apply { if (change) add(publicKey) else remove(publicKey) }
+        currentState.currentValidators.apply {
+            if (change) {
+                val distance = publicKey distanceTo crypto.publicKey
+                if (distance < 10) nodeGroup.add(publicKey)
+            } else {
+                remove(publicKey)
+                nodeGroup.remove(publicKey)
+            }
+        }
     }
+
+    // Copied straight from the web, TODO check and rewrite
+
+    infix fun String.distanceTo(y: String): Int {
+        if (isEmpty()) return y.length
+        if (y.isEmpty()) return length
+        val substitution = (substring(1) distanceTo y.substring(1)) + costOfSubstitution(this[0], y[0])
+        val insertion = this distanceTo y.substring(1) + 1
+        val deletion = substring(1) distanceTo y + 1
+        return min(substitution, insertion, deletion)
+    }
+
+    fun costOfSubstitution(a: Char, b: Char): Int = if (a == b) 0 else 1
+    fun min(vararg numbers: Int): Int = Arrays.stream(numbers).min().orElse(Int.MAX_VALUE)
 
 }

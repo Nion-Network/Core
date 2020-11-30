@@ -27,6 +27,7 @@ public class Main {
         String configurationPath = isPathSpecified ? args[pathArgumentIndex + 1] : "./config.json";
         int    listeningPort     = isPortSpecified ? Integer.parseInt(args[portArgumentIndex + 1]) : 5000;
 
+        Logger.INSTANCE.toggleLogging(isLoggingEnabled);
         Logger.INSTANCE.debug("Starting...");
         Logger.INSTANCE.info("Path for config file specified: " + isPathSpecified);
         Logger.INSTANCE.info("Using " + listeningPort + " port.");

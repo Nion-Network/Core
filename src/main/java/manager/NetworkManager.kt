@@ -34,6 +34,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val crypto = Crypto(".")
     val vdf = VDFManager()
     val dht = DHTManager(this)
+    val docker = DockerManager()
     val dashboard = DashboardManager(configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
@@ -55,6 +56,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     init {
         if (configuration.loggingEnabled || isTrustedNode) Logger.toggleLogging(true)
         server.before {
+            if (it.ip() == "127.0.0.1") return@before
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
             else networkHistory[hex] = System.currentTimeMillis()
@@ -65,23 +67,25 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     fun start() {
         Logger.trace("My IP is $myIP")
 
-        PING run { status(200) }
-        SEARCH run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
+        Search run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
 
-        JOIN queueMessage dht::joinRequest
-        QUERY processMessage dht::onQuery
+        RunDockerImage run docker::runImage
+        UpdateDockerStats run docker::updateStats
 
-        FOUND processMessage dht::onFound
-        JOINED processMessage dht::onJoin
-        VOTE_REQUEST processMessage committeeManager::voteRequest
+        Query processMessage dht::onQuery
+        Found processMessage dht::onFound
+        OnJoin processMessage dht::onJoin
+        Include processMessage validatorManager::inclusionRequest
+        OnVoteRequest processMessage committeeManager::voteRequest
 
-        VOTE queueMessage chainManager::voteReceived
-        BLOCK queueMessage chainManager::blockReceived
-        INCLUDE processMessage validatorManager::inclusionRequest
-        SYNC_REPLY queueMessage chainManager::syncReplyReceived
-        SYNC_REQUEST queueMessage chainManager::syncRequestReceived
+        Join queueMessage dht::joinRequest
+        Vote queueMessage chainManager::voteReceived
+        SyncReply queueMessage chainManager::syncReplyReceived
+        SyncRequest queueMessage chainManager::syncRequestReceived
+        BlockReceived queueMessage chainManager::blockReceived
 
-        if (!isTrustedNode) joinTheNetwork()
+        if (!isTrustedNode) {
+        } //joinTheNetwork()
         else Logger.debug("We're the trusted node!")
 
         Logger.debug("Listening on port: $listeningPort")
