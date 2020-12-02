@@ -126,7 +126,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             val difference = System.currentTimeMillis() - timestamp
             if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
         }
-        dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
+        //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
     }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
 
     /**
