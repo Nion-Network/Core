@@ -6,7 +6,6 @@ import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.math.BigInteger
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
@@ -194,13 +193,12 @@ class ChainManager(private val networkManager: NetworkManager) {
     infix fun String.distanceTo(y: String): Int {
         if (isEmpty()) return y.length
         if (y.isEmpty()) return length
-        val substitution = (substring(1) distanceTo y.substring(1)) + costOfSubstitution(this[0], y[0])
+        val substitution = (substring(1) distanceTo y.substring(1)) + (this[0] costOfSubstitution y[0])
         val insertion = this distanceTo y.substring(1) + 1
         val deletion = substring(1) distanceTo y + 1
-        return min(substitution, insertion, deletion)
+        return arrayOf(substitution, insertion, deletion).min() ?: Int.MAX_VALUE
     }
 
-    fun costOfSubstitution(a: Char, b: Char): Int = if (a == b) 0 else 1
-    fun min(vararg numbers: Int): Int = Arrays.stream(numbers).min().orElse(Int.MAX_VALUE)
+    infix fun Char.costOfSubstitution(b: Char): Int = if (this == b) 0 else 1
 
 }
