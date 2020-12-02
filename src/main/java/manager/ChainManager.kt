@@ -84,7 +84,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
                     newBlock.votes = votesAmount
-                    dashboard.newBlockProduced(newBlock)
+                    if(networkManager.isTrustedNode) dashboard.newBlockProduced(newBlock)
                     networkManager.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
