@@ -8,7 +8,6 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
 import utils.getMessage
@@ -84,8 +83,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         SyncRequest queueMessage chainManager::syncRequestReceived
         BlockReceived queueMessage chainManager::blockReceived
 
-        if (!isTrustedNode) {
-        } //joinTheNetwork()
+        if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
 
         Logger.debug("Listening on port: $listeningPort")

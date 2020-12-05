@@ -67,12 +67,15 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("queueSize", queueSize).build()
         queue.add(point)
     }
-    fun logCluster(epoch:Int, publicKey: String, clusterRepresentative: String){
+
+    fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         if (!configuration.dashboardEnabled) return
+        Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
         val point = Point.measurement("networkClusters")
+                .tag("node", publicKey)
                 .addField("epoch", epoch)
-                .addField("nodeId", publicKey)
-                .addField("clusterRepresentative", clusterRepresentative).build()
+                .addField("nodeId", DigestUtils.sha256Hex(publicKey))
+                .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
         queue.add(point)
     }
 }

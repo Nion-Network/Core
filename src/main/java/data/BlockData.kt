@@ -3,6 +3,7 @@ package data
 import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.annotation.Column
 import org.influxdb.annotation.Measurement
+import java.math.BigInteger
 
 /**
  * Created by Mihael Valentin Berčič
@@ -37,4 +38,7 @@ data class Block(@Column(name = "epoch") val epoch: Int,
                  @Column(name = "hash") val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"),
                  @Column(name = "votes") var votes: Int,
                  val validatorChanges: Map<String, Boolean> = emptyMap(),
-                 var vdfProof: String = "")
+                 var vdfProof: String = "") {
+
+    val getRandomSeed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+}

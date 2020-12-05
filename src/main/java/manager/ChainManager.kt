@@ -5,7 +5,6 @@ import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
-import java.math.BigInteger
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
 
@@ -26,6 +25,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val vdf = networkManager.vdf
     private val dht = networkManager.dht
     private val dashboard = networkManager.dashboard
+    private val informationManager = InformationManager(crypto, networkManager.isTrustedNode, dashboard)
     private val knownNodes = networkManager.knownNodes
 
     private val lastBlock: Block? get() = chain.lastOrNull()
@@ -42,18 +42,21 @@ class ChainManager(private val networkManager: NetworkManager) {
      * @param block
      */
     fun addBlock(block: Block, fromSync: Boolean = false) {
-        votes.remove(block.hash)
         currentState.apply {
+            block.validatorChanges.forEach { (publicKey, change) -> if (change) currentValidators.add(publicKey) else currentValidators.remove(publicKey) }
             currentSlot = block.slot
             currentEpoch = block.epoch
         }
 
-        if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
-        updateValidatorSet(block)
         chain.add(block)
+        votes.remove(block.hash)
+        if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
+
+        if (isIncluded) {
+            val representative = informationManager.generateClusters(3, 10, currentState.currentValidators, block)
+        }
 
         val nextTask = calculateNextDuties(block, !fromSync)
-
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
             SlotDuty.COMMITTEE -> Logger.blue
@@ -84,7 +87,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
                     newBlock.votes = votesAmount
-                    if(networkManager.isTrustedNode) dashboard.newBlockProduced(newBlock)
+                    if (networkManager.isTrustedNode) dashboard.newBlockProduced(newBlock)
                     networkManager.broadcast("/block", broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
@@ -147,9 +150,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     }
 
     private fun calculateNextDuties(block: Block, askForInclusion: Boolean = true): ChainTask {
-        val proof = block.vdfProof
-        val hex = DigestUtils.sha256Hex(proof)
-        val seed = BigInteger(hex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+        val seed = block.getRandomSeed
         val random = Random(seed)
         val ourKey = crypto.publicKey
 
@@ -173,32 +174,5 @@ class ChainManager(private val networkManager: NetworkManager) {
         val blockVote = message.body
         votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }
-
-    val nodeGroup = mutableListOf<String>()
-
-    fun updateValidatorSet(block: Block) = block.validatorChanges.forEach { (publicKey, change) ->
-        currentState.currentValidators.apply {
-            if (change) {
-                val distance = publicKey distanceTo crypto.publicKey
-                if (distance < 10) nodeGroup.add(publicKey)
-            } else {
-                remove(publicKey)
-                nodeGroup.remove(publicKey)
-            }
-        }
-    }
-
-    // Copied straight from the web, TODO check and rewrite
-
-    infix fun String.distanceTo(y: String): Int {
-        if (isEmpty()) return y.length
-        if (y.isEmpty()) return length
-        val substitution = (substring(1) distanceTo y.substring(1)) + (this[0] costOfSubstitution y[0])
-        val insertion = this distanceTo y.substring(1) + 1
-        val deletion = substring(1) distanceTo y + 1
-        return arrayOf(substitution, insertion, deletion).min() ?: Int.MAX_VALUE
-    }
-
-    infix fun Char.costOfSubstitution(b: Char): Int = if (this == b) 0 else 1
 
 }
