@@ -24,7 +24,7 @@ data class State(var currentEpoch: Int,
                  val currentValidators: MutableSet<String> = mutableSetOf()
 )
 
-data class ChainTask(val myTask: SlotDuty, val committee: List<String> = emptyList())
+data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val committee: List<String> = emptyList())
 
 
 @Measurement(name = "block")

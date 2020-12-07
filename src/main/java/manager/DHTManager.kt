@@ -1,9 +1,6 @@
 package manager
 
-import data.FoundMessage
-import data.Message
-import data.Node
-import data.QueryMessage
+import data.*
 import logging.Logger
 
 /**
@@ -20,7 +17,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     infix fun searchFor(forPublicKey: String) {
         if (knownNodes.containsKey(forPublicKey)) return
         val message = networkManager.generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
-        networkManager.broadcast("/query", message)
+        networkManager.broadcast(EndPoint.Query, message)
     }
 
     /**
@@ -46,8 +43,8 @@ class DHTManager(private val networkManager: NetworkManager) {
 
         knownNodes[lookingFor]?.apply {
             val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
-            body.node.sendMessage("/found", foundMessage)
-        } ?: networkManager.broadcast("/query", message)
+            body.node.sendMessage(EndPoint.Found, foundMessage)
+        } ?: networkManager.broadcast(EndPoint.Query, message)
     }
 
     /**
@@ -56,12 +53,12 @@ class DHTManager(private val networkManager: NetworkManager) {
      * @param context HTTP Context
      */
     fun joinRequest(message: Message<Node>) {
-        networkManager.broadcast("/join", message)
+        networkManager.broadcast(EndPoint.Join, message)
         val node = message.body
 
         if (!networkManager.isFull) node.apply {
             knownNodes[publicKey] = this
-            sendMessage("/joined", networkManager.generateMessage(networkManager.ourNode))
+            sendMessage(EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
         }
     }
 

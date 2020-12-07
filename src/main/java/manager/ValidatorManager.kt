@@ -1,5 +1,6 @@
 package manager
 
+import data.EndPoint
 import data.InclusionRequest
 import data.Message
 import logging.Logger
@@ -28,7 +29,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         Logger.consensus("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
         currentState.inclusionChanges[publicKey] = true
-        networkManager.broadcast("/include", message)
+        networkManager.broadcast(EndPoint.Include, message)
 
         val currentValidatorsSize = currentValidators.size
         val newValidators = inclusionChanges.filter { it.value }.count()
@@ -40,7 +41,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            networkManager.broadcast("/block", networkManager.generateMessage(block))
+            networkManager.broadcast(EndPoint.BlockReceived, networkManager.generateMessage(block))
             chainManager.addBlock(block)
         }
     }
@@ -51,7 +52,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         val message = networkManager.generateMessage(inclusionRequest)
         networkManager.apply {
             dht searchFor producerKey
-            knownNodes[producerKey]?.sendMessage("/include", message)
+            knownNodes[producerKey]?.sendMessage(EndPoint.Include, message)
         }
     }
 

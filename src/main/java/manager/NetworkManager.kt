@@ -33,8 +33,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val crypto = Crypto(".")
     val vdf = VDFManager()
     val dht = DHTManager(this)
-    val docker = DockerManager()
+    val docker = DockerManager(crypto)
     val dashboard = DashboardManager(configuration)
+    val informationManager = InformationManager(this)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageQueue = LinkedBlockingQueue<QueuedMessage<*>>()
@@ -82,6 +83,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         SyncReply queueMessage chainManager::syncReplyReceived
         SyncRequest queueMessage chainManager::syncRequestReceived
         BlockReceived queueMessage chainManager::blockReceived
+        NodeStatistics queueMessage informationManager::dockerStatisticsReceived
+        RepresentativeStatistics queueMessage informationManager::representativeStatisticsReceived
 
         if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
@@ -187,7 +190,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param spread Amount of nodes to choose (if less are known, all are chosen)
      * @param message Message with body of type T.
      */
-    fun <T> sendMessageToRandomNodes(path: String, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(path, message) }
+    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(endPoint, message) }
 
     /**
      * Broadcasts the specified message to known nodes in the network.
@@ -197,12 +200,12 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param message Message with body of type T.
      * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
      */
-    fun <T> broadcast(path: String, message: Message<T>, limited: Boolean = false) {
+    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = false) {
         val hexHash = message.hex
         if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
-        for (node in shuffledNodes.take(amountToTake)) node.sendMessage(path, message)
+        for (node in shuffledNodes.take(amountToTake)) node.sendMessage(endPoint, message)
     }
 
     /**

@@ -1,9 +1,6 @@
 package manager
 
-import data.BlockVote
-import data.Message
-import data.VoteRequest
-import data.VoteType
+import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 
@@ -29,7 +26,7 @@ class CommitteeManager(private val networkManager: NetworkManager) {
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        if (isValidProof) producer.sendMessage("/vote", messageToSend)
+        if (isValidProof) producer.sendMessage(EndPoint.Vote, messageToSend)
     }
 
 }

@@ -46,7 +46,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         return 10000
 
         val deltaT: Long = System.currentTimeMillis() - previousBlock.timestamp
-        val ratio: Double = deltaT / configuration.targetBlockTime
+        val ratio: Double = deltaT / configuration.slotDuration.toDouble()
         var difficulty: Double = 0.0
         when {
             ratio > 0 -> {

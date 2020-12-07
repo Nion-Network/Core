@@ -25,7 +25,6 @@ data class Configuration(
         val influxPassword: String,
         val dashboardEnabled: Boolean,
         val loggingEnabled: Boolean,
-        val targetBlockTime: Double,
         val historyMinuteClearance: Int,
         val historyCleaningFrequency: Int
 ) {
@@ -52,5 +51,7 @@ data class Node(val publicKey: String, val ip: String, val port: Int, val return
      * @param message message to be sent to the node.
      * @return Response code and response
      */
-    fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo("http://$ip:$port", path, message)
+    private fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo("http://$ip:$port", path, message)
+
+    fun <T> sendMessage(endPoint: EndPoint, message: Message<T>): Pair<Int, String> = sendMessage(endPoint.path, message)
 }

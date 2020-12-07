@@ -1,21 +1,23 @@
 package manager
 
 import data.ContainerStats
-import data.DockerStats
+import data.DockerStatistics
 import io.javalin.http.Context
 import logging.Logger
+import utils.Crypto
 
 /**
  * Created by Mihael Valentin Berčič
  * on 27/11/2020 at 17:11
  * using IntelliJ IDEA
  */
-class DockerManager {
+class DockerManager(private val crypto: Crypto) {
 
     private val runtime = Runtime.getRuntime()
-    private lateinit var latestStatistics: DockerStats
     private val statsRegex = "^(?<id>.*?)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s(?<memory>[0-9.]+)%\\s(?<pids>\\d+)$".toRegex(RegexOption.MULTILINE)
 
+    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, emptyList())
+        private set
 
     init {
         runtime.exec("bash dockerStats.sh")
@@ -40,7 +42,7 @@ class DockerManager {
 
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
-        latestStatistics = DockerStats(containerStats.toList())
+        latestStatistics = DockerStatistics(crypto.publicKey, containerStats.toList())
     }
 
     /*

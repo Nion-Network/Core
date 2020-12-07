@@ -25,10 +25,9 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val vdf = networkManager.vdf
     private val dht = networkManager.dht
     private val dashboard = networkManager.dashboard
-    private val informationManager = InformationManager(crypto, networkManager.isTrustedNode, dashboard)
+    private val informationManager = networkManager.informationManager
     private val knownNodes = networkManager.knownNodes
 
-    private val lastBlock: Block? get() = chain.lastOrNull()
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
@@ -52,16 +51,15 @@ class ChainManager(private val networkManager: NetworkManager) {
         votes.remove(block.hash)
         if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
 
-        if (isIncluded) {
-            val representative = informationManager.generateClusters(3, 10, currentState.currentValidators, block)
-        }
-
-        val nextTask = calculateNextDuties(block, !fromSync)
+        val nextTask = calculateNextTask(block, !fromSync)
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
             SlotDuty.COMMITTEE -> Logger.blue
             SlotDuty.VALIDATOR -> Logger.white
         }
+
+        Logger.debug("Clearing statistics!")
+        informationManager.latestNetworkStatistics.clear()
 
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
@@ -77,7 +75,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                 runAfter(500) {
                     val message = networkManager.generateMessage(voteRequest)
-                    nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage("/voteRequest", message) }
+                    nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.OnVoteRequest, message) }
                 }
 
                 runAfter(configuration.slotDuration * 2 / 3) {
@@ -86,14 +84,18 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
+                    Logger.info("--------- Information ------------")
+                    Logger.info("DockerStatistics count: ${informationManager.latestNetworkStatistics.size}")
+                    Logger.info("------------- END ----------------")
+
                     newBlock.votes = votesAmount
                     if (networkManager.isTrustedNode) dashboard.newBlockProduced(newBlock)
-                    networkManager.broadcast("/block", broadcastMessage)
+                    networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
                 }
             }
-            SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> Unit
+            SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
         }
     }
 
@@ -105,7 +107,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
-        networkManager.sendMessageToRandomNodes("/syncRequest", 1, message)
+        networkManager.sendMessageToRandomNodes(EndPoint.SyncRequest, 1, message)
     }
 
     /**
@@ -116,7 +118,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     fun syncRequestReceived(message: Message<Int>) {
         val blocks = chain.drop(message.body)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
-        knownNodes[message.publicKey]?.sendMessage("/syncReply", responseBlocksMessageBody)
+        knownNodes[message.publicKey]?.sendMessage(EndPoint.SyncReply, responseBlocksMessageBody)
     }
 
     /**
@@ -137,19 +139,18 @@ class ChainManager(private val networkManager: NetworkManager) {
 
     fun blockReceived(message: Message<Block>) {
         val newBlock = message.body
+        networkManager.broadcast(EndPoint.BlockReceived, message)
 
-        // Logger.info("Broadcasting ${newBlock.hash} [ECHO]")
-        networkManager.broadcast("/block", message)
-
-        if (newBlock.precedentHash == lastBlock?.hash ?: "") {
-            addBlock(newBlock)
-        } else {
-            if (lastBlock != null) Logger.error("\n[${newBlock.epoch}][${newBlock.slot}]\nPrecedent: ${newBlock.precedentHash}\nLast: ${lastBlock?.hash}\nNew: ${newBlock.hash}")
-            if (lastBlock?.hash != newBlock.hash) requestSync()
+        val lastBlock = chain.lastOrNull()
+        val lastHash = lastBlock?.hash ?: ""
+        if (newBlock.precedentHash == lastHash) addBlock(newBlock)
+        else {
+            if (lastBlock != null) Logger.error("\n[${newBlock.epoch}][${newBlock.slot}]\nPrecedent: ${newBlock.precedentHash}\nLast: $lastHash\nNew: ${newBlock.hash}")
+            if (newBlock.hash != lastHash) requestSync()
         }
     }
 
-    private fun calculateNextDuties(block: Block, askForInclusion: Boolean = true): ChainTask {
+    private fun calculateNextTask(block: Block, askForInclusion: Boolean = true): ChainTask {
         val seed = block.getRandomSeed
         val random = Random(seed)
         val ourKey = crypto.publicKey
@@ -167,7 +168,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
 
         if (ourRole == SlotDuty.PRODUCER) committee.forEach(dht::searchFor)
-        return ChainTask(ourRole, committee)
+        return ChainTask(ourRole, blockProducerNode, committee)
     }
 
     fun voteReceived(message: Message<BlockVote>) {

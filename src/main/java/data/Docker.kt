@@ -11,7 +11,7 @@ package data
  *
  * @property containers
  */
-data class DockerStats(val containers: List<ContainerStats>)
+data class DockerStatistics(val publicKey:String, val containers: List<ContainerStats>)
 
 /**
  * Holds information for individual container running.

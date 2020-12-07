@@ -41,7 +41,7 @@ class DashboardManager(private val configuration: Configuration) {
 
     fun newVote(vote: BlockVote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
-        Logger.debug("Sending attestation: ${DigestUtils.sha256Hex(vote.signature)} to Influx")
+        // Logger.debug("Sending attestation: ${DigestUtils.sha256Hex(vote.signature)} to Influx")
         val point = Point.measurement("attestations")
                 .addField("blockHash", vote.blockHash)
                 .addField("signature", DigestUtils.sha256Hex(vote.signature))
@@ -70,9 +70,8 @@ class DashboardManager(private val configuration: Configuration) {
 
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         if (!configuration.dashboardEnabled) return
-        Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
+        // Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
         val point = Point.measurement("networkClusters")
-                .tag("node", publicKey)
                 .addField("epoch", epoch)
                 .addField("nodeId", DigestUtils.sha256Hex(publicKey))
                 .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
