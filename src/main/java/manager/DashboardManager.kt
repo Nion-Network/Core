@@ -7,14 +7,20 @@ import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.PreparedStatement
+import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 private lateinit var influxDB: InfluxDB
+private lateinit var mysql: Connection;
 
 class DashboardManager(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
+
 
     init {
         if (configuration.dashboardEnabled) {
@@ -29,6 +35,16 @@ class DashboardManager(private val configuration: Configuration) {
                 }
             }.start()
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
+
+
+            //mysql
+            mysql = DriverManager.getConnection(
+                    "jdbc:mysql://sensors.innorenew.eu:3306/grafana",
+                    configuration.mysqlUser,
+                    configuration.mysqlPassword);
+            val statement: Statement = mysql.createStatement();
+            statement.executeUpdate("TRUNCATE network")
+
         } else Logger.info("Dashboard disabled")
 
     }
@@ -67,7 +83,7 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("queueSize", queueSize).build()
         queue.add(point)
     }
-
+/*
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         if (!configuration.dashboardEnabled) return
         // Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
@@ -76,6 +92,14 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("nodeId", DigestUtils.sha256Hex(publicKey))
                 .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
         queue.add(point)
+    }
+*/
+    fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
+        val statement: PreparedStatement =
+                mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE");
+        statement.setString(1,DigestUtils.sha256Hex(publicKey));
+        statement.setString(2,DigestUtils.sha256Hex(clusterRepresentative))
+        statement.executeUpdate();
     }
 }
 

@@ -21,6 +21,8 @@ dependencies {
     compile "org.slf4j:slf4j-nop:1.7.28"
     compile 'commons-codec:commons-codec:1.14'
     compile group: 'org.influxdb', name: 'influxdb-java', version: '2.20'
+    // https://mvnrepository.com/artifact/mysql/mysql-connector-java
+    compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.22'
 
 }
 

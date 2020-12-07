@@ -26,7 +26,9 @@ data class Configuration(
         val dashboardEnabled: Boolean,
         val loggingEnabled: Boolean,
         val historyMinuteClearance: Int,
-        val historyCleaningFrequency: Int
+        val historyCleaningFrequency: Int,
+        val mysqlUser : String,
+        val mysqlPassword : String
 ) {
 
 
