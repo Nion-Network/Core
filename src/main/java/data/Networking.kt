@@ -27,8 +27,10 @@ data class Configuration(
         val loggingEnabled: Boolean,
         val historyMinuteClearance: Int,
         val historyCleaningFrequency: Int,
-        val mysqlUser : String,
-        val mysqlPassword : String
+        val mysqlUser: String,
+        val mysqlPassword: String,
+        val clusterCount: Int,
+        val maxIterations: Int
 ) {
 
 

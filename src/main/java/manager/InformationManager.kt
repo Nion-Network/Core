@@ -55,7 +55,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     }
 
     fun prepareForStatistics(blockProducer: String, validators: Collection<String>, lastBlock: Block) {
-        val clusters = generateClusters(3, 10, validators, lastBlock)
+        val clusters = generateClusters(configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 
@@ -65,8 +65,8 @@ class InformationManager(private val networkManager: NetworkManager) {
             knownNodes[blockProducer]?.sendMessage(EndPoint.RepresentativeStatistics, message)
             Logger.info("Sending info to ${knownNodes[blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
-            val myRepresentative = clusters.entries.first { (_, nodes) -> nodes.contains(myPublicKey) }.key
-            reportStatistics(myRepresentative)
+            val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
+            if (myRepresentative != null) reportStatistics(myRepresentative)
         }
     }
 

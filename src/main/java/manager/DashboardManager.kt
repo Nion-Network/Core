@@ -83,22 +83,22 @@ class DashboardManager(private val configuration: Configuration) {
                 .addField("queueSize", queueSize).build()
         queue.add(point)
     }
-/*
+
+    /*
+        fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
+            if (!configuration.dashboardEnabled) return
+            // Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
+            val point = Point.measurement("networkClusters")
+                    .addField("epoch", epoch)
+                    .addField("nodeId", DigestUtils.sha256Hex(publicKey))
+                    .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
+            queue.add(point)
+        }
+    */
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
-        if (!configuration.dashboardEnabled) return
-        // Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
-        val point = Point.measurement("networkClusters")
-                .addField("epoch", epoch)
-                .addField("nodeId", DigestUtils.sha256Hex(publicKey))
-                .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
-        queue.add(point)
-    }
-*/
-    fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
-        val statement: PreparedStatement =
-                mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE");
-        statement.setString(1,DigestUtils.sha256Hex(publicKey));
-        statement.setString(2,DigestUtils.sha256Hex(clusterRepresentative))
+        val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");
+        statement.setString(1, DigestUtils.sha256Hex(publicKey));
+        statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
         statement.executeUpdate();
     }
 }

@@ -31,6 +31,8 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
+    private var isSynced = false
+
     val blockProducer = BlockProducer(crypto, configuration, currentState)
     val validatorManager = ValidatorManager(networkManager, this)
 
@@ -63,6 +65,8 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
+        if (networkManager.isTrustedNode) dashboard.newBlockProduced(block)
+
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
@@ -89,13 +93,12 @@ class ChainManager(private val networkManager: NetworkManager) {
                     Logger.info("------------- END ----------------")
 
                     newBlock.votes = votesAmount
-                    if (networkManager.isTrustedNode) dashboard.newBlockProduced(newBlock)
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
                 }
             }
-            SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
+            SlotDuty.COMMITTEE, SlotDuty.VALIDATOR -> if (!fromSync) informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
         }
     }
 
@@ -104,6 +107,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      */
     private fun requestSync() {
+        isSynced = false
         val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
@@ -134,6 +138,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             currentState.currentSlot = block.slot
             currentState.currentEpoch = block.epoch
         }
+        isSynced = true
         Logger.info("Syncing finished...")
     }
 
