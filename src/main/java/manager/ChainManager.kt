@@ -49,6 +49,12 @@ class ChainManager(private val networkManager: NetworkManager) {
             currentEpoch = block.epoch
         }
 
+        val myMigration = block.migrations[crypto.publicKey]
+        if (!fromSync && myMigration != null) {
+            val toSend = myMigration.containerName
+            Logger.info("We have to send container $toSend to ${knownNodes[myMigration.toNode]}")
+        }
+
         chain.add(block)
         votes.remove(block.hash)
         if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
@@ -88,9 +94,15 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
-                    Logger.info("--------- Information ------------")
-                    Logger.info("DockerStatistics count: ${informationManager.latestNetworkStatistics.size}")
-                    Logger.info("------------- END ----------------")
+                    val latestStatistics = informationManager.latestNetworkStatistics
+                    println(latestStatistics)
+                    val leastUsedNode = latestStatistics.minBy { it.totalCPU }
+                    val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
+
+                    if (leastUsedNode != null && mostUsedNode != null) {
+                        val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
+                        if (leastConsumingApp != null) newBlock.migrations[mostUsedNode.publicKey] = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                    }
 
                     newBlock.votes = votesAmount
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)

@@ -38,6 +38,7 @@ data class Block(@Column(name = "epoch") val epoch: Int,
                  @Column(name = "hash") val hash: String = DigestUtils.sha256Hex("$epoch$slot$difficulty$timestamp$committeeIndex$precedentHash"),
                  @Column(name = "votes") var votes: Int,
                  val validatorChanges: Map<String, Boolean> = emptyMap(),
+                 val migrations: MutableMap<String, Migration> = mutableMapOf(),
                  var vdfProof: String = "") {
 
     val getRandomSeed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()

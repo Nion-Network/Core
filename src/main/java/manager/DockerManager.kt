@@ -45,6 +45,15 @@ class DockerManager(private val crypto: Crypto) {
         latestStatistics = DockerStatistics(crypto.publicKey, containerStats.toList())
     }
 
+    fun exportContainer(name: String) {
+        execute(true) { "docker stop $name" }
+        execute(true) { "docker commit $name" }
+        execute(true) { "docker export $name > $name-export.tar" }
+
+    }
+
+    private fun execute(wait: Boolean, command: () -> String) = runtime.exec(command()).apply { if (wait) this.waitFor() }
+
     /*
      The following functions are purely for aesthetics and does not provide any functional improvement.
      NOTE: They should only be used when the developer knows the data will 100% exist in MatchGroupCollection.

@@ -75,7 +75,7 @@ class InformationManager(private val networkManager: NetworkManager) {
         Logger.trace("Docker stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
-    fun representativeStatisticsReceived(message: Message<List<DockerStatistics>>) {
+    fun representativeStatisticsReceived(message: Message<Array<DockerStatistics>>) {
         latestNetworkStatistics.addAll(message.body)
         Logger.trace("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }

@@ -1,5 +1,7 @@
 package data
 
+import kotlin.math.roundToInt
+
 /**
  * Created by Mihael Valentin Berčič
  * on 27/11/2020 at 20:25
@@ -11,7 +13,7 @@ package data
  *
  * @property containers
  */
-data class DockerStatistics(val publicKey:String, val containers: List<ContainerStats>)
+data class DockerStatistics(val publicKey: String, val containers: List<ContainerStats>, val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() })
 
 /**
  * Holds information for individual container running.
@@ -23,3 +25,5 @@ data class DockerStatistics(val publicKey:String, val containers: List<Container
  * @property pids Number of processes the container is running.
  */
 data class ContainerStats(val id: String, val name: String, val cpuUsage: Double, val memoryUsage: Double, val pids: Int)
+
+data class Migration(val fromNode: String, val toNode: String, val containerName: String)
