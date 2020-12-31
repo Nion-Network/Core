@@ -172,7 +172,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         val random = Random(seed)
         val ourKey = crypto.publicKey
 
-        val validatorSetCopy = currentState.currentValidators.toMutableList().shuffled(random).toMutableList()
+        val validatorSetCopy = currentState.currentValidators.shuffled(random).toMutableList()
         val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
         val committee = validatorSetCopy.take(configuration.committeeSize)
 
