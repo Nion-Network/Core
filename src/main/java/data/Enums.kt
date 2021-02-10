@@ -29,7 +29,8 @@ enum class EndPoint(val requestType: NetworkRequestType, val path: String) {
     SyncRequest(POST, "/syncRequest"),
     OnVoteRequest(POST, "/voteRequest"),
     UpdateDockerStats(POST, "/dockerStats"),
-    RunDockerImage(GET, "/run/image"),
+    RunNewImage(GET, "/run/image"),
+    RunMigratedImage(POST, "/run/migration/image"),
     NodeStatistics(POST, "/nodeStats"),
     RepresentativeStatistics(POST, "/representativeStats")
 }

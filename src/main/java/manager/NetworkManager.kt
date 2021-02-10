@@ -69,14 +69,20 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
         Search run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
 
-        RunDockerImage run docker::runImage
+        Ping run {
+            Logger.info("Pinged me!")
+        }
+        RunNewImage run docker::runImage
         UpdateDockerStats run docker::updateStats
+        RunMigratedImage run docker::runMigratedImage
+
 
         Query processMessage dht::onQuery
         Found processMessage dht::onFound
         OnJoin processMessage dht::onJoin
         Include processMessage validatorManager::inclusionRequest
         OnVoteRequest processMessage committeeManager::voteRequest
+
 
         Join queueMessage dht::joinRequest
         Vote queueMessage chainManager::voteReceived

@@ -1,6 +1,7 @@
 package data
 
 import utils.Utils
+import java.io.File
 
 /**
  * Created by Mihael Valentin Berčič
@@ -55,7 +56,9 @@ data class Node(val publicKey: String, val ip: String, val port: Int, val return
      * @param message message to be sent to the node.
      * @return Response code and response
      */
-    private fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo("http://$ip:$port", path, message)
+    private fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo(returnAddress, path, message)
+
 
     fun <T> sendMessage(endPoint: EndPoint, message: Message<T>): Pair<Int, String> = sendMessage(endPoint.path, message)
+    fun sendFile(endPoint: EndPoint, file: File, containerName: String): Pair<Int, String> = Utils.sendFileTo(returnAddress, endPoint.path, file, containerName)
 }

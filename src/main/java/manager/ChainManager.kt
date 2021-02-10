@@ -24,6 +24,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val currentState = networkManager.currentState
     private val vdf = networkManager.vdf
     private val dht = networkManager.dht
+    private val dockerManager = networkManager.docker
     private val dashboard = networkManager.dashboard
     private val informationManager = networkManager.informationManager
     private val knownNodes = networkManager.knownNodes
@@ -52,7 +53,14 @@ class ChainManager(private val networkManager: NetworkManager) {
         val myMigration = block.migrations[crypto.publicKey]
         if (!fromSync && myMigration != null) {
             val toSend = myMigration.containerName
-            Logger.info("We have to send container $toSend to ${knownNodes[myMigration.toNode]}")
+            val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
+            val savedImage = dockerManager.saveImage(toSend)
+            val receiver = knownNodes[myMigration.toNode]
+                    ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
+
+            Logger.info("We have to send container $toSend to ${receiver.ip}")
+            receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
+            savedImage.delete()
         }
 
         chain.add(block)
@@ -66,7 +74,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             SlotDuty.VALIDATOR -> Logger.white
         }
 
-        Logger.debug("Clearing statistics!")
+        // Logger.debug("Clearing statistics!")
         informationManager.latestNetworkStatistics.clear()
 
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
@@ -95,7 +103,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
                     val latestStatistics = informationManager.latestNetworkStatistics
-                    println(latestStatistics)
+                    Logger.info("We have ${latestStatistics.size} latest statistics!")
                     val leastUsedNode = latestStatistics.minBy { it.totalCPU }
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
 

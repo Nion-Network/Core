@@ -5,6 +5,8 @@ import data.DockerStatistics
 import io.javalin.http.Context
 import logging.Logger
 import utils.Crypto
+import java.io.BufferedReader
+import java.io.File
 
 /**
  * Created by Mihael Valentin Berčič
@@ -15,19 +17,46 @@ class DockerManager(private val crypto: Crypto) {
 
     private val runtime = Runtime.getRuntime()
     private val statsRegex = "^(?<id>.*?)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s(?<memory>[0-9.]+)%\\s(?<pids>\\d+)$".toRegex(RegexOption.MULTILINE)
+    private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
+
+    val ourContainers: MutableList<String> = mutableListOf()
 
     var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, emptyList())
         private set
 
     init {
-        runtime.exec("bash dockerStats.sh")
+        runtime.apply {
+            exec("pkill -f dockerStats")
+            exec("bash dockerStats.sh &")
+        }
     }
 
 
     fun runImage(context: Context) {
+        Logger.debug("Requested to run new image!")
         val image = context.queryParam("image") ?: return
-        val containerId = runtime.exec("docker run -d $image").inputStream.bufferedReader().use { it.readText() }
+        runImage(image)
+    }
+
+    private fun runImage(name: String) {
+        Logger.info("Trying to run: $name")
+
+        val toRun = name.replace(gibberishRegex, "")
+        val containerId = runtime.exec("docker run -d $toRun").inputStream.bufferedReader().use(BufferedReader::readLine)
         Logger.debug("Started a new container: $containerId")
+        ourContainers.add(containerId.take(12))
+    }
+
+    fun runMigratedImage(context: Context) {
+        Logger.info("Running a migrated image...")
+        val imageName = context.header("name") ?: return
+        val fileBytes = context.bodyAsBytes()
+        val fileName = "$imageName-temp.tar"
+        println("File bytes size: ${fileBytes.size}")
+        val storedFile = File(fileName).apply { writeBytes(fileBytes) }
+        val imageId = runtime.exec("docker load -i $fileName").inputStream.bufferedReader().use(BufferedReader::readLine)
+        runImage(imageId)
+        storedFile.delete()
     }
 
     fun updateStats(context: Context) {
@@ -39,20 +68,28 @@ class DockerManager(private val crypto: Crypto) {
             val containerId = "id" stringFrom groups
             val containerName = "name" stringFrom groups
             val memoryUsage = "memory" doubleFrom groups
-
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
-        latestStatistics = DockerStatistics(crypto.publicKey, containerStats.toList())
+        val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
+        // Logger.debug("Filtered containers: $filteredContainers")
+        latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
-    fun exportContainer(name: String) {
-        execute(true) { "docker stop $name" }
-        execute(true) { "docker commit $name" }
-        execute(true) { "docker export $name > $name-export.tar" }
-
+    fun saveImage(name: String): File {
+        runtime.apply {
+            exec("docker stop $name").waitFor()
+            val savedOutput = exec("docker commit $name").inputStream.bufferedReader().use(BufferedReader::readText)
+            val saved = savedOutput.replace("sha256:", "").dropLast(1)
+            val fileName = "$name-export.tar"
+            val savedFile = File(fileName)
+            ProcessBuilder("docker", "save", saved).apply {
+                redirectOutput(savedFile)
+                redirectError(File("error.txt"))
+                start().waitFor()
+            }
+            return savedFile
+        }
     }
-
-    private fun execute(wait: Boolean, command: () -> String) = runtime.exec(command()).apply { if (wait) this.waitFor() }
 
     /*
      The following functions are purely for aesthetics and does not provide any functional improvement.

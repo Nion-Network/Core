@@ -6,7 +6,9 @@ import data.Message
 import data.NetworkRequestType
 import io.javalin.http.Context
 import logging.Logger
+import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
+import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
@@ -28,19 +30,36 @@ class Utils {
             this.addRequestProperty("hex", message.hex)
         }
 
-        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
+        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", file) {
+            this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
+            this.addRequestProperty("name", containerName)
+            this.addRequestProperty("Content-Type", "multipart/form-data;")
+
+            println("Request property hex: ${getRequestProperty("hex")}")
+            println("Request property name: ${getRequestProperty("name")}")
+        }
+
+        private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
             try {
                 connection.requestMethod = type.name
                 connection.apply(customBlock) // Customization
-                connection.doOutput = body.isNotEmpty()
+                connection.doOutput = true
                 connection.doInput = true
                 connection.connectTimeout = 1000
                 connection.connect()
-                if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use {
-                    it.write(body)
-                    it.close()
+                val outputStream = connection.outputStream
+                when (body) {
+                    is String -> if (body.isNotEmpty()) outputStream.write(body.toByteArray())
+                    is File -> {
+                        println("File size: " + body.length())
+                        FileInputStream(body).apply {
+                            transferTo(outputStream)
+                            close()
+                        }
+                    }
                 }
+                outputStream.close()
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             } catch (e: Exception) {
@@ -61,6 +80,7 @@ class Utils {
     }
 
 }
+
 // TODO Comment
 infix fun String.levenshteinDistance(rhss: String): Int {
     val lhs: CharSequence = this

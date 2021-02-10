@@ -1,5 +1,6 @@
 package data
 
+import java.util.*
 import kotlin.math.roundToInt
 
 /**
@@ -13,7 +14,10 @@ import kotlin.math.roundToInt
  *
  * @property containers
  */
-data class DockerStatistics(val publicKey: String, val containers: List<ContainerStats>, val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() })
+data class DockerStatistics(val publicKey: String, val containers: List<ContainerStats>, val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() }) {
+
+    override fun toString() = "Node ... $totalCPU% CPU with ${containers.size} containers"
+}
 
 /**
  * Holds information for individual container running.
