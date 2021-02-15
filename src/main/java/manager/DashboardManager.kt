@@ -11,6 +11,7 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.Statement
+import java.time.Duration
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -84,6 +85,16 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    fun newMigration(receiver: String, publicKey: String, containerId :String, duration: Long) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("migration")
+                .addField("from", publicKey)
+                .addField("to", receiver)
+                .addField("containerId", containerId)
+                .addField("duration", duration)
+                .build()
+        queue.add(point)
+    }
     /*
         fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
             if (!configuration.dashboardEnabled) return

@@ -67,7 +67,7 @@ class Utils {
             } finally {
                 connection.disconnect()
             }
-            return 0 to "FUCKTWAT"
+            return 0 to "What?"
         }
 
         /**

@@ -3,6 +3,7 @@ RUN apt-get update
 RUN apt-get install default-jre -y
 RUN apt-get install libssl-dev -y
 RUN apt-get install libssl1.0.0 libssl-dev -y
+RUN apt-get update
 RUN apt-get install curl -y
 RUN apt-get install docker.io -y
 

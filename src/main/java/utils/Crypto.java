@@ -68,7 +68,8 @@ public class Crypto {
     }
 
     public String sign(String plainText) throws Exception {
-        Signature privateSignature = Signature.getInstance("SHA256withRSA");
+        Signature privateSignature = Signature.getInstance
+                ("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
         privateSignature.update(plainText.getBytes(UTF_8));
 

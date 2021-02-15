@@ -59,7 +59,10 @@ class ChainManager(private val networkManager: NetworkManager) {
                     ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
 
             Logger.info("We have to send container $toSend to ${receiver.ip}")
+            val startOfMigration = System.currentTimeMillis();
             receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
+            val migrationDuration = System.currentTimeMillis() - startOfMigration;
+            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey),DigestUtils.sha256Hex(crypto.publicKey),toSend,migrationDuration)
             savedImage.delete()
         }
 
