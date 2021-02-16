@@ -6,6 +6,8 @@ import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+import kotlin.math.round
 import kotlin.random.Random
 
 
@@ -62,7 +64,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             val startOfMigration = System.currentTimeMillis();
             receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
             val migrationDuration = System.currentTimeMillis() - startOfMigration;
-            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey),DigestUtils.sha256Hex(crypto.publicKey),toSend,migrationDuration)
+            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration)
             savedImage.delete()
         }
 
@@ -107,12 +109,32 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                     val latestStatistics = informationManager.latestNetworkStatistics
                     Logger.info("We have ${latestStatistics.size} latest statistics!")
-                    val leastUsedNode = latestStatistics.minBy { it.totalCPU }
+                    val ourPublicKey = crypto.publicKey
+                    val leastUsedNode = latestStatistics.filter { it.publicKey != ourPublicKey }.minBy { it.totalCPU }
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
 
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
-                        if (leastConsumingApp != null) newBlock.migrations[mostUsedNode.publicKey] = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                        if (leastConsumingApp != null) {
+                            val currentStatistics = dockerManager.latestStatistics
+                            val containersCount = currentStatistics.containers.size
+                            val totalBefore = currentStatistics.totalCPU
+                            val totalAfter = totalBefore - leastConsumingApp.cpuUsage
+                            val averageBefore = totalBefore / containersCount
+                            val averageAfter = totalAfter / (containersCount - 1)
+
+                            val absoluteDifference = abs(averageBefore - averageAfter)
+                            val sum = averageAfter + averageBefore
+                            val percentageDifference = (absoluteDifference / round(sum / 2)) * 100
+
+                            // TODO add to configuration
+                            val minimumDifference = 5
+                            Logger.debug("Percentage difference of before and after: $percentageDifference %")
+                            if (percentageDifference >= minimumDifference) {
+                                val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                                newBlock.migrations[mostUsedNode.publicKey] = newMigration
+                            }
+                        }
                     }
 
                     newBlock.votes = votesAmount
