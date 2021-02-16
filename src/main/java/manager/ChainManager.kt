@@ -110,7 +110,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val latestStatistics = informationManager.latestNetworkStatistics
                     Logger.info("We have ${latestStatistics.size} latest statistics!")
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
-                    val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minBy { it.totalCPU }
+                    val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minBy { it.totalCPU }
 
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
