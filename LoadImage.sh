@@ -1,1 +1,1 @@
-curl http://localhost:5000/run/image?image=dormage/stress
+curl http://localhost:5000/run/image?image=dormage/alpinestress

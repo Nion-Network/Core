@@ -7,7 +7,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
-import kotlin.math.round
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 
@@ -109,28 +109,28 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                     val latestStatistics = informationManager.latestNetworkStatistics
                     Logger.info("We have ${latestStatistics.size} latest statistics!")
-                    val ourPublicKey = crypto.publicKey
-                    val leastUsedNode = latestStatistics.filter { it.publicKey != ourPublicKey }.minBy { it.totalCPU }
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
+                    val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minBy { it.totalCPU }
 
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
                         if (leastConsumingApp != null) {
-                            val currentStatistics = dockerManager.latestStatistics
-                            val containersCount = currentStatistics.containers.size
-                            val totalBefore = currentStatistics.totalCPU
-                            val totalAfter = totalBefore - leastConsumingApp.cpuUsage
-                            val averageBefore = totalBefore / containersCount
-                            val averageAfter = totalAfter / (containersCount - 1)
+                            val senderBefore = mostUsedNode.totalCPU
+                            val receiverBefore = leastUsedNode.totalCPU
+                            val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
 
-                            val absoluteDifference = abs(averageBefore - averageAfter)
-                            val sum = averageAfter + averageBefore
-                            val percentageDifference = (absoluteDifference / round(sum / 2)) * 100
+                            val senderAfter = senderBefore - cpuChange
+                            val receiverAfter = receiverBefore + cpuChange
+
+                            val differenceBefore = abs(senderBefore - receiverBefore)
+                            val differenceAfter = abs(senderAfter - receiverAfter)
+
+                            val migrationDifference = abs(differenceBefore - differenceAfter)
 
                             // TODO add to configuration
                             val minimumDifference = 5
-                            Logger.debug("Percentage difference of before and after: $percentageDifference %")
-                            if (percentageDifference >= minimumDifference) {
+                            Logger.debug("Percentage difference of before and after: $migrationDifference %")
+                            if (migrationDifference >= minimumDifference) {
                                 val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
                                 newBlock.migrations[mostUsedNode.publicKey] = newMigration
                             }
