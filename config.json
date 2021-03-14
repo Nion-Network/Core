@@ -22,5 +22,5 @@
   "mysqlPassword": "04vEMpIxnHDAtS2f",
   "clusterCount": 3,
   "maxIterations": 10,
-  "useCriu": true
+  "useCriu": false
 }
