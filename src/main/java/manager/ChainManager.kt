@@ -57,8 +57,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             val toSend = myMigration.containerName
             val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
             val savedImage = dockerManager.saveImage(toSend)
-            val receiver = knownNodes[myMigration.toNode]
-                    ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
+            val receiver = knownNodes[myMigration.toNode] ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
 
             Logger.info("We have to send container $toSend to ${receiver.ip}")
             val startOfMigration = System.currentTimeMillis();

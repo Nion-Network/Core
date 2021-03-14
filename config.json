@@ -18,8 +18,9 @@
   "loggingEnabled": true,
   "historyMinuteClearance": 30,
   "historyCleaningFrequency": 15,
-  "mysqlUser" : "grafana",
-  "mysqlPassword" : "04vEMpIxnHDAtS2f",
+  "mysqlUser": "grafana",
+  "mysqlPassword": "04vEMpIxnHDAtS2f",
   "clusterCount": 3,
-  "maxIterations": 10
+  "maxIterations": 10,
+  "useCriu": true
 }

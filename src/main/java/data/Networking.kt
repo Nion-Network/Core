@@ -10,31 +10,30 @@ import java.io.File
  */
 
 data class Configuration(
-        val bootstrapNode: String,
-        val trustedNodeIP: String,
-        val trustedNodePort: Int,
-        val maxNodes: Int,
-        val keystorePath: String,
-        val slotDuration: Long,
-        val broadcastSpread: Int,
-        val initialDifficulty: Int,
-        val validatorsCount: Int,
-        val committeeSize: Int,
-        val slotCount: Int,
-        val influxUrl: String,
-        val influxUsername: String,
-        val influxPassword: String,
-        val dashboardEnabled: Boolean,
-        val loggingEnabled: Boolean,
-        val historyMinuteClearance: Int,
-        val historyCleaningFrequency: Int,
-        val mysqlUser: String,
-        val mysqlPassword: String,
-        val clusterCount: Int,
-        val maxIterations: Int
+    val bootstrapNode: String,
+    val trustedNodeIP: String,
+    val trustedNodePort: Int,
+    val maxNodes: Int,
+    val keystorePath: String,
+    val slotDuration: Long,
+    val broadcastSpread: Int,
+    val initialDifficulty: Int,
+    val validatorsCount: Int,
+    val committeeSize: Int,
+    val slotCount: Int,
+    val influxUrl: String,
+    val influxUsername: String,
+    val influxPassword: String,
+    val dashboardEnabled: Boolean,
+    val loggingEnabled: Boolean,
+    val historyMinuteClearance: Int,
+    val historyCleaningFrequency: Int,
+    val mysqlUser: String,
+    val mysqlPassword: String,
+    val clusterCount: Int,
+    val maxIterations: Int,
+    val useCriu: Boolean
 ) {
-
-
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
 }
 
