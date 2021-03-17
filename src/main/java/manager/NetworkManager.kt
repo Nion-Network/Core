@@ -33,7 +33,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val crypto = Crypto(".")
     val vdf = VDFManager()
     val dht = DHTManager(this)
-    val docker = DockerManager(crypto)
+    val docker = DockerManager(crypto, configuration)
     val dashboard = DashboardManager(configuration)
     val informationManager = InformationManager(this)
 
