@@ -13,7 +13,11 @@ import kotlin.math.roundToInt
  *
  * @property containers
  */
-data class DockerStatistics(val publicKey: String, val containers: List<ContainerStats>, val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() }) {
+data class DockerStatistics(
+    val publicKey: String,
+    val containers: List<ContainerStats>,
+    val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() }
+) {
 
     override fun toString() = "Node ... $totalCPU% CPU with ${containers.size} containers"
 }
@@ -27,6 +31,12 @@ data class DockerStatistics(val publicKey: String, val containers: List<Containe
  * @property memoryUsage Expressed in percentages.
  * @property pids Number of processes the container is running.
  */
-data class ContainerStats(val id: String, val name: String, val cpuUsage: Double, val memoryUsage: Double, val pids: Int)
+data class ContainerStats(
+    val id: String,
+    val name: String,
+    val cpuUsage: Double,
+    val memoryUsage: Double,
+    val pids: Int
+)
 
 data class Migration(val fromNode: String, val toNode: String, val containerName: String)

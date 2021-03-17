@@ -11,7 +11,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.Statement
-import java.time.Duration
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -40,14 +39,34 @@ class DashboardManager(private val configuration: Configuration) {
 
             //mysql
             mysql = DriverManager.getConnection(
-                    "jdbc:mysql://sensors.innorenew.eu:3306/grafana",
-                    configuration.mysqlUser,
-                    configuration.mysqlPassword);
+                "jdbc:mysql://sensors.innorenew.eu:3306/grafana",
+                configuration.mysqlUser,
+                configuration.mysqlPassword
+            );
             val statement: Statement = mysql.createStatement();
             statement.executeUpdate("TRUNCATE network")
 
         } else Logger.info("Dashboard disabled")
 
+    }
+
+    /**
+     * Reports each containers' statistics back to our Grafana dashboard.
+     *
+     * @param statistics Docker statistics that are reported by all representers of clusters.
+     */
+    fun reportStatistics(statistics: List<DockerStatistics>) {
+        for (measurement in statistics) {
+            for (container in measurement.containers) {
+                val point = Point.measurement("containers").apply {
+                    addField("nodeId", DigestUtils.sha256Hex(measurement.publicKey))
+                    addField("containerId", container.id)
+                    addField("cpu", container.cpuUsage)
+                    addField("memory", container.memoryUsage)
+                }.build()
+                queue.add(point)
+            }
+        }
     }
 
     fun newBlockProduced(blockData: Block) {
@@ -59,42 +78,47 @@ class DashboardManager(private val configuration: Configuration) {
     fun newVote(vote: BlockVote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending attestation: ${DigestUtils.sha256Hex(vote.signature)} to Influx")
-        val point = Point.measurement("attestations")
-                .addField("blockHash", vote.blockHash)
-                .addField("signature", DigestUtils.sha256Hex(vote.signature))
-                .addField("committeeMember", publicKey).build()
+        val point = Point.measurement("attestations").apply {
+            addField("blockHash", vote.blockHash)
+            addField("signature", DigestUtils.sha256Hex(vote.signature))
+            addField("committeeMember", publicKey)
+        }.build()
+
         queue.add(point)
     }
 
     fun newRole(chainTask: ChainTask, publicKey: String, currentState: State) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending new chain task : ${chainTask.myTask}")
-        val point = Point.measurement("chainTask")
-                .addField("nodeId", publicKey)
-                .addField("task", chainTask.myTask.toString())
-                .addField("slot", currentState.currentSlot)
-                .addField("epoch", currentState.currentEpoch).build()
+        val point = Point.measurement("chainTask").apply {
+            addField("nodeId", publicKey)
+            addField("task", chainTask.myTask.toString())
+            addField("slot", currentState.currentSlot)
+            addField("epoch", currentState.currentEpoch)
+        }.build()
         queue.add(point)
     }
 
     fun logQueue(queueSize: Int, publicKey: String) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("queueSize")
-                .addField("nodeId", publicKey)
-                .addField("queueSize", queueSize).build()
+        val point = Point.measurement("queueSize").apply {
+            addField("nodeId", publicKey)
+            addField("queueSize", queueSize)
+        }.build()
         queue.add(point)
     }
 
-    fun newMigration(receiver: String, publicKey: String, containerId :String, duration: Long) {
+    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("migration")
-                .addField("from", publicKey)
-                .addField("to", receiver)
-                .addField("containerId", containerId)
-                .addField("duration", duration)
-                .build()
+        val point = Point.measurement("migration").apply {
+            addField("from", publicKey)
+            addField("to", receiver)
+            addField("containerId", containerId)
+            addField("duration", duration)
+        }.build()
         queue.add(point)
     }
+
     /*
         fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
             if (!configuration.dashboardEnabled) return

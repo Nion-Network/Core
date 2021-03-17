@@ -136,6 +136,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                         }
                     }
 
+                    dashboard.reportStatistics(latestStatistics)
                     newBlock.votes = votesAmount
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
