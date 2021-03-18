@@ -69,7 +69,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         val imageName = context.header("name") ?: return
         val fileBytes = context.bodyAsBytes()
         val fileName = "$imageName-temp.tar"
-        println("File bytes size: ${fileBytes.size}")
+
         val storedFile = File(fileName).apply { writeBytes(fileBytes) }
         val imageId = runtime.exec("docker load -i $fileName").inputStream.bufferedReader().use(BufferedReader::readLine)
         runImage(imageId)
