@@ -17,7 +17,7 @@ import java.io.File
 class DockerManager(private val crypto: Crypto, private val configuration: Configuration) {
 
     private val runtime = Runtime.getRuntime()
-    private val statsRegex = "^(?<id>.*?)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s(?<memory>[0-9.]+)%\\s(?<pids>\\d+)$".toRegex(RegexOption.MULTILINE)
+    private val statsRegex = "^(?<id>[a-zA-Z0-9]+)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s((?<memory>[0-9.]+)[a-zA-Z]{3}\\s/\\s(?<maxMemory>[0-9.]+[a-zA-Z]{3}))\\s(?<pids>[0-9]+)\$".toRegex(RegexOption.MULTILINE)
     private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
 
     val ourContainers: MutableList<String> = mutableListOf()
