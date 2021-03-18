@@ -101,7 +101,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                 }
 
                 runAfter(configuration.slotDuration * 2 / 3) {
-
+                    Logger.debug("Running a block after (slotDuration * 2) / 3 ...")
                     val thisBlockVotes = votes[newBlock.hash]
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = networkManager.generateMessage(newBlock)
@@ -111,12 +111,17 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
                     val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minBy { it.totalCPU }
 
+                    Logger.info("Most used node: $mostUsedNode")
+                    Logger.info("Least used node: $leastUsedNode")
+
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
+                        Logger.debug("Least consuming app: $leastConsumingApp")
                         if (leastConsumingApp != null) {
                             val senderBefore = mostUsedNode.totalCPU
                             val receiverBefore = leastUsedNode.totalCPU
                             val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
+                            Logger.info("CPU change rounded: $cpuChange")
 
                             val senderAfter = senderBefore - cpuChange
                             val receiverAfter = receiverBefore + cpuChange
@@ -135,7 +140,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                             }
                         }
                     }
-
+                    Logger.debug("Calling dashboard statistics reporting!")
                     dashboard.reportStatistics(latestStatistics)
                     newBlock.votes = votesAmount
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
