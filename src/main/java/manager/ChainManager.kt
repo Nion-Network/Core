@@ -143,6 +143,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     Logger.debug("Calling dashboard statistics reporting!")
                     dashboard.reportStatistics(latestStatistics)
                     newBlock.votes = votesAmount
+                    Logger.chain("Broadcasting the new block message.")
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
