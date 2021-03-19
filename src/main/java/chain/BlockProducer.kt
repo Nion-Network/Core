@@ -11,12 +11,17 @@ import utils.Crypto
  * on 24/09/2020 at 14:08
  * using IntelliJ IDEA
  */
-
 class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, private val currentState: State) {
 
     private val initialDifficulty = configuration.initialDifficulty
     private val currentTime: Long get() = System.currentTimeMillis()
 
+    /**
+     * Computes genesis (first, initial) block for the blockchain.
+     *
+     * @param vdfProof Initial difficulty VDF proof of "FFFF".
+     * @return Genesis block that is used to start the chain.
+     */
     fun genesisBlock(vdfProof: String): Block = Block(
             epoch = 0,
             slot = 0,
@@ -29,6 +34,14 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             vdfProof = vdfProof
     )
 
+    /**
+     * Computes the next block in chain.
+     *
+     * @param previousBlock Last chain block that is used for the next block computation [ => chain].
+     * @param vdfProof VDF Proof computed from the previous block.
+     * @param votes Votes that have been sourced for the given block.
+     * @return Newly computed block.
+     */
     fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
             epoch = currentState.currentEpoch,
             slot = currentState.currentSlot,
