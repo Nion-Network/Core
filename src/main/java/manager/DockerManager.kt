@@ -60,10 +60,13 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
             val memoryUsage = "memory" doubleFrom groups
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
+        containerStats.forEach {
+            // Logger.info("Received stat id: |${it.id}| ... $it")
+        }
         val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
         Logger.debug("Updated containers: ${filteredContainers.size} vs ${ourContainers.size}")
         ourContainers.forEach {
-            Logger.debug("Container id: $it")
+            Logger.debug("Container id: |$it|")
         }
         latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }

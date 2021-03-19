@@ -58,7 +58,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         server.before {
             if (!it.ip().startsWith("172")) return@before
             val hex = it.header("hex") ?: ""
-            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
+            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO").apply {
+                Logger.error("Already seen message on ${it.path()}")
+            }
             else networkHistory[hex] = System.currentTimeMillis()
         }
         server.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }

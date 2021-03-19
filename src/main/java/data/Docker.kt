@@ -36,7 +36,8 @@ data class ContainerStats(
     val name: String,
     val cpuUsage: Double,
     val memoryUsage: Double,
-    val pids: Int
+    val pids: Int,
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 data class Migration(val fromNode: String, val toNode: String, val containerName: String)
