@@ -16,6 +16,7 @@ import kotlin.math.roundToInt
 data class DockerStatistics(
     val publicKey: String,
     val containers: List<ContainerStats>,
+    val timestamp: Long = System.currentTimeMillis(),
     val totalCPU: Int = containers.sumBy { it.cpuUsage.roundToInt() }
 ) {
 
@@ -36,8 +37,7 @@ data class ContainerStats(
     val name: String,
     val cpuUsage: Double,
     val memoryUsage: Double,
-    val pids: Int,
-    val timestamp: Long = System.currentTimeMillis()
+    val pids: Int
 )
 
 data class Migration(val fromNode: String, val toNode: String, val containerName: String)

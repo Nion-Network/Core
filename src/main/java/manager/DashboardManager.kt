@@ -56,10 +56,8 @@ class DashboardManager(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: List<DockerStatistics>) {
-        Logger.info("Reporting statistics to grafana!")
         for (measurement in statistics) {
             val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
-            Logger.info("Measurement $publicKey has ${measurement.containers.size} containers!")
             for (container in measurement.containers) {
                 val point = Point.measurement("containers").apply {
                     addField("nodeId", publicKey)
@@ -68,7 +66,6 @@ class DashboardManager(private val configuration: Configuration) {
                     addField("memory", container.memoryUsage)
                 }.build()
                 queue.add(point)
-                Logger.info("A point created and added to queue for ${container.name}")
             }
         }
     }

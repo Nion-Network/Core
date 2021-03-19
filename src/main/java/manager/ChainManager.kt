@@ -65,6 +65,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             val migrationDuration = System.currentTimeMillis() - startOfMigration;
             dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration)
             savedImage.delete()
+            dockerManager.ourContainers.remove(toSend)
         }
 
         chain.add(block)
@@ -121,7 +122,6 @@ class ChainManager(private val networkManager: NetworkManager) {
                             val senderBefore = mostUsedNode.totalCPU
                             val receiverBefore = leastUsedNode.totalCPU
                             val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
-                            Logger.info("CPU change rounded: $cpuChange")
 
                             val senderAfter = senderBefore - cpuChange
                             val receiverAfter = receiverBefore + cpuChange
@@ -140,10 +140,8 @@ class ChainManager(private val networkManager: NetworkManager) {
                             }
                         }
                     }
-                    Logger.debug("Calling dashboard statistics reporting!")
                     dashboard.reportStatistics(latestStatistics)
                     newBlock.votes = votesAmount
-                    Logger.chain("Broadcasting the new block message.")
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }

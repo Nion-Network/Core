@@ -33,7 +33,6 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         }
     }
 
-
     fun runImage(context: Context) {
         Logger.debug("Requested to run new image!")
         val image = context.queryParam("image") ?: return
@@ -60,14 +59,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
             val memoryUsage = "memory" doubleFrom groups
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
-        containerStats.forEach {
-            Logger.info("Received stat id: |${it.id}| ... $it")
-        }
         val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
-        Logger.debug("Updated containers: ${filteredContainers.size} vs ${ourContainers.size}")
-        ourContainers.forEach {
-            Logger.debug("Container id: |$it|")
-        }
         latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
