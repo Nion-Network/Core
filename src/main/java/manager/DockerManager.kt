@@ -61,7 +61,10 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
         val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
-        Logger.debug("Updated containers: ${filteredContainers.size}")
+        Logger.debug("Updated containers: ${filteredContainers.size} vs ${ourContainers.size}")
+        ourContainers.forEach {
+            Logger.debug("Container id: $it")
+        }
         latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
