@@ -48,8 +48,8 @@ class ChainManager(private val networkManager: NetworkManager) {
     fun addBlock(block: Block, fromSync: Boolean = false) {
         currentState.apply {
             block.validatorChanges.forEach { (publicKey, change) -> if (change) currentValidators.add(publicKey) else currentValidators.remove(publicKey) }
-            currentSlot = block.slot
-            currentEpoch = block.epoch
+            slot = block.slot
+            epoch = block.epoch
         }
 
         val myMigration = block.migrations[crypto.publicKey]
@@ -63,7 +63,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             val startOfMigration = System.currentTimeMillis();
             receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
             val migrationDuration = System.currentTimeMillis() - startOfMigration;
-            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration)
+            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, currentState)
             savedImage.delete()
             dockerManager.ourContainers.remove(toSend)
         }
@@ -89,9 +89,9 @@ class ChainManager(private val networkManager: NetworkManager) {
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
-                if (++currentState.currentSlot == configuration.slotCount) {
-                    currentState.currentEpoch++
-                    currentState.currentSlot = 0
+                if (++currentState.slot == configuration.slotCount) {
+                    currentState.epoch++
+                    currentState.slot = 0
                 }
                 val newBlock = blockProducer.createBlock(block, vdfProof)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
@@ -140,7 +140,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                             }
                         }
                     }
-                    dashboard.reportStatistics(latestStatistics)
+                    dashboard.reportStatistics(latestStatistics, currentState)
                     newBlock.votes = votesAmount
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
@@ -157,7 +157,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      */
     private fun requestSync() {
         isSynced = false
-        val from = currentState.currentEpoch * configuration.slotCount + currentState.currentSlot
+        val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
         networkManager.sendMessageToRandomNodes(EndPoint.SyncRequest, 1, message)
@@ -184,8 +184,8 @@ class ChainManager(private val networkManager: NetworkManager) {
         Logger.info("We have ${blocks.size} blocks to sync...")
         blocks.forEach { block ->
             addBlock(block, true)
-            currentState.currentSlot = block.slot
-            currentState.currentEpoch = block.epoch
+            currentState.slot = block.slot
+            currentState.epoch = block.epoch
         }
         isSynced = true
         Logger.info("Syncing finished...")

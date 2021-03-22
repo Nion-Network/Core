@@ -16,8 +16,8 @@ data class VoteRequest(val block: Block, val producer: Node)
 
 data class VoteInformation(val from: String, val timestamp: Long = System.currentTimeMillis())
 
-data class State(var currentEpoch: Int,
-                 var currentSlot: Int,
+data class State(var epoch: Int,
+                 var slot: Int,
                  var committeeIndex: Int,
                  var currentDifficulty: Int,
                  val inclusionChanges: MutableMap<String, Boolean>,

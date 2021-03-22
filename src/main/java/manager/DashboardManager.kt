@@ -55,7 +55,7 @@ class DashboardManager(private val configuration: Configuration) {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: List<DockerStatistics>) {
+    fun reportStatistics(statistics: List<DockerStatistics>, currentState: State) {
         for (measurement in statistics) {
             val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
             for (container in measurement.containers) {
@@ -64,6 +64,8 @@ class DashboardManager(private val configuration: Configuration) {
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
                     addField("memory", container.memoryUsage)
+                    addField("epoch", currentState.epoch)
+                    addField("slot", currentState.slot)
                 }.build()
                 queue.add(point)
             }
@@ -94,8 +96,8 @@ class DashboardManager(private val configuration: Configuration) {
         val point = Point.measurement("chainTask").apply {
             addField("nodeId", publicKey)
             addField("task", chainTask.myTask.toString())
-            addField("slot", currentState.currentSlot)
-            addField("epoch", currentState.currentEpoch)
+            addField("slot", currentState.slot)
+            addField("epoch", currentState.epoch)
         }.build()
         queue.add(point)
     }
@@ -109,11 +111,13 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long) {
+    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, currentState: State) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
             addField("from", publicKey)
             addField("to", receiver)
+            addField("epoch", currentState.epoch)
+            addField("slot", currentState.slot)
             addField("containerId", containerId)
             addField("duration", duration)
         }.build()

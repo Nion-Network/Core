@@ -43,8 +43,8 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
      * @return Newly computed block.
      */
     fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
-            epoch = currentState.currentEpoch,
-            slot = currentState.currentSlot,
+            epoch = currentState.epoch,
+            slot = currentState.slot,
             difficulty = initialDifficulty,
             timestamp = currentTime,
             committeeIndex = currentState.committeeIndex,

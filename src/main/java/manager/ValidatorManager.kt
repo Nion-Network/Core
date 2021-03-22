@@ -21,12 +21,12 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         val publicKey = message.publicKey
         val inclusionRequest = message.body
 
-        val isSameEpoch = inclusionRequest.currentEpoch == currentState.currentEpoch
-        val isSameSlot = inclusionRequest.currentSlot == currentState.currentSlot
+        val isSameEpoch = inclusionRequest.currentEpoch == currentState.epoch
+        val isSameSlot = inclusionRequest.currentSlot == currentState.slot
         val isSynced = isSameEpoch && isSameSlot
 
         if (!isSynced) return
-        Logger.consensus("Inclusion request received with: Current[${currentState.currentEpoch}][${currentState.currentSlot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
+        Logger.consensus("Inclusion request received with: Current[${currentState.epoch}][${currentState.slot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
         currentState.inclusionChanges[publicKey] = true
         networkManager.broadcast(EndPoint.Include, message)
@@ -47,7 +47,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
     }
 
     fun requestInclusion(producerKey: String) {
-        val inclusionRequest = InclusionRequest(currentState.currentEpoch, currentState.currentSlot, networkManager.crypto.publicKey)
+        val inclusionRequest = InclusionRequest(currentState.epoch, currentState.slot, networkManager.crypto.publicKey)
         Logger.debug("Requesting inclusion with ${inclusionRequest.currentEpoch} [${inclusionRequest.currentSlot}]...")
         val message = networkManager.generateMessage(inclusionRequest)
         networkManager.apply {
