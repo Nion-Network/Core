@@ -23,15 +23,15 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
      * @return Genesis block that is used to start the chain.
      */
     fun genesisBlock(vdfProof: String): Block = Block(
-            epoch = 0,
-            slot = 0,
-            difficulty = initialDifficulty,
-            timestamp = currentTime,
-            committeeIndex = 0,
-            votes = 0,
-            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-            validatorChanges = currentState.inclusionChanges.toMap(),
-            vdfProof = vdfProof
+        epoch = 0,
+        slot = 0,
+        difficulty = initialDifficulty,
+        timestamp = currentTime,
+        committeeIndex = 0,
+        votes = 0,
+        blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+        validatorChanges = currentState.inclusionChanges.toMap(),
+        vdfProof = vdfProof
     )
 
     /**
@@ -42,17 +42,17 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
      * @param votes Votes that have been sourced for the given block.
      * @return Newly computed block.
      */
-    fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0): Block = Block(
-            epoch = currentState.epoch,
-            slot = currentState.slot,
-            difficulty = initialDifficulty,
-            timestamp = currentTime,
-            committeeIndex = currentState.committeeIndex,
-            vdfProof = vdfProof,
-            votes = votes,
-            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-            validatorChanges = currentState.inclusionChanges.toMap(),
-            precedentHash = previousBlock.hash
+    fun createBlock(previousBlock: Block, vdfProof: String = "", votes: Int = 0, isSkipBlock: Boolean = false): Block = Block(
+        epoch = currentState.epoch,
+        slot = currentState.slot,
+        difficulty = initialDifficulty,
+        timestamp = if (isSkipBlock) previousBlock.timestamp else currentTime,
+        committeeIndex = currentState.committeeIndex,
+        vdfProof = vdfProof,
+        votes = votes,
+        blockProducer = if (isSkipBlock) "" else DigestUtils.sha256Hex(crypto.publicKey),
+        validatorChanges = currentState.inclusionChanges.toMap(),
+        precedentHash = previousBlock.hash
     )
 
     fun adjustDifficulty(previousBlock: Block): Int {
