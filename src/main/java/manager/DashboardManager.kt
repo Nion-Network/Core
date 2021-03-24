@@ -28,7 +28,7 @@ class DashboardManager(private val configuration: Configuration) {
             influxDB.query(Query("CREATE DATABASE PROD"));
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
-            influxDB.enableBatch(2000, 10000, TimeUnit.MILLISECONDS);
+            influxDB.enableBatch(2000, 500, TimeUnit.MILLISECONDS);
             Thread {
                 while (true) queue.take().apply {
                     influxDB.write(this)
@@ -94,6 +94,7 @@ class DashboardManager(private val configuration: Configuration) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending new chain task : ${chainTask.myTask}")
         val point = Point.measurement("chainTask").apply {
+            time(System.currentTimeMillis(),TimeUnit.MILLISECONDS)
             addField("nodeId", publicKey)
             addField("task", chainTask.myTask.toString())
             addField("slot", currentState.slot)

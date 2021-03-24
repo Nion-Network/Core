@@ -7,9 +7,9 @@
   "maxCommitteeMembers": 32,
   "initialDifficulty": 1000,
   "maxCommittees": 64,
-  "broadcastSpread": 3,
-  "validatorsCount": 3,
-  "committeeSize": 2,
+  "broadcastSpread": 5,
+  "validatorsCount": 8,
+  "committeeSize": 8,
   "slotCount": 8,
   "influxUrl": "http://88.200.63.190:8086",
   "influxUsername": "edge",
@@ -20,7 +20,7 @@
   "historyCleaningFrequency": 15,
   "mysqlUser": "grafana",
   "mysqlPassword": "04vEMpIxnHDAtS2f",
-  "clusterCount": 3,
+  "clusterCount": 5,
   "maxIterations": 10,
   "useCriu": false
 }
