@@ -63,7 +63,7 @@ class Utils {
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             } catch (e: Exception) {
-                // Logger.error("URL error to $url $e")
+                Logger.error("URL error to $url $e")
             } finally {
                 connection.disconnect()
             }

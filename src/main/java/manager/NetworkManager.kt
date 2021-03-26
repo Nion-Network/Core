@@ -56,7 +56,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     init {
         if (configuration.loggingEnabled || isTrustedNode) Logger.toggleLogging(true)
         server.before {
-            if (it.ip().startsWith("127")) return@before
+            //if (!it.ip().startsWith("10")) return@before
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
             else networkHistory[hex] = System.currentTimeMillis()
