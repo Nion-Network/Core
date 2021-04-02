@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
-import kotlin.system.exitProcess
 
 
 /**
@@ -121,7 +120,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
-                if (networkManager.isTrustedNode && block.epoch >= 1) exitProcess(-1)
+                // if (networkManager.isTrustedNode && block.epoch >= 1) exitProcess(-1)
                 if (fromSync) Logger.error("This is impossible to have happened. Check the whole implementation")
 
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
