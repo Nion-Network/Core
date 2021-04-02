@@ -5,7 +5,6 @@ import com.google.gson.reflect.TypeToken
 import data.Message
 import data.NetworkRequestType
 import io.javalin.http.Context
-import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.io.FileInputStream
@@ -26,18 +25,20 @@ class Utils {
 
         val gson = GsonBuilder().setPrettyPrinting().create()
 
-        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
-            this.addRequestProperty("hex", message.hex)
-        }
+        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
+            urlRequest(type, "$url$path", message.asJson) {
+                this.addRequestProperty("hex", message.hex)
+            }
 
-        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", file) {
-            this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
-            this.addRequestProperty("name", containerName)
-            this.addRequestProperty("Content-Type", "multipart/form-data;")
+        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
+            urlRequest(type, "$url$path", file) {
+                this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
+                this.addRequestProperty("name", containerName)
+                this.addRequestProperty("Content-Type", "multipart/form-data;")
 
-            println("Request property hex: ${getRequestProperty("hex")}")
-            println("Request property name: ${getRequestProperty("name")}")
-        }
+                println("Request property hex: ${getRequestProperty("hex")}")
+                println("Request property name: ${getRequestProperty("name")}")
+            }
 
         private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
@@ -63,7 +64,7 @@ class Utils {
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             } catch (e: Exception) {
-                Logger.error("URL error to $url $e")
+                // Logger.error("URL error to $url $e")
             } finally {
                 connection.disconnect()
             }

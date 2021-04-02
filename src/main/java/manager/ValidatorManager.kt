@@ -20,12 +20,9 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
     fun inclusionRequest(message: Message<InclusionRequest>) {
         val publicKey = message.publicKey
         val inclusionRequest = message.body
+        val canBeIncluded = chainManager.canBeIncluded(inclusionRequest)
 
-        val isSameEpoch = inclusionRequest.currentEpoch == currentState.epoch
-        val isSameSlot = inclusionRequest.currentSlot == currentState.slot
-        val isSynced = isSameEpoch && isSameSlot
-
-        if (!isSynced) return
+        if (!canBeIncluded) return
         Logger.consensus("Inclusion request received with: Current[${currentState.epoch}][${currentState.slot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
         currentState.inclusionChanges[publicKey] = true
