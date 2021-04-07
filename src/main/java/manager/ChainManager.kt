@@ -6,6 +6,9 @@ import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -39,13 +42,16 @@ class ChainManager(private val networkManager: NetworkManager) {
     val blockProducer = BlockProducer(crypto, configuration, currentState)
     val validatorManager = ValidatorManager(networkManager, this)
 
+    private val committeeExecutor = Executors.newSingleThreadScheduledExecutor()
+    private var scheduledCommitteeFuture: ScheduledFuture<*>? = null
+
 
     /**
      * Adds the specified block to the chain and calculates our task for the next slot.
      *
      * @param block
      */
-    fun addBlock(block: Block, fromSync: Boolean = false) {
+    fun addBlock(block: Block, isFromSync: Boolean = false) {
 
         val blockIndex = block.epoch * configuration.slotCount + block.slot
         val blockAtPosition = chain.getOrNull(blockIndex)
@@ -53,18 +59,18 @@ class ChainManager(private val networkManager: NetworkManager) {
         val previousHash = blockBefore?.hash ?: ""
 
         // Logger.info("Block at position: ${blockAtPosition == null} $blockIndex vs ${chain.lastIndex}")
-        if (block.precedentHash != previousHash) {
+        if (block.precedentHash != previousHash && block.votes > 0 && !isFromSync) {
             requestSync()
             return
         }
         if (blockAtPosition != null) {
             val hasMoreVotes = block.votes > blockAtPosition.votes
             val isLast = chain.lastIndex == blockIndex
-            Logger.info("Is last? $isLast ... has more votes? $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
+            Logger.info("[${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
 
             if (hasMoreVotes) {
                 chain.dropLast(chain.size - blockIndex)
-                if (!isLast) requestSync()
+                if (!isLast && !isFromSync) requestSync()
             }
             if (!isLast || block.hash == blockAtPosition.hash) return
         }
@@ -80,7 +86,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
 
         val myMigration = block.migrations[crypto.publicKey]
-        if (!fromSync && myMigration != null) {
+        if (!isFromSync && myMigration != null) {
             val toSend = myMigration.containerName
             val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
             val savedImage = dockerManager.saveImage(toSend)
@@ -95,11 +101,12 @@ class ChainManager(private val networkManager: NetworkManager) {
             dockerManager.ourContainers.remove(toSend)
         }
 
+        scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
         if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
 
-        val nextTask = calculateNextTask(block, !fromSync)
+        val nextTask = calculateNextTask(block, !isFromSync)
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
             SlotDuty.COMMITTEE -> Logger.blue
@@ -116,7 +123,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 // if (networkManager.isTrustedNode && block.epoch >= 1) exitProcess(-1)
-                if (fromSync) Logger.error("This is impossible to have happened. Check the whole implementation")
+                if (isFromSync) Logger.error("This is impossible to have happened. Check the whole implementation")
 
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 if (++currentState.slot == configuration.slotCount) {
@@ -178,13 +185,13 @@ class ChainManager(private val networkManager: NetworkManager) {
                 }
             }
             SlotDuty.COMMITTEE -> {
-                if (!fromSync) {
+                if (!isFromSync) {
                     informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
                     val delay = configuration.slotDuration * 1.5
                     val nextIndex = block.epoch * configuration.slotCount + block.slot + 1
-                    runAfter(delay.toLong()) {
+                    scheduledCommitteeFuture = committeeExecutor.schedule({
                         val hasReceived = chain.getOrNull(nextIndex) != null
-                        if (hasReceived) return@runAfter
+                        // if (hasReceived) return@runAfter
                         Logger.error("Block has not been received! Creating skip block!")
 
                         if (++currentState.slot == configuration.slotCount) {
@@ -196,10 +203,10 @@ class ChainManager(private val networkManager: NetworkManager) {
                         val message = networkManager.generateMessage(skipBlock)
                         networkManager.broadcast(EndPoint.BlockReceived, message)
                         addBlock(skipBlock)
-                    }
+                    }, delay.toLong(), TimeUnit.MILLISECONDS)
                 }
             }
-            SlotDuty.VALIDATOR -> if (!fromSync) informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
+            SlotDuty.VALIDATOR -> if (!isFromSync) informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
         }
     }
 
