@@ -34,7 +34,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
-    private var isSynced = false
+    private var lastSyncRequest: Long = 0
 
     val blockProducer = BlockProducer(crypto, configuration, currentState)
     val validatorManager = ValidatorManager(networkManager, this)
@@ -213,7 +213,9 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      */
     private fun requestSync() {
-        isSynced = false
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastSyncRequest < configuration.slotDuration * 1.5) return
+        lastSyncRequest = currentTime
         val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
@@ -244,7 +246,6 @@ class ChainManager(private val networkManager: NetworkManager) {
             currentState.slot = block.slot
             currentState.epoch = block.epoch
         }
-        isSynced = true
         Logger.info("Syncing finished...")
     }
 
