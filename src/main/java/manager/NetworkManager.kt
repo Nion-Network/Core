@@ -231,4 +231,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @return
      */
     private fun pickRandomNodes(amount: Int): List<Node> = knownNodes.values.shuffled().take(amount)
+
+    fun clearMessageQueue() {
+        messageQueue.clear()
+    }
 }

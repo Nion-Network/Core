@@ -21,7 +21,6 @@ class DashboardManager(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
 
-
     init {
         if (configuration.dashboardEnabled) {
             influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)

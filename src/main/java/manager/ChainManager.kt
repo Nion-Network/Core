@@ -213,9 +213,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      */
     private fun requestSync() {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastSyncRequest < configuration.slotDuration * 1.5) return
-        lastSyncRequest = currentTime
+        networkManager.clearMessageQueue()
         val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
         Logger.trace("Requesting new blocks from $from")
