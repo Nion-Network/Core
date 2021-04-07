@@ -68,11 +68,8 @@ class ChainManager(private val networkManager: NetworkManager) {
             val isLast = chain.lastIndex == blockIndex
             Logger.info("[${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
 
-            if (hasMoreVotes) {
-                chain.dropLast(chain.size - blockIndex)
-                if (!isLast && !isFromSync) requestSync()
-            }
-            if (!isLast || block.hash == blockAtPosition.hash) return
+            if (hasMoreVotes) chain.dropLast(chain.size - blockIndex)
+            else return
         }
 
         currentState.apply {
