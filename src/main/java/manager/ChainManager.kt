@@ -68,8 +68,12 @@ class ChainManager(private val networkManager: NetworkManager) {
                 "[${block.epoch}][${block.slot}] | [${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? [${block.votes} vs " +
                         "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}"
             )
-            if (hasMoreVotes) chain.dropLast(chain.size - blockIndex)
-            else return
+            if (hasMoreVotes) {
+                val amountToTake = chain.size - blockIndex
+                val lastBlocks = chain.takeLast(amountToTake)
+                lastBlocks.forEach(this::revertChanges)
+                chain.removeAll(lastBlocks)
+            } else return
         }
 
         if (block.precedentHash != previousHash && block.votes > 0 && !isFromSync) {
@@ -287,5 +291,14 @@ class ChainManager(private val networkManager: NetworkManager) {
     fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
         val lastBlock = chain.lastOrNull() ?: return true
         return lastBlock.epoch == inclusionRequest.currentEpoch && lastBlock.slot == inclusionRequest.currentSlot
+    }
+
+    private fun revertChanges(block: Block) {
+        currentState.currentValidators.apply {
+            block.validatorChanges.forEach { (publicKey, change) ->
+                if (change) remove(publicKey)
+                else add(publicKey)
+            }
+        }
     }
 }
