@@ -51,6 +51,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      * @param block
      */
+    @Synchronized
     fun addBlock(block: Block, isFromSync: Boolean = false) {
 
         val blockIndex = block.epoch * configuration.slotCount + block.slot
@@ -66,8 +67,8 @@ class ChainManager(private val networkManager: NetworkManager) {
         if (blockAtPosition != null) {
             val hasMoreVotes = block.votes > blockAtPosition.votes
             val isLast = chain.lastIndex == blockIndex
-            Logger.info("[${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
-
+            Logger.info("[${block.epoch}][${block.slot}] | [${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? [${block.votes} vs " +
+                    "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
             if (hasMoreVotes) chain.dropLast(chain.size - blockIndex)
             else return
         }
