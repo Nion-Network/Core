@@ -67,8 +67,10 @@ class ChainManager(private val networkManager: NetworkManager) {
         if (blockAtPosition != null) {
             val hasMoreVotes = block.votes > blockAtPosition.votes
             val isLast = chain.lastIndex == blockIndex
-            Logger.info("[${block.epoch}][${block.slot}] | [${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? [${block.votes} vs " +
-                    "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}")
+            Logger.info(
+                "[${block.epoch}][${block.slot}] | [${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? [${block.votes} vs " +
+                        "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}"
+            )
             if (hasMoreVotes) chain.dropLast(chain.size - blockIndex)
             else return
         }
@@ -177,6 +179,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     }
                     dashboard.reportStatistics(latestStatistics, currentState)
                     newBlock.votes = votesAmount
+                    nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.BlockReceived, broadcastMessage) }
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
