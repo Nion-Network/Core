@@ -83,14 +83,14 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Include processMessage validatorManager::inclusionRequest
         OnVoteRequest processMessage committeeManager::voteRequest
 
+        Join processMessage dht::joinRequest
+        Vote processMessage chainManager::voteReceived
+        SyncRequest processMessage chainManager::syncRequestReceived
+        NodeStatistics processMessage informationManager::dockerStatisticsReceived
+        RepresentativeStatistics processMessage informationManager::representativeStatisticsReceived
 
-        Join queueMessage dht::joinRequest
-        Vote queueMessage chainManager::voteReceived
         SyncReply queueMessage chainManager::syncReplyReceived
-        SyncRequest queueMessage chainManager::syncRequestReceived
         BlockReceived queueMessage chainManager::blockReceived
-        NodeStatistics queueMessage informationManager::dockerStatisticsReceived
-        RepresentativeStatistics queueMessage informationManager::representativeStatisticsReceived
 
         if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
