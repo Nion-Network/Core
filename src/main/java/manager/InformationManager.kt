@@ -40,7 +40,7 @@ class InformationManager(private val networkManager: NetworkManager) {
                 val publicKey = chosenCentroid.first
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-                if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.epoch, validator, publicKey)
+                //if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.epoch, validator, publicKey)
             }
             if (lastState == clusters) break
             lastState = clusters

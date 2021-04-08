@@ -51,7 +51,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      *
      * @param block
      */
-    @Synchronized
+
     fun addBlock(block: Block, isFromSync: Boolean = false) {
 
         val blockIndex = block.epoch * configuration.slotCount + block.slot
