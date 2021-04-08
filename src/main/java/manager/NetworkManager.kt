@@ -54,7 +54,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     init {
-        if (configuration.loggingEnabled || isTrustedNode) Logger.toggleLogging(true)
+        Logger.toggleLogging(configuration.loggingEnabled)
         server.before {
             //if (!it.ip().startsWith("10")) return@before
             val hex = it.header("hex") ?: ""
