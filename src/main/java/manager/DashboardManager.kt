@@ -93,7 +93,7 @@ class DashboardManager(private val configuration: Configuration) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending new chain task : ${chainTask.myTask}")
         val point = Point.measurement("chainTask").apply {
-            time(System.currentTimeMillis(),TimeUnit.MILLISECONDS)
+            time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
             addField("nodeId", publicKey)
             addField("task", chainTask.myTask.toString())
             addField("slot", currentState.slot)
@@ -136,6 +136,7 @@ class DashboardManager(private val configuration: Configuration) {
         }
     */
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
+        return
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");
         statement.setString(1, DigestUtils.sha256Hex(publicKey));
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))

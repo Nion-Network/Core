@@ -122,7 +122,16 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * Runs the thread that is in charge of queue processing.
      *
      */
-    private fun startQueueThread() = Thread { while (true) messageQueue.take().execute.invoke() }.start()
+    private fun startQueueThread() = Thread {
+        while (true) {
+            try {
+                messageQueue.take().execute.invoke()
+            } catch (e: java.lang.Exception) {
+                Logger.error("Exception caught!")
+                e.printStackTrace()
+            }
+        }
+    }.start()
 
     /**
      * Runs the executor that will clean old messages every X minutes specified in configuration.
