@@ -76,7 +76,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             } else return
         }
 
-        if (block.precedentHash != previousHash && block.votes > 0 && !isFromSync) {
+        if (block.precedentHash != previousHash) {
             requestSync()
             return
         }
@@ -139,7 +139,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                 val newBlock = blockProducer.createBlock(block, vdfProof)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
-                runAfter(500) {
+                runAfter(configuration.slotDuration * 1 / 5) {
                     val message = networkManager.generateMessage(voteRequest)
                     nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.OnVoteRequest, message) }
                 }
@@ -187,7 +187,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     newBlock.votes = votesAmount
                     nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.BlockReceived, broadcastMessage) }
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
-                    addBlock(newBlock)
+                    // addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
                 }
             }
@@ -209,7 +209,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                         val skipBlock = blockProducer.createSkipBlock(block)
                         val message = networkManager.generateMessage(skipBlock)
                         networkManager.broadcast(EndPoint.BlockReceived, message)
-                        addBlock(skipBlock)
+                        // addBlock(skipBlock)
                     }, delay.toLong(), TimeUnit.MILLISECONDS)
                 }
             }
