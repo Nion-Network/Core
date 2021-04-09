@@ -16,7 +16,7 @@ data class Configuration(
     val maxNodes: Int,
     val keystorePath: String,
     val slotDuration: Long,
-    val broadcastSpread: Int,
+    val broadcastSpreadPercentage: Int,
     val initialDifficulty: Int,
     val validatorsCount: Int,
     val committeeSize: Int,

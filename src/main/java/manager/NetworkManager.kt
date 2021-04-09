@@ -219,7 +219,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val hexHash = message.hex
         if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
-        val amountToTake = if (limited) configuration.broadcastSpread else shuffledNodes.size
+        val totalSize = shuffledNodes.size
+        val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / totalSize) else totalSize
         for (node in shuffledNodes.take(amountToTake)) node.sendMessage(endPoint, message)
     }
 
