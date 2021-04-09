@@ -11,6 +11,7 @@ import logging.Logger
 import utils.Crypto
 import utils.Utils
 import utils.getMessage
+import java.lang.Integer.max
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -54,7 +55,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     init {
-        Logger.toggleLogging(configuration.loggingEnabled)
+        Logger.toggleLogging(configuration.loggingEnabled || isTrustedNode)
         server.before {
             //if (!it.ip().startsWith("10")) return@before
             val hex = it.header("hex") ?: ""
@@ -65,7 +66,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
     fun start() {
-        Logger.trace("My IP is $myIP")
+        Logger.debug("My IP is $myIP")
 
         Search run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
 
@@ -106,12 +107,12 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      *
      */
     private fun joinTheNetwork() {
-        Logger.trace("Sending join request to our trusted node...")
+        Logger.info("Sending join request to our trusted node...")
         val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", generateMessage(ourNode))
-        Logger.trace("Join response from trusted node: $response")
+        Logger.info("Join response from trusted node: $response")
 
         while (!isInNetwork) {
-            Logger.trace("Waiting to be accepted into the network...")
+            Logger.debug("Waiting to be accepted into the network...")
             Thread.sleep(1000)
         }
 
@@ -215,13 +216,13 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param message Message with body of type T.
      * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
      */
-    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = false) {
+    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = true) {
         val hexHash = message.hex
         if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
-        val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / totalSize) else totalSize
-        for (node in shuffledNodes.take(amountToTake)) node.sendMessage(endPoint, message)
+        val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
+        shuffledNodes.take(amountToTake).parallelStream().forEach { it.sendMessage(endPoint, message) }
     }
 
     /**

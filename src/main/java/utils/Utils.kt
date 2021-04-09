@@ -47,20 +47,24 @@ class Utils {
                 connection.apply(customBlock) // Customization
                 connection.doOutput = true
                 connection.doInput = true
-                connection.connectTimeout = 1000
+                // connection.connectTimeout = 1000
                 connection.connect()
-                val outputStream = connection.outputStream
-                when (body) {
-                    is String -> if (body.isNotEmpty()) outputStream.write(body.toByteArray())
-                    is File -> {
-                        println("File size: " + body.length())
-                        FileInputStream(body).apply {
-                            transferTo(outputStream)
-                            close()
+                connection.outputStream.use {
+                    when (body) {
+                        is String -> if (body.isNotEmpty()) it.write(body.toByteArray())
+                        is File -> {
+                            println("File size: " + body.length())
+                            FileInputStream(body).apply {
+                                transferTo(it)
+                                close()
+                            }
+                        }
+                        else -> {
                         }
                     }
+                    it.flush()
+                    it.close()
                 }
-                outputStream.close()
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             } catch (e: Exception) {

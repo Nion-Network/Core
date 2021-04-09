@@ -55,6 +55,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     }
 
     fun prepareForStatistics(blockProducer: String, validators: Collection<String>, lastBlock: Block) {
+        return
         val clusters = generateClusters(configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
@@ -72,19 +73,19 @@ class InformationManager(private val networkManager: NetworkManager) {
 
     fun dockerStatisticsReceived(message: Message<DockerStatistics>) {
         latestNetworkStatistics.add(message.body)
-        Logger.trace("Docker stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
+        Logger.info("Docker stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
     fun representativeStatisticsReceived(message: Message<Array<DockerStatistics>>) {
         latestNetworkStatistics.addAll(message.body)
-        Logger.trace("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
+        Logger.info("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
         val latestStatistics = dockerManager.latestStatistics
         val message = networkManager.generateMessage(latestStatistics)
-        Logger.trace("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
+        Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
         node.sendMessage(EndPoint.NodeStatistics, message)
     }
 

@@ -68,6 +68,13 @@ class ChainManager(private val networkManager: NetworkManager) {
                 "[${block.epoch}][${block.slot}] | [${chain.lastIndex} vs $blockIndex] Is last? $isLast ... has more votes? [${block.votes} vs " +
                         "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}"
             )
+
+            /*
+            blockIndex = 10
+            chainSize = 14
+            amountToTake = 14 - 10 = 4
+            10, 11, 12, 13
+             */
             if (hasMoreVotes) {
                 val amountToTake = chain.size - blockIndex
                 val lastBlocks = chain.takeLast(amountToTake)
@@ -85,7 +92,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             block.validatorChanges.forEach { (publicKey, change) ->
                 if (change) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
                 inclusionChanges.remove(publicKey)
-                Logger.trace("${publicKey.subSequence(120, 140)} has been ${if (change) "added" else "removed"}")
+                Logger.chain("${publicKey.subSequence(120, 140)} has been ${if (change) "added" else "removed"}")
             }
             slot = block.slot
             epoch = block.epoch
@@ -110,7 +117,11 @@ class ChainManager(private val networkManager: NetworkManager) {
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
-        if (!isIncluded && block.validatorChanges[crypto.publicKey] == true) isIncluded = true
+        block.validatorChanges.apply {
+            val key = crypto.publicKey
+            if (this[key] == true) isIncluded = true
+            if (this[key] == false) isIncluded = false
+        }
 
         val nextTask = calculateNextTask(block, !isFromSync)
         val textColor = when (nextTask.myTask) {
@@ -126,10 +137,11 @@ class ChainManager(private val networkManager: NetworkManager) {
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block)
 
+        if (isFromSync) return
+
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
                 // if (networkManager.isTrustedNode && block.epoch >= 1) exitProcess(-1)
-                if (isFromSync) Logger.error("This is impossible to have happened. Check the whole implementation")
 
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 if (++currentState.slot == configuration.slotCount) {
@@ -192,26 +204,25 @@ class ChainManager(private val networkManager: NetworkManager) {
                 }
             }
             SlotDuty.COMMITTEE -> {
-                if (!isFromSync) {
-                    informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
-                    val delay = configuration.slotDuration * 1.5
-                    val nextIndex = block.epoch * configuration.slotCount + block.slot + 1
-                    scheduledCommitteeFuture = committeeExecutor.schedule({
-                        val hasReceived = chain.getOrNull(nextIndex) != null
-                        // if (hasReceived) return@runAfter
-                        Logger.error("Block has not been received! Creating skip block!")
+                informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
+                val delay = configuration.slotDuration * 1.5
+                val nextIndex = block.epoch * configuration.slotCount + block.slot + 1
+                scheduledCommitteeFuture = committeeExecutor.schedule({
+                    val hasReceived = chain.getOrNull(nextIndex) != null
+                    // if (hasReceived) return@runAfter
+                    Logger.error("Block has not been received! Creating skip block!")
 
-                        if (++currentState.slot == configuration.slotCount) {
-                            currentState.epoch++
-                            currentState.slot = 0
-                        }
-                        currentState.inclusionChanges[nextTask.blockProducer] = false
-                        val skipBlock = blockProducer.createSkipBlock(block)
-                        val message = networkManager.generateMessage(skipBlock)
-                        networkManager.broadcast(EndPoint.BlockReceived, message)
-                        // addBlock(skipBlock)
-                    }, delay.toLong(), TimeUnit.MILLISECONDS)
-                }
+                    if (++currentState.slot == configuration.slotCount) {
+                        currentState.epoch++
+                        currentState.slot = 0
+                    }
+                    currentState.inclusionChanges[nextTask.blockProducer] = false
+                    val skipBlock = blockProducer.createSkipBlock(block)
+                    val message = networkManager.generateMessage(skipBlock)
+                    networkManager.broadcast(EndPoint.BlockReceived, message)
+                    // addBlock(skipBlock)
+                }, delay.toLong(), TimeUnit.MILLISECONDS)
+
             }
             SlotDuty.VALIDATOR -> if (!isFromSync) informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
         }
@@ -225,7 +236,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         networkManager.clearMessageQueue()
         val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
-        Logger.trace("Requesting new blocks from $from")
+        Logger.info("Requesting new blocks from $from")
         networkManager.sendMessageToRandomNodes(EndPoint.SyncRequest, 1, message)
     }
 

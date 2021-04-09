@@ -7,7 +7,7 @@
   "maxCommitteeMembers": 32,
   "initialDifficulty": 1000,
   "maxCommittees": 64,
-  "broadcastSpreadPercentage": 5,
+  "broadcastSpreadPercentage": 10,
   "validatorsCount": 8,
   "committeeSize": 8,
   "slotCount": 8,
