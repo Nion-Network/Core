@@ -6,8 +6,6 @@ import data.EndPoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import logging.Logger
 import utils.Crypto
 import utils.Utils
@@ -276,8 +274,12 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
-        GlobalScope.launch {
+        //GlobalScope.launch {
+        try {
             block(asMessage())
+        } catch (e: java.lang.Exception) {
+            dashboard.reportException(e)
         }
+        //}
     }
 }
