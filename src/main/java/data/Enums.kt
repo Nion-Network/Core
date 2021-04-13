@@ -1,8 +1,5 @@
 package data
 
-import data.NetworkRequestType.GET
-import data.NetworkRequestType.POST
-
 /**
  * Created by Mihael Valentin Berčič
  * on 15/10/2020 at 14:44
@@ -15,22 +12,28 @@ enum class SlotDuty { PRODUCER, COMMITTEE, VALIDATOR }
 enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
 
 
-enum class EndPoint(val requestType: NetworkRequestType, val path: String) {
-    Ping(GET, "/ping"),
-    Join(POST, "/join"),
-    Include(POST, "/include"),
-    Query(POST, "/query"),
-    Found(POST, "/found"),
-    OnJoin(POST, "/joined"),
-    Search(GET, "/search"),
-    Vote(POST, "/vote"),
-    BlockReceived(POST, "/block"),
-    SyncReply(POST, "/syncReply"),
-    SyncRequest(POST, "/syncRequest"),
-    OnVoteRequest(POST, "/voteRequest"),
-    UpdateDockerStats(POST, "/dockerStats"),
-    RunNewImage(GET, "/run/image"),
-    RunMigratedImage(POST, "/run/migration/image"),
-    NodeStatistics(POST, "/nodeStats"),
-    RepresentativeStatistics(POST, "/representativeStats")
+enum class EndPoint(val identification: Byte) {
+    Ping(0),
+    Join(1),
+    Include(2),
+    Query(3),
+    Found(4),
+    OnJoin(5),
+    Vote(6),
+    BlockReceived(7),
+    SyncReply(8),
+    SyncRequest(9),
+    OnVoteRequest(10),
+    UpdateDockerStats(11),
+    RunNewImage(12),
+    RunMigratedImage(13),
+    NodeStatistics(14),
+    RepresentativeStatistics(15);
+
+
+    companion object {
+        private val cache = values().map { it.identification to it }.toMap()
+
+        fun byId(id: Byte) = cache[id]
+    }
 }

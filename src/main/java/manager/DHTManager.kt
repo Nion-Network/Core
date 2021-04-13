@@ -44,8 +44,8 @@ class DHTManager(private val networkManager: NetworkManager) {
 
         knownNodes[lookingFor]?.apply {
             val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
-            body.node.sendMessage(EndPoint.Found, foundMessage)
-        } ?: networkManager.broadcast(EndPoint.Query, message)
+            networkManager.sendPacket(body.node, EndPoint.Found, foundMessage)
+        } ?: networkManager.broadcast(EndPoint.Query, message, false)
     }
 
     /**
@@ -59,7 +59,7 @@ class DHTManager(private val networkManager: NetworkManager) {
 
         if (!networkManager.isFull) node.apply {
             knownNodes[publicKey] = this
-            sendMessage(EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
+            networkManager.sendPacket(this, EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
         }
     }
 
@@ -71,13 +71,13 @@ class DHTManager(private val networkManager: NetworkManager) {
     fun onJoin(message: Message<Node>) {
         val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
-            val acceptorNode: Node = message.body
-            val acceptorKey = acceptorNode.publicKey
-            val isTrustedNode = acceptorNode.returnAddress == configuration.trustedHttpAddress
+            val acceptor: Node = message.body
+            val acceptorKey = acceptor.publicKey
+            val isTrustedNode = acceptor.ip == configuration.trustedNodeIP && acceptor.port == configuration.trustedNodePort
 
-            knownNodes[acceptorKey] = acceptorNode
+            knownNodes[acceptorKey] = acceptor
             networkManager.isInNetwork = true
-            Logger.debug("We've been accepted into network by ${acceptorNode.ip}")
+            Logger.debug("We've been accepted into network by ${acceptor.ip}")
             if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)
         }
     }

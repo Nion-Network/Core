@@ -16,6 +16,7 @@ class CommitteeManager(private val networkManager: NetworkManager) {
     private val dashboardManager = networkManager.dashboard
 
     fun voteRequest(message: Message<VoteRequest>) {
+        Logger.info("Received vote request!")
         val voteRequest = message.body
         val block = voteRequest.block
         val producer = voteRequest.producer
@@ -26,7 +27,10 @@ class CommitteeManager(private val networkManager: NetworkManager) {
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        if (isValidProof) producer.sendMessage(EndPoint.Vote, messageToSend)
+        if (isValidProof) {
+            networkManager.sendPacket(producer, EndPoint.Vote, messageToSend)
+            Logger.info("Sent back our vote!")
+        }
     }
 
 }

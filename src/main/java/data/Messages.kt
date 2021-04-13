@@ -15,7 +15,7 @@ data class QueryMessage(val node: Node, val searchingPublicKey: String)
 
 data class InclusionRequest(val currentEpoch: Int, val currentSlot: Int, val nodePublicKey: String)
 
-data class QueuedMessage<T>(val hex: String, val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block(value) })
+data class QueuedMessage<T>(val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block.invoke(value) })
 
 /**
  * Message with body of type T.

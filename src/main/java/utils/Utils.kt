@@ -127,3 +127,5 @@ fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.i
  * @return Message with body type of T
  */
 inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
+
+inline fun <reified T> ByteArray.asMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(String(this), TypeToken.getParameterized(Message::class.java, T::class.java).type)

@@ -1,7 +1,6 @@
 package data
 
-import utils.Utils
-import java.io.File
+import java.net.InetSocketAddress
 
 /**
  * Created by Mihael Valentin Berčič
@@ -45,19 +44,6 @@ data class Configuration(
  * @property port
  * @property returnAddress String representing URL to access the Node.
  */
-data class Node(val publicKey: String, val ip: String, val port: Int, val returnAddress: String = "http://$ip:$port") {
-
-    /**
-     * Sends the given message to current node.
-     *
-     * @param T type of the message body.
-     * @param path http(s) networking path to deliver the message to.
-     * @param message message to be sent to the node.
-     * @return Response code and response
-     */
-    private fun <T> sendMessage(path: String, message: Message<T>): Pair<Int, String> = Utils.sendMessageTo(returnAddress, path, message)
-
-
-    fun <T> sendMessage(endPoint: EndPoint, message: Message<T>): Pair<Int, String> = sendMessage(endPoint.path, message)
-    fun sendFile(endPoint: EndPoint, file: File, containerName: String): Pair<Int, String> = Utils.sendFileTo(returnAddress, endPoint.path, file, containerName)
+data class Node(val publicKey: String, val ip: String, val port: Int) {
+    
 }

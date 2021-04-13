@@ -13,7 +13,7 @@ ADD build/libs/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar N
 ADD config.json config.json
 # Copy the current directory contents into the container at /app
 COPY . /app
-ADD DockerStats.sh dockerStats.sh
+ADD dockerStats.sh dockerStats.sh
 ADD LoadImage.sh loadImage.sh
 ADD vdf-cli vdf-cli
 RUN chmod 777 vdf-cli

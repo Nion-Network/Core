@@ -107,7 +107,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
             Logger.info("We have to send container $toSend to ${receiver.ip}")
             val startOfMigration = System.currentTimeMillis();
-            receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
+            // TODO send file ... receiver.sendFile(EndPoint.RunMigratedImage, savedImage, toSend)
             val migrationDuration = System.currentTimeMillis() - startOfMigration;
             dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, currentState)
             savedImage.delete()
@@ -153,7 +153,9 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                 runAfter(configuration.slotDuration * 1 / 5) {
                     val message = networkManager.generateMessage(voteRequest)
-                    nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.OnVoteRequest, message) }
+                    networkManager.apply {
+                        nextTask.committee.forEach { key -> sendPacket(knownNodes[key], EndPoint.OnVoteRequest, message) }
+                    }
                 }
 
                 runAfter(configuration.slotDuration * 2 / 3) {
@@ -197,7 +199,9 @@ class ChainManager(private val networkManager: NetworkManager) {
                     }
                     dashboard.reportStatistics(latestStatistics, currentState)
                     newBlock.votes = votesAmount
-                    nextTask.committee.forEach { key -> networkManager.knownNodes[key]?.sendMessage(EndPoint.BlockReceived, broadcastMessage) }
+                    networkManager.apply {
+                        nextTask.committee.forEach { key -> sendPacket(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
+                    }
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     // addBlock(newBlock)
                     newBlock.validatorChanges.forEach { (key, _) -> currentState.inclusionChanges.remove(key) }
@@ -248,7 +252,8 @@ class ChainManager(private val networkManager: NetworkManager) {
     fun syncRequestReceived(message: Message<Int>) {
         val blocks = chain.drop(message.body)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
-        knownNodes[message.publicKey]?.sendMessage(EndPoint.SyncReply, responseBlocksMessageBody)
+        val node = knownNodes[message.publicKey] ?: return
+        networkManager.sendPacket(node, EndPoint.SyncReply, responseBlocksMessageBody)
     }
 
     /**

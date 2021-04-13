@@ -1,18 +1,20 @@
 package manager
 
+import communication.UDPServer
 import data.*
 import data.EndPoint.*
-import data.NetworkRequestType.GET
-import data.NetworkRequestType.POST
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import logging.Logger
 import utils.Crypto
 import utils.Utils
-import utils.getMessage
+import utils.asMessage
 import java.lang.Integer.max
-import java.net.InetAddress
+import java.net.*
+import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
@@ -48,7 +50,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val committeeManager = CommitteeManager(this)
     val validatorManager = chainManager.validatorManager
 
-    private val server = Javalin.create { it.showJavalinBanner = false }.start(listeningPort)
+    private val udpServer = UDPServer(configuration, listeningPort)
+    private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
 
@@ -56,42 +59,59 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
     init {
         Logger.toggleLogging(configuration.loggingEnabled || isTrustedNode)
-        server.before {
-            //if (!it.ip().startsWith("10")) return@before
+        httpServer.before {
+            if (it.ip().startsWith("127")) return@before
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
             else networkHistory[hex] = System.currentTimeMillis()
         }
-        server.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
+        httpServer.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
 
     fun start() {
         Logger.debug("My IP is $myIP")
 
-        Search run { queryParam("pub_key")?.apply { dht.searchFor(this) } }
+        udpServer.startListening {
+            /**
+             * HexLength (4) Hex (n) ID(1) MessageLength (4) | Message (n)
+             */
+            val hex = ByteArray(int)
+            this[hex]
+            if (networkHistory.containsKey(String(hex))) return@startListening
+            networkHistory[String(hex)] = System.currentTimeMillis()
 
-        Ping run {
-            Logger.info("Pinged me!")
+            val id = get()
+            val endPoint = EndPoint.byId(id) ?: throw Exception("Such ID of $id does not exist.")
+
+            val messageBytes = ByteArray(int)
+            this[messageBytes]
+            // Logger.trace("Message size: ${messageBytes.size} with remaining ${remaining()}")
+            // Logger.info("Received packet on $endPoint")
+
+            when (endPoint) {
+                Query -> messageBytes executeImmediately dht::onQuery
+                Found -> messageBytes executeImmediately dht::onFound
+                OnJoin -> messageBytes executeImmediately dht::onJoin
+                Join -> messageBytes executeImmediately dht::joinRequest
+
+                Vote -> messageBytes executeImmediately chainManager::voteReceived
+                Include -> messageBytes executeImmediately validatorManager::inclusionRequest
+                SyncRequest -> messageBytes executeImmediately chainManager::syncRequestReceived
+                OnVoteRequest -> messageBytes executeImmediately committeeManager::voteRequest
+                NodeStatistics -> messageBytes executeImmediately informationManager::dockerStatisticsReceived
+                RepresentativeStatistics -> messageBytes executeImmediately informationManager::representativeStatisticsReceived
+
+                SyncReply -> messageBytes queueMessage chainManager::syncReplyReceived
+                BlockReceived -> messageBytes queueMessage chainManager::blockReceived
+            }
         }
-        RunNewImage run docker::runImage
-        UpdateDockerStats run docker::updateStats
-        RunMigratedImage run docker::runMigratedImage
 
-
-        Query processMessage dht::onQuery
-        Found processMessage dht::onFound
-        OnJoin processMessage dht::onJoin
-        Include processMessage validatorManager::inclusionRequest
-        OnVoteRequest processMessage committeeManager::voteRequest
-
-        Join processMessage dht::joinRequest
-        Vote processMessage chainManager::voteReceived
-        SyncRequest processMessage chainManager::syncRequestReceived
-        NodeStatistics processMessage informationManager::dockerStatisticsReceived
-        RepresentativeStatistics processMessage informationManager::representativeStatisticsReceived
-
-        SyncReply queueMessage chainManager::syncReplyReceived
-        BlockReceived queueMessage chainManager::blockReceived
+        httpServer.apply {
+            post("/dockerStats", docker::updateStats)
+            get("/ping") { Logger.info("Pinged me!") }
+            get("/run/image", docker::runImage)
+            post("/run/migration/image", docker::runMigratedImage)
+        }
 
         if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
@@ -101,6 +121,21 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         startHistoryCleanup()
     }
 
+    private fun <T> encodeToPacketData(endPoint: EndPoint, message: Message<T>): ByteArray {
+        val hex = message.hex.toByteArray()
+        val hexLength = hex.size
+
+        val messageBytes = message.asJson.toByteArray()
+        val messageLength = messageBytes.size
+
+        return ByteBuffer.allocate(9 + hexLength + messageLength).apply {
+            putInt(hexLength)
+            put(hex)
+            put(endPoint.identification)
+            putInt(messageLength)
+            put(messageBytes)
+        }.array()
+    }
 
     /**
      * Sends the Join request to the trusted node and waits to be accepted into the network.
@@ -108,8 +143,10 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      */
     private fun joinTheNetwork() {
         Logger.info("Sending join request to our trusted node...")
-        val response = Utils.sendMessageTo(configuration.trustedHttpAddress, "/join", generateMessage(ourNode))
-        Logger.info("Join response from trusted node: $response")
+        val trustedAddress = InetSocketAddress(configuration.trustedNodeIP, configuration.trustedNodePort)
+        val packetData = encodeToPacketData(Join, generateMessage(ourNode))
+        val packet = DatagramPacket(packetData, packetData.size, trustedAddress)
+        udpServer.send(packet)
 
         while (!isInNetwork) {
             Logger.debug("Waiting to be accepted into the network...")
@@ -130,6 +167,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             } catch (e: java.lang.Exception) {
                 Logger.error("Exception caught!")
                 e.printStackTrace()
+                dashboard.reportException(e)
             }
         }
     }.start()
@@ -151,36 +189,16 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      *
      * @param block Response lambda that will execute on GET request.
      */
-    private infix fun String.get(block: Context.() -> Unit): Javalin = server.get(this, block)
+    @Deprecated("HTTP is no longer being used. Replaced with UDP packets.")
+    private infix fun String.get(block: Context.() -> Unit): Javalin = httpServer.get(this, block)
 
     /**
      *  Set networking to respond using given lambda block to provided path on POST request.
      *
      * @param block Response lambda that will execute on POST request.
      */
-    private infix fun String.post(block: Context.() -> Unit): Javalin = server.post(this, block)
-
-    /**
-     *  Set networking to immediately respond using given lambda block to provided path on POST request.
-     *
-     * @param block Response lambda that will execute on POST request.
-     */
-    private infix fun EndPoint.run(block: Context.() -> Unit): Javalin = when (requestType) {
-        GET -> path get block
-        POST -> path post block
-    }
-
-    /**
-     * Immediately process the received Message of type T from the request on specified endpoint.
-     *
-     * @param T Message body type.
-     * @param block Lambda that processes the message.
-     * @return
-     */
-    private inline infix fun <reified T> EndPoint.processMessage(crossinline block: (Message<T>) -> Unit): Javalin = when (requestType) {
-        GET -> path get { block(getMessage()) }
-        POST -> path post { block(getMessage()) }
-    }
+    @Deprecated("HTTP is no longer being used. Replaced with UDP packets.")
+    private infix fun String.post(block: Context.() -> Unit): Javalin = httpServer.post(this, block)
 
     /**
      * Add the received Message with the body of type T to the message queue.
@@ -188,7 +206,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param T Message's body type.
      * @param block Lambda that is executed when message is taken out of queue.
      */
-    private inline infix fun <reified T> EndPoint.queueMessage(noinline block: (Message<T>) -> Unit) = when (requestType) {
+    private inline infix fun <reified T> ByteArray.queueMessage(noinline block: (Message<T>) -> Unit) {
+        messageQueue.put(QueuedMessage(asMessage(), block))
+    } /*= when (requestType) {
         GET -> path get { /* TODO */ }
         POST -> path post {
             val hex = header("hex")
@@ -196,6 +216,14 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             Logger.info("Putting [${path()}] [${messageQueue.size}]...")
             status(200)
         }
+    }*/
+
+
+    fun <T> sendPacket(node: Node?, endPoint: EndPoint, message: Message<T>) {
+        if (node == null) return
+        val data = encodeToPacketData(endPoint, message)
+        val packet = DatagramPacket(data, data.size, InetSocketAddress(node.ip, node.port))
+        udpServer.send(packet)
     }
 
     /**
@@ -206,7 +234,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param spread Amount of nodes to choose (if less are known, all are chosen)
      * @param message Message with body of type T.
      */
-    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { it.sendMessage(endPoint, message) }
+    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { sendPacket(it, endPoint, message) }
 
     /**
      * Broadcasts the specified message to known nodes in the network.
@@ -218,11 +246,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      */
     fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = true) {
         val hexHash = message.hex
-        if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
+        // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
         val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
-        shuffledNodes.take(amountToTake).parallelStream().forEach { it.sendMessage(endPoint, message) }
+        shuffledNodes.take(amountToTake).forEach { sendPacket(it, endPoint, message) }
     }
 
     /**
@@ -245,5 +273,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
     fun clearMessageQueue() {
         messageQueue.clear()
+    }
+
+    private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
+        GlobalScope.launch {
+            block(asMessage())
+        }
     }
 }

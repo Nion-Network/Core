@@ -135,6 +135,14 @@ class DashboardManager(private val configuration: Configuration) {
             queue.add(point)
         }
     */
+
+    fun reportException(e: Exception) {
+        val point = Point.measurement("exceptions")
+            .addField("message", e.message)
+            .addField("localized", e.stackTrace.joinToString("")).build()
+        queue.add(point)
+    }
+
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         return
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");

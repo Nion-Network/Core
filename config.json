@@ -3,7 +3,7 @@
   "trustedNodePort": 5000,
   "keystorePath": ".",
   "maxNodes": 1000,
-  "slotDuration": 20000,
+  "slotDuration": 10000,
   "maxCommitteeMembers": 32,
   "initialDifficulty": 1000,
   "maxCommittees": 64,
