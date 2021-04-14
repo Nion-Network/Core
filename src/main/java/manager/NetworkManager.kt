@@ -48,7 +48,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val committeeManager = CommitteeManager(this)
     val validatorManager = chainManager.validatorManager
 
-    private val udpServer = UDPServer(configuration, listeningPort)
+    private val udpServer = UDPServer(configuration, dashboard, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
@@ -69,38 +69,23 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     fun start() {
         Logger.debug("My IP is $myIP")
 
-        udpServer.startListening {
-            /**
-             * HexLength (4) Hex (n) ID(1) MessageLength (4) | Message (n)
-             */
-            val hex = ByteArray(int)
-            this[hex]
-            if (networkHistory.containsKey(String(hex))) return@startListening
-            networkHistory[String(hex)] = System.currentTimeMillis()
-
-            val id = get()
-            val endPoint = EndPoint.byId(id) ?: throw Exception("Such ID of $id does not exist.")
-
-            val messageBytes = ByteArray(int)
-            this[messageBytes]
-            // Logger.trace("Message size: ${messageBytes.size} with remaining ${remaining()}")
-            // Logger.info("Received packet on $endPoint")
-
+        udpServer.startListening { endPoint, data ->
             when (endPoint) {
-                Query -> messageBytes executeImmediately dht::onQuery
-                Found -> messageBytes executeImmediately dht::onFound
-                OnJoin -> messageBytes executeImmediately dht::onJoin
-                Join -> messageBytes executeImmediately dht::joinRequest
+                Query -> data executeImmediately dht::onQuery
+                Found -> data executeImmediately dht::onFound
+                OnJoin -> data executeImmediately dht::onJoin
+                Join -> data executeImmediately dht::joinRequest
 
-                Vote -> messageBytes executeImmediately chainManager::voteReceived
-                Include -> messageBytes executeImmediately validatorManager::inclusionRequest
-                SyncRequest -> messageBytes executeImmediately chainManager::syncRequestReceived
-                OnVoteRequest -> messageBytes executeImmediately committeeManager::voteRequest
-                NodeStatistics -> messageBytes executeImmediately informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> messageBytes executeImmediately informationManager::representativeStatisticsReceived
+                Vote -> data executeImmediately chainManager::voteReceived
+                Include -> data executeImmediately validatorManager::inclusionRequest
+                SyncRequest -> data executeImmediately chainManager::syncRequestReceived
+                OnVoteRequest -> data executeImmediately committeeManager::voteRequest
+                NodeStatistics -> data executeImmediately informationManager::dockerStatisticsReceived
+                RepresentativeStatistics -> data executeImmediately informationManager::representativeStatisticsReceived
 
-                SyncReply -> messageBytes queueMessage chainManager::syncReplyReceived
-                BlockReceived -> messageBytes queueMessage chainManager::blockReceived
+                SyncReply -> data queueMessage chainManager::syncReplyReceived
+                BlockReceived -> data queueMessage chainManager::blockReceived
+                else -> Logger.error("Unexpected $endPoint in packet handler.")
             }
         }
 
@@ -274,12 +259,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
-        //GlobalScope.launch {
-        try {
-            block(asMessage())
-        } catch (e: java.lang.Exception) {
-            dashboard.reportException(e)
-        }
-        //}
+        block.invoke(asMessage())
     }
 }

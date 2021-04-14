@@ -73,7 +73,17 @@ class DashboardManager(private val configuration: Configuration) {
 
     fun newBlockProduced(blockData: Block) {
         if (!configuration.dashboardEnabled) return
-        val point: Point = Point.measurementByPOJO(blockData.javaClass).addFieldsFromPOJO(blockData).build()
+        val point = Point.measurement("block").apply {
+            addField("epoch", blockData.epoch)
+            addField("slot", blockData.slot)
+            addField("difficulty", blockData.difficulty)
+            addField("timestamp", blockData.timestamp)
+            addField("committeeIndex", blockData.committeeIndex)
+            addField("blockProducer", blockData.blockProducer)
+            addField("previousHash", blockData.precedentHash)
+            addField("hash", blockData.hash)
+            addField("votes", blockData.votes)
+        }.build()
         queue.add(point)
     }
 
@@ -137,9 +147,7 @@ class DashboardManager(private val configuration: Configuration) {
     */
 
     fun reportException(e: Exception) {
-        val point = Point.measurement("exceptions")
-            .addField("message", e.message)
-            .addField("localized", e.stackTrace.joinToString("")).build()
+        val point = Point.measurement("exceptions").addField("trace", e.stackTrace.joinToString("\n")).build()
         queue.add(point)
     }
 
