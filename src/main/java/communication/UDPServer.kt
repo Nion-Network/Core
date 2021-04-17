@@ -36,14 +36,14 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
                 packet.data = pureArray
                 datagramSocket.receive(packet)
                 buffer.clear()
-                val packetId = ByteArray(buffer.get().toInt())
+                val packetId = ByteArray(64)
                 buffer[packetId]
                 val packetIdentification = String(packetId)
                 if (!networkHistory.containsKey(packetIdentification)) {
                     networkHistory[packetIdentification] = System.currentTimeMillis()
                     val endPointId = buffer.get()
                     val endPoint = EndPoint.byId(endPointId) ?: throw Exception("Such ID of $endPointId does not exist.")
-                    val messageIdentification = ByteArray(buffer.get().toInt())
+                    val messageIdentification = ByteArray(64)
                     buffer[messageIdentification]
                     val messageId = String(messageIdentification)
                     val totalSlices = buffer.get().toInt()

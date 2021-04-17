@@ -80,7 +80,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 Join -> data executeImmediately dht::joinRequest
 
                 Vote -> data executeImmediately chainManager::voteReceived
-                Include -> data queueMessage  validatorManager::inclusionRequest
+                Include -> data queueMessage validatorManager::inclusionRequest
                 SyncRequest -> data executeImmediately chainManager::syncRequestReceived
                 OnVoteRequest -> data executeImmediately committeeManager::voteRequest
                 NodeStatistics -> data executeImmediately informationManager::dockerStatisticsReceived
@@ -107,7 +107,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         startHistoryCleanup()
     }
 
-    private fun <T> encodeAsPackets(endPoint: EndPoint, message: Message<T>): List<ByteArray> {
+    private fun <T> encodeMessage(endPoint: EndPoint, message: Message<T>): EncodedMessage {
         val messageId = message.uid.toByteArray()
         val messageBytes = message.asJson.toByteArray()
         val dataSize = messageBytes.size
@@ -115,25 +115,26 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val packetSize = configuration.packetSplitSize
         val slicesNeeded = dataSize / packetSize + 1
 
-        return (0 until slicesNeeded).map { slicePosition ->
-            val from = slicePosition * packetSize
-            val to = min(from + packetSize, dataSize)
-            val data = messageBytes.sliceArray((from until to))
-            val packetId = DigestUtils.sha256Hex(data).toByteArray()
-            val buffer = ByteBuffer.allocate(9 + packetId.size + messageId.size + data.size)
-            buffer.apply {
-                clear()
-                put(packetId.size.toByte())
+        val packetSlices = mutableListOf<PacketSlice>()
+        val buffer = ByteBuffer.allocate(slicesNeeded * 135 + dataSize).apply {
+            (0 until slicesNeeded).forEach { slicePosition ->
+                val from = slicePosition * packetSize
+                val to = min(from + packetSize, dataSize)
+                val data = messageBytes.sliceArray((from until to))
+                val packetId = DigestUtils.sha256Hex(data).toByteArray()
+
+                val start = position()
                 put(packetId)
                 put(endPoint.identification)
-                put(messageId.size.toByte())
                 put(messageId)
                 put(slicesNeeded.toByte())
                 put(slicePosition.toByte())
                 putInt(data.size)
                 put(data)
-            }.array()
+                packetSlices.add(PacketSlice(start, position() - start))
+            }
         }
+        return EncodedMessage(buffer.array(), packetSlices)
     }
 
     /**
@@ -142,17 +143,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      */
     private fun joinTheNetwork() {
         Logger.info("Sending join request to our trusted node...")
-        val trustedAddress = InetSocketAddress(configuration.trustedNodeIP, configuration.trustedNodePort)
-        val packetData = encodeAsPackets(Join, generateMessage(ourNode))
-        packetData.forEach {
-            println(String(it).take(50))
-        }
-        packetData.forEach {
-            println("Sending: ${String(it).take(150)}")
-            val packet = DatagramPacket(it, it.size, trustedAddress)
-            udpServer.send(packet)
-        }
 
+        val joinRequestMessage = generateMessage(ourNode)
+        sendMessage(configuration.trustedNodeIP, configuration.trustedNodePort, Join, joinRequestMessage)
 
         while (!isInNetwork) {
             Logger.debug("Waiting to be accepted into the network...")
@@ -214,23 +207,19 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      */
     private inline infix fun <reified T> ByteArray.queueMessage(noinline block: (Message<T>) -> Unit) {
         messageQueue.put(QueuedMessage(asMessage(), block))
-    } /*= when (requestType) {
-        GET -> path get { /* TODO */ }
-        POST -> path post {
-            val hex = header("hex")
-            if (hex != null) messageQueue.put(QueuedMessage(hex, getMessage(), block))
-            Logger.info("Putting [${path()}] [${messageQueue.size}]...")
-            status(200)
-        }
-    }*/
+    }
 
 
-    fun <T> sendPacket(node: Node?, endPoint: EndPoint, message: Message<T>) {
+    fun <T> sendMessage(node: Node?, endPoint: EndPoint, message: Message<T>) {
         if (node == null) return
-        val packet = DatagramPacket(byteArrayOf(), 0, InetSocketAddress(node.ip, node.port))
-        encodeAsPackets(endPoint, message).forEach { packetData ->
-            packet.data = packetData
-            packet.length = packetData.size
+        sendMessage(node.ip, node.port, endPoint, message)
+    }
+
+    fun <T> sendMessage(ip: String, port: Int, endPoint: EndPoint, message: Message<T>) {
+        val packet = DatagramPacket(byteArrayOf(), 0, InetSocketAddress(ip, port))
+        val encodedMessage = encodeMessage(endPoint, message)
+        encodedMessage.slices.forEach { (offset, length) ->
+            packet.setData(encodedMessage.data, offset, length)
             udpServer.send(packet)
         }
     }
@@ -243,7 +232,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param spread Amount of nodes to choose (if less are known, all are chosen)
      * @param message Message with body of type T.
      */
-    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { sendPacket(it, endPoint, message) }
+    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { sendMessage(it, endPoint, message) }
 
     /**
      * Broadcasts the specified message to known nodes in the network.
@@ -259,7 +248,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
         val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
-        shuffledNodes.take(amountToTake).forEach { sendPacket(it, endPoint, message) }
+        shuffledNodes.take(amountToTake).forEach { sendMessage(it, endPoint, message) }
     }
 
     /**
@@ -288,3 +277,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         block.invoke(asMessage())
     }
 }
+
+
+class EncodedMessage(val data: ByteArray, val slices: List<PacketSlice>)
+data class PacketSlice(val offset: Int, val length: Int)

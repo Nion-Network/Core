@@ -28,7 +28,7 @@ class CommitteeManager(private val networkManager: NetworkManager) {
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
         if (isValidProof) {
-            networkManager.sendPacket(producer, EndPoint.Vote, messageToSend)
+            networkManager.sendMessage(producer, EndPoint.Vote, messageToSend)
             Logger.info("Sent back our vote!")
         }
     }

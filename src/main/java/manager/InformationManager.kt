@@ -64,7 +64,7 @@ class InformationManager(private val networkManager: NetworkManager) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
             val message = networkManager.generateMessage(latestNetworkStatistics.toList())
             val node = knownNodes[blockProducer] ?: return@runAfter
-            networkManager.sendPacket(node, EndPoint.RepresentativeStatistics, message)
+            networkManager.sendMessage(node, EndPoint.RepresentativeStatistics, message)
             Logger.info("Sending info to ${knownNodes[blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
@@ -87,7 +87,7 @@ class InformationManager(private val networkManager: NetworkManager) {
         val latestStatistics = dockerManager.latestStatistics
         val message = networkManager.generateMessage(latestStatistics)
         Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
-        networkManager.sendPacket(node, EndPoint.NodeStatistics, message)
+        networkManager.sendMessage(node, EndPoint.NodeStatistics, message)
     }
 
 }

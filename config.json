@@ -15,13 +15,13 @@
   "influxUsername": "edge",
   "influxPassword": "e1d2g3e4",
   "dashboardEnabled": true,
-  "loggingEnabled": false,
+  "loggingEnabled": true,
   "historyMinuteClearance": 30,
   "historyCleaningFrequency": 15,
   "mysqlUser": "grafana",
   "mysqlPassword": "04vEMpIxnHDAtS2f",
   "clusterCount": 5,
   "maxIterations": 10,
-  "packetSplitSize": 10000,
+  "packetSplitSize": 1000,
   "useCriu": false
 }

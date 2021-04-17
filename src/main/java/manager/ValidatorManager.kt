@@ -49,7 +49,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         networkManager.apply {
             dht searchFor producerKey
             val node = knownNodes[producerKey] ?: return
-            sendPacket(node, EndPoint.Include, message)
+            sendMessage(node, EndPoint.Include, message)
         }
     }
 

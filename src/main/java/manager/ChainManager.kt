@@ -152,7 +152,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                 runAfter(configuration.slotDuration * 1 / 5) {
                     val message = networkManager.generateMessage(voteRequest)
                     networkManager.apply {
-                        nextTask.committee.forEach { key -> sendPacket(knownNodes[key], EndPoint.OnVoteRequest, message) }
+                        nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.OnVoteRequest, message) }
                     }
                 }
 
@@ -198,7 +198,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     dashboard.reportStatistics(latestStatistics, currentState)
                     newBlock.votes = votesAmount
                     networkManager.apply {
-                        nextTask.committee.forEach { key -> sendPacket(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
+                        nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
                     }
                     networkManager.broadcast(EndPoint.BlockReceived, broadcastMessage)
                     // addBlock(newBlock)
@@ -256,7 +256,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         val blocks = chain.drop(message.body)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         val node = knownNodes[message.publicKey] ?: return
-        networkManager.sendPacket(node, EndPoint.SyncReply, responseBlocksMessageBody)
+        networkManager.sendMessage(node, EndPoint.SyncReply, responseBlocksMessageBody)
     }
 
     /**

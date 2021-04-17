@@ -44,7 +44,7 @@ class DHTManager(private val networkManager: NetworkManager) {
 
         knownNodes[lookingFor]?.apply {
             val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
-            networkManager.sendPacket(body.node, EndPoint.Found, foundMessage)
+            networkManager.sendMessage(body.node, EndPoint.Found, foundMessage)
         } ?: networkManager.broadcast(EndPoint.Query, message, false)
     }
 
@@ -59,7 +59,7 @@ class DHTManager(private val networkManager: NetworkManager) {
 
         if (!networkManager.isFull) node.apply {
             knownNodes[publicKey] = this
-            networkManager.sendPacket(this, EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
+            networkManager.sendMessage(this, EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
         }
     }
 
