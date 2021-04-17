@@ -52,20 +52,19 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
                     buffer[dataArray]
 
                     Logger.trace("Total slices: $totalSlices and data length: ${dataArray.size}")
-                    if (totalSlices > 0) {
-                        Logger.info("Received slice $currentSlice of packet $messageId")
+                    if (totalSlices > 1) {
                         val builder = buildingPackets.computeIfAbsent(messageId) {
                             PacketBuilder(messageId, endPoint, totalSlices)
                         }
                         builder.addData(currentSlice, dataArray)
                         if (builder.isReady) {
+                            Logger.trace("Running freshly built packet!")
                             GlobalScope.launch { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
                         }
                     } else GlobalScope.launch { block(endPoint, dataArray) }
 
-                } else Logger.error("Seen already!")
-
+                }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
                 dashboardManager.reportException(e)

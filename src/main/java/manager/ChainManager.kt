@@ -250,7 +250,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      * @param body Web request body.
      */
     fun syncRequestReceived(message: Message<Int>) {
-        val blocks = chain.drop(message.body).take(10)
+        val blocks = chain.drop(message.body)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         val node = knownNodes[message.publicKey] ?: return
         networkManager.sendPacket(node, EndPoint.SyncReply, responseBlocksMessageBody)
