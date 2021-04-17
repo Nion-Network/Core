@@ -80,7 +80,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 Join -> data executeImmediately dht::joinRequest
 
                 Vote -> data executeImmediately chainManager::voteReceived
-                Include -> data executeImmediately validatorManager::inclusionRequest
+                Include -> data queueMessage  validatorManager::inclusionRequest
                 SyncRequest -> data executeImmediately chainManager::syncRequestReceived
                 OnVoteRequest -> data executeImmediately committeeManager::voteRequest
                 NodeStatistics -> data executeImmediately informationManager::dockerStatisticsReceived
