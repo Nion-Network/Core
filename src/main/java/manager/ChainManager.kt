@@ -37,8 +37,6 @@ class ChainManager(private val networkManager: NetworkManager) {
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
-    private var lastSyncRequest: Long = 0
-
     val blockProducer = BlockProducer(crypto, configuration, currentState)
     val validatorManager = ValidatorManager(networkManager, this)
 
@@ -52,7 +50,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      * @param block
      */
 
-    fun addBlock(block: Block, isFromSync: Boolean = false) {
+    private fun addBlock(block: Block, isFromSync: Boolean = false) {
 
         val blockIndex = block.epoch * configuration.slotCount + block.slot
         val blockAtPosition = chain.getOrNull(blockIndex)
@@ -232,12 +230,17 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
     }
 
+    private var lastIndexRequest = 0
+
     /**
      * Request blocks from a random known node needed for synchronization.
      *
      */
     private fun requestSync() {
         networkManager.clearMessageQueue()
+        val currentIndex = currentState.epoch * configuration.slotCount + currentState.slot
+        if (lastIndexRequest == currentIndex) return
+        lastIndexRequest = currentIndex
         val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")
