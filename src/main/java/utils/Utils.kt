@@ -27,7 +27,7 @@ class Utils {
 
         fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", message.asJson) {
-                this.addRequestProperty("hex", message.hex)
+                this.addRequestProperty("hex", message.uid)
             }
 
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =

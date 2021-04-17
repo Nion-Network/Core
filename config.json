@@ -22,5 +22,6 @@
   "mysqlPassword": "04vEMpIxnHDAtS2f",
   "clusterCount": 5,
   "maxIterations": 10,
+  "packetSplitSize": 65000,
   "useCriu": false
 }

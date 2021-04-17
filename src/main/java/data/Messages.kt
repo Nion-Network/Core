@@ -30,7 +30,7 @@ data class QueuedMessage<T>(val value: Message<T>, val block: (Message<T>) -> Un
  * @property asJson returns JSON of the data class.
  * @property bodyAsString returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val hex: String = DigestUtils.sha256Hex(signature)) {
+data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val uid: String = DigestUtils.sha256Hex(signature)) {
     val asJson: String get() = Utils.gson.toJson(this)
     val bodyAsString: String get() = Utils.gson.toJson(body)
 }

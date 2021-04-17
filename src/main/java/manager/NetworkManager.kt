@@ -7,12 +7,15 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
+import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
 import utils.asMessage
 import java.lang.Integer.max
+import java.lang.Integer.min
 import java.net.*
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
@@ -104,20 +107,33 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         startHistoryCleanup()
     }
 
-    private fun <T> encodeToPacketData(endPoint: EndPoint, message: Message<T>): ByteArray {
-        val hex = message.hex.toByteArray()
-        val hexLength = hex.size
-
+    private fun <T> encodeAsPackets(endPoint: EndPoint, message: Message<T>): List<ByteArray> {
+        val messageId = message.uid.toByteArray()
         val messageBytes = message.asJson.toByteArray()
-        val messageLength = messageBytes.size
+        val dataSize = messageBytes.size
 
-        return ByteBuffer.allocate(9 + hexLength + messageLength).apply {
-            putInt(hexLength)
-            put(hex)
-            put(endPoint.identification)
-            putInt(messageLength)
-            put(messageBytes)
-        }.array()
+        val packetSize = configuration.packetSplitSize
+        val slicesNeeded = dataSize / packetSize + 1
+
+        return (0 until slicesNeeded).map { slicePosition ->
+            val from = slicePosition * packetSize
+            val to = min(from + packetSize, dataSize)
+            val data = messageBytes.sliceArray((from until to))
+            val packetId = DigestUtils.sha256Hex(data).toByteArray()
+            val buffer = ByteBuffer.allocate(9 + packetId.size + messageId.size + data.size)
+            buffer.apply {
+                clear()
+                put(packetId.size.toByte())
+                put(packetId)
+                put(endPoint.identification)
+                put(messageId.size.toByte())
+                put(messageId)
+                put(slicesNeeded.toByte())
+                put(slicePosition.toByte())
+                putInt(data.size)
+                put(data)
+            }.array()
+        }
     }
 
     /**
@@ -127,9 +143,16 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private fun joinTheNetwork() {
         Logger.info("Sending join request to our trusted node...")
         val trustedAddress = InetSocketAddress(configuration.trustedNodeIP, configuration.trustedNodePort)
-        val packetData = encodeToPacketData(Join, generateMessage(ourNode))
-        val packet = DatagramPacket(packetData, packetData.size, trustedAddress)
-        udpServer.send(packet)
+        val packetData = encodeAsPackets(Join, generateMessage(ourNode))
+        packetData.forEach {
+            println(String(it).take(50))
+        }
+        packetData.forEach {
+            println("Sending: ${String(it).take(150)}")
+            val packet = DatagramPacket(it, it.size, trustedAddress)
+            udpServer.send(packet)
+        }
+
 
         while (!isInNetwork) {
             Logger.debug("Waiting to be accepted into the network...")
@@ -204,9 +227,12 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
     fun <T> sendPacket(node: Node?, endPoint: EndPoint, message: Message<T>) {
         if (node == null) return
-        val data = encodeToPacketData(endPoint, message)
-        val packet = DatagramPacket(data, data.size, InetSocketAddress(node.ip, node.port))
-        udpServer.send(packet)
+        val packet = DatagramPacket(byteArrayOf(), 0, InetSocketAddress(node.ip, node.port))
+        encodeAsPackets(endPoint, message).forEach { packetData ->
+            packet.data = packetData
+            packet.length = packetData.size
+            udpServer.send(packet)
+        }
     }
 
     /**
@@ -228,7 +254,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
      */
     fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = true) {
-        val hexHash = message.hex
+        val hexHash = message.uid
         // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size

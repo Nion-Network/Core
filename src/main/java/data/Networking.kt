@@ -1,7 +1,5 @@
 package data
 
-import java.net.InetSocketAddress
-
 /**
  * Created by Mihael Valentin Berčič
  * on 27/03/2020 at 12:11
@@ -31,6 +29,7 @@ data class Configuration(
     val mysqlPassword: String,
     val clusterCount: Int,
     val maxIterations: Int,
+    val packetSplitSize: Int,
     val useCriu: Boolean
 ) {
     val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
@@ -45,5 +44,5 @@ data class Configuration(
  * @property returnAddress String representing URL to access the Node.
  */
 data class Node(val publicKey: String, val ip: String, val port: Int) {
-    
+
 }

@@ -4,6 +4,7 @@ import data.Configuration
 import data.EndPoint
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import logging.Logger
 import manager.DashboardManager
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -17,6 +18,8 @@ import java.nio.ByteBuffer
 class UDPServer(configuration: Configuration, private val dashboardManager: DashboardManager, private val networkHistory: MutableMap<String, Long>, port: Int) {
 
     var shouldListen = true
+
+    private val buildingPackets = hashMapOf<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
 
     fun send(packet: DatagramPacket) {
@@ -24,35 +27,70 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
     }
 
 
-    fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) {
-        Thread {
-            val pureArray = ByteArray(50000) // TODO add to configuration.
-            val packet = DatagramPacket(pureArray, pureArray.size)
-            val buffer = ByteBuffer.wrap(pureArray)
-            while (shouldListen) {
-                try {
-                    packet.data = pureArray
-                    datagramSocket.receive(packet)
-                    buffer.clear()
+    fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) = Thread {
+        val pureArray = ByteArray(50000) // TODO add to configuration.
+        val packet = DatagramPacket(pureArray, pureArray.size)
+        val buffer = ByteBuffer.wrap(pureArray)
+        while (shouldListen) {
+            try {
+                packet.data = pureArray
+                datagramSocket.receive(packet)
+                buffer.clear()
+                val packetId = ByteArray(buffer.get().toInt())
+                buffer[packetId]
+                val packetIdentification = String(packetId)
+                if (!networkHistory.containsKey(packetIdentification)) {
+                    networkHistory[packetIdentification] = System.currentTimeMillis()
+                    val endPointId = buffer.get()
+                    val endPoint = EndPoint.byId(endPointId) ?: throw Exception("Such ID of $endPointId does not exist.")
+                    val messageIdentification = ByteArray(buffer.get().toInt())
+                    buffer[messageIdentification]
+                    val messageId = String(messageIdentification)
+                    val totalSlices = buffer.get().toInt()
+                    val currentSlice = buffer.get().toInt()
+                    val dataArray = ByteArray(buffer.int)
+                    buffer[dataArray]
 
-                    val hex = ByteArray(buffer.int)
-                    buffer[hex]
-                    if (!networkHistory.containsKey(String(hex))) {
-                        networkHistory[String(hex)] = System.currentTimeMillis()
-                        val id = buffer.get()
-                        val endPoint = EndPoint.byId(id) ?: throw Exception("Such ID of $id does not exist.")
-                        val messageBytes = ByteArray(buffer.int)
-                        buffer[messageBytes]
-                        GlobalScope.launch {
-                            block.invoke(endPoint, messageBytes)
+                    Logger.trace("Total slices: $totalSlices and data length: ${dataArray.size}")
+                    if (totalSlices > 0) {
+                        Logger.info("Received slice $currentSlice of packet $messageId")
+                        val builder = buildingPackets.computeIfAbsent(messageId) {
+                            PacketBuilder(messageId, endPoint, totalSlices)
                         }
-                    }
-                } catch (e: java.lang.Exception) {
-                    e.printStackTrace()
-                    dashboardManager.reportException(e)
-                }
-            }
-        }.start()
-    }
+                        builder.addData(currentSlice, dataArray)
+                        if (builder.isReady) {
+                            GlobalScope.launch { block(endPoint, builder.asOne) }
+                            buildingPackets.remove(messageId)
+                        }
+                    } else GlobalScope.launch { block(endPoint, dataArray) }
 
+                } else Logger.error("Seen already!")
+
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+                dashboardManager.reportException(e)
+            }
+        }
+    }.start()
+
+    data class PacketBuilder(
+        val messageIdentification: String,
+        val endPoint: EndPoint,
+        val arraySize: Int,
+        val createdAt: Long = System.currentTimeMillis()
+    ) {
+        val isReady get() = total == arraySize
+
+        private var total = 0
+        private val data = arrayOfNulls<ByteArray>(arraySize)
+
+        fun addData(index: Int, dataToAdd: ByteArray) {
+            total++
+            data[index] = dataToAdd
+        }
+
+        // Note: Use carefully!
+        val asOne get() = data.fold(ByteArray(0)) { a, b -> a + b!! }
+
+    }
 }
