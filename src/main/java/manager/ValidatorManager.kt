@@ -39,7 +39,6 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
             networkManager.broadcast(EndPoint.BlockReceived, networkManager.generateMessage(block))
-            chainManager.addBlock(block)
         }
     }
 

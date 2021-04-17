@@ -28,7 +28,7 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
 
 
     fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) = Thread {
-        val pureArray = ByteArray(50000) // TODO add to configuration.
+        val pureArray = ByteArray(65535) // TODO add to configuration.
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
         while (shouldListen) {
@@ -51,8 +51,8 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
                     val dataArray = ByteArray(buffer.int)
                     buffer[dataArray]
 
-                    Logger.trace("Total slices: $totalSlices and data length: ${dataArray.size}")
                     if (totalSlices > 1) {
+                        Logger.trace("Total slices: $totalSlices and data length: ${dataArray.size}")
                         val builder = buildingPackets.computeIfAbsent(messageId) {
                             PacketBuilder(messageId, endPoint, totalSlices)
                         }
