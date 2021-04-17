@@ -11,8 +11,11 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.Statement
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+
 
 private lateinit var influxDB: InfluxDB
 private lateinit var mysql: Connection;
@@ -20,6 +23,8 @@ private lateinit var mysql: Connection;
 class DashboardManager(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss:SSS")
+
 
     init {
         if (configuration.dashboardEnabled) {
@@ -74,6 +79,7 @@ class DashboardManager(private val configuration: Configuration) {
     fun newBlockProduced(blockData: Block) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
+            addField("created", timeFormatter.format(Instant.ofEpochMilli(blockData.timestamp)))
             addField("epoch", blockData.epoch)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
