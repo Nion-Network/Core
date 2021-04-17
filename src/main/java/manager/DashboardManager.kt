@@ -11,8 +11,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.Statement
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -23,8 +21,15 @@ private lateinit var mysql: Connection;
 class DashboardManager(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
-    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss:SSS")
 
+    private fun formatTime(millis: Long): String {
+        val timeDifference = millis / 1000;
+        val h = timeDifference / (3600)
+        val m = (timeDifference - (h * 3600)) / 60
+        val s = timeDifference - (h * 3600) - m * 60
+
+        return String.format("%02d:%02d:%02d", h, m, s)
+    }
 
     init {
         if (configuration.dashboardEnabled) {
@@ -79,7 +84,7 @@ class DashboardManager(private val configuration: Configuration) {
     fun newBlockProduced(blockData: Block) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
-            addField("created", timeFormatter.format(Instant.ofEpochMilli(blockData.timestamp)))
+            addField("created", formatTime(blockData.timestamp))
             addField("epoch", blockData.epoch)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
