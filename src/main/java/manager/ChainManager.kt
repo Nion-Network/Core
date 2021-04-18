@@ -128,7 +128,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         // Logger.debug("Clearing statistics!")
         informationManager.latestNetworkStatistics.clear()
 
-        Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
+        Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}${Logger.reset}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block)
 
