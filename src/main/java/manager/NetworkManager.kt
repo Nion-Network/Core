@@ -7,7 +7,6 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
-import logging.timestamp
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
@@ -30,7 +29,7 @@ import java.util.concurrent.TimeUnit
 class NetworkManager(configurationPath: String, private val listeningPort: Int) {
 
     var isInNetwork = false
-    val knownNodes = mutableMapOf<String, Node>()
+    val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
@@ -148,12 +147,10 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val joinRequestMessage = generateMessage(ourNode)
         sendMessage(configuration.trustedNodeIP, configuration.trustedNodePort, Join, joinRequestMessage)
 
-        while (!isInNetwork) {
-            Logger.debug("Waiting to be accepted into the network...")
-            Thread.sleep(1000)
-        }
-
-        Logger.debug("We're in the network. Happy networking!")
+        Logger.debug("Waiting to be accepted into the network...")
+        Thread.sleep(5000)
+        if (!isInNetwork) joinTheNetwork()
+        else Logger.debug("We're in the network. Happy networking!")
     }
 
     /**
