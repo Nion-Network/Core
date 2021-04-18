@@ -167,6 +167,15 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    fun requestedInclusion(from: String, producer: String, state: State) {
+        val point = Point.measurement("inclusion")
+            .addField("from", from)
+            .addField("producer", producer)
+            .addField("epoch", state.epoch)
+            .addField("slot", state.slot).build()
+        queue.add(point)
+    }
+
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         return
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");

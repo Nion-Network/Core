@@ -42,13 +42,14 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
     }
 
     fun requestInclusion(producerKey: String) {
-        val inclusionRequest = InclusionRequest(currentState.epoch, currentState.slot, networkManager.crypto.publicKey)
-        Logger.debug("Requesting inclusion with ${inclusionRequest.currentEpoch} [${inclusionRequest.currentSlot}]...")
-        val message = networkManager.generateMessage(inclusionRequest)
         networkManager.apply {
+            val inclusionRequest = InclusionRequest(currentState.epoch, currentState.slot, crypto.publicKey)
+            Logger.debug("Requesting inclusion with ${inclusionRequest.currentEpoch} [${inclusionRequest.currentSlot}]...")
+            val message = generateMessage(inclusionRequest)
             dht searchFor producerKey
             val node = knownNodes[producerKey] ?: return
             sendMessage(node, EndPoint.Include, message)
+            networkManager.dashboard.requestedInclusion(crypto.publicKey, producerKey, currentState)
         }
     }
 
