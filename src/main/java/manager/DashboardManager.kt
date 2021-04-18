@@ -81,10 +81,11 @@ class DashboardManager(private val configuration: Configuration) {
         }
     }
 
-    fun newBlockProduced(blockData: Block) {
+    fun newBlockProduced(state: State, blockData: Block) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
+            addField("validatorSet", state.currentValidators.size)
             addField("epoch", blockData.epoch)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)

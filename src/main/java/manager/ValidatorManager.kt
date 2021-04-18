@@ -14,7 +14,6 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
     private val minValidatorsCount = configuration.validatorsCount
     private val initialDifficulty = configuration.initialDifficulty
     private val currentValidators = currentState.currentValidators
-    private val inclusionChanges = currentState.inclusionChanges
     private val blockProducer = chainManager.blockProducer
 
     fun inclusionRequest(message: Message<InclusionRequest>) {
@@ -29,7 +28,7 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         networkManager.broadcast(EndPoint.Include, message)
 
         val currentValidatorsSize = currentValidators.size
-        val newValidators = inclusionChanges.filter { it.value }.count()
+        val newValidators = currentState.inclusionChanges.filter { it.value }.count()
 
         val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount
         val isChainEmpty = chainManager.isChainEmpty

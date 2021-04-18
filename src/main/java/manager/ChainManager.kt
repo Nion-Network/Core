@@ -42,7 +42,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
     private val committeeExecutor = Executors.newSingleThreadScheduledExecutor()
     private var scheduledCommitteeFuture: ScheduledFuture<*>? = null
-
+    private var lastIndexRequest = -1
 
     /**
      * Adds the specified block to the chain and calculates our task for the next slot.
@@ -82,6 +82,9 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
 
         if (block.precedentHash != previousHash) {
+            val currentIndex = block.epoch * configuration.slotCount + block.slot
+            if (lastIndexRequest == currentIndex) return
+            lastIndexRequest = currentIndex
             requestSync()
             return
         }
@@ -133,7 +136,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
-        if (networkManager.isTrustedNode) dashboard.newBlockProduced(block)
+        if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block)
 
         if (isFromSync) return
 
@@ -230,17 +233,12 @@ class ChainManager(private val networkManager: NetworkManager) {
         }
     }
 
-    private var lastIndexRequest = 0
-
     /**
      * Request blocks from a random known node needed for synchronization.
      *
      */
     private fun requestSync() {
         networkManager.clearMessageQueue()
-        val currentIndex = currentState.epoch * configuration.slotCount + currentState.slot
-        if (lastIndexRequest == currentIndex) return
-        lastIndexRequest = currentIndex
         val from = currentState.epoch * configuration.slotCount + currentState.slot
         val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")

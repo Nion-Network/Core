@@ -7,6 +7,7 @@ import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
 import logging.Logger
+import logging.timestamp
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
@@ -276,6 +277,15 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())
     }
+
+    private val Long.asByteArray: ByteArray
+        get() = ByteArray(Long.SIZE_BYTES).apply {
+            var l = this@asByteArray
+            for (i in java.lang.Long.BYTES - 1 downTo 0) {
+                this[i] = (l and 0xFF).toByte()
+                l = l shr java.lang.Byte.SIZE
+            }
+        }
 }
 
 
