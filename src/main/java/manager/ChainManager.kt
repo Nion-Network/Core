@@ -67,12 +67,6 @@ class ChainManager(private val networkManager: NetworkManager) {
                         "${blockAtPosition.votes}] $hasMoreVotes ... same hash: ${block.hash == blockAtPosition.hash}"
             )
 
-            /*
-            blockIndex = 10
-            chainSize = 14
-            amountToTake = 14 - 10 = 4
-            10, 11, 12, 13
-             */
             if (hasMoreVotes) {
                 val amountToTake = chain.size - blockIndex
                 val lastBlocks = chain.takeLast(amountToTake)
@@ -134,7 +128,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         // Logger.debug("Clearing statistics!")
         informationManager.latestNetworkStatistics.clear()
 
-        Logger.chain("Added block with [epoch][slot][votes] => [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
+        Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block)
 
