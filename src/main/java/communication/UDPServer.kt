@@ -28,14 +28,14 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
 
 
     fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) = Thread {
-        val pureArray = ByteArray(65535) // TODO add to configuration.
+        val pureArray = ByteArray(10_000_000) // TODO add to configuration.
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
         while (shouldListen) {
             try {
                 packet.data = pureArray
-                datagramSocket.receive(packet)
                 buffer.clear()
+                datagramSocket.receive(packet)
                 val packetId = ByteArray(64)
                 buffer[packetId]
                 val packetIdentification = String(packetId)
