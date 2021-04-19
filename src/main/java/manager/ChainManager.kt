@@ -24,7 +24,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
-    private var isIncluded: Boolean = false
+    private var isIncluded: Boolean = networkManager.isTrustedNode
     private val crypto = networkManager.crypto
     private val configuration = networkManager.configuration
     private val currentState = networkManager.currentState
