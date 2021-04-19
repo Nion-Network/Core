@@ -52,7 +52,7 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
                     buffer[dataArray]
 
                     if (totalSlices > 1) {
-                        Logger.trace("Total slices: $totalSlices and data length: ${dataArray.size}")
+                        Logger.trace("Received $currentSlice of $totalSlices [${dataArray.size}] for ${messageId.subSequence(20, 30)}")
                         val builder = buildingPackets.computeIfAbsent(messageId) {
                             PacketBuilder(messageId, endPoint, totalSlices)
                         }
@@ -86,6 +86,7 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
         fun addData(index: Int, dataToAdd: ByteArray) {
             total++
             data[index] = dataToAdd
+            Logger.info("Added data, total now $total")
         }
 
         // Note: Use carefully!
