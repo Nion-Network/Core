@@ -5,6 +5,7 @@ import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
+import java.lang.Integer.max
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -233,7 +234,7 @@ class ChainManager(private val networkManager: NetworkManager) {
      */
     private fun requestSync() {
         networkManager.clearMessageQueue()
-        val from = currentState.epoch * configuration.slotCount + currentState.slot
+        val from = max(0, currentState.epoch * configuration.slotCount + currentState.slot)
         val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")
         networkManager.sendMessageToRandomNodes(EndPoint.SyncRequest, 1, message)

@@ -37,10 +37,11 @@ class DHTManager(private val networkManager: NetworkManager) {
      * @param context HTTP Context
      */
     fun onQuery(message: Message<QueryMessage>) {
-        //println("Received query request for ${context.body()}")
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
         Logger.info("Received DHT query for ${lookingFor.subSequence(30, 50)}")
+        val comingFrom = body.node
+        knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
 
         knownNodes[lookingFor]?.apply {
             val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))

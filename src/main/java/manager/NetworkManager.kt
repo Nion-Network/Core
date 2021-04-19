@@ -45,7 +45,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val messageQueue = LinkedBlockingQueue<QueuedMessage<*>>()
     private val startingInclusionSet = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
-    val currentState = State(0, 0, 0, configuration.initialDifficulty, startingInclusionSet)
+    val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
 
     private val chainManager = ChainManager(this)
     private val committeeManager = CommitteeManager(this)
