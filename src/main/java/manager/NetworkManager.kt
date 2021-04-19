@@ -213,7 +213,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         sendMessage(node.ip, node.port, endPoint, message)
     }
 
-    fun <T> sendMessage(ip: String, port: Int, endPoint: EndPoint, message: Message<T>) {
+    private fun <T> sendMessage(ip: String, port: Int, endPoint: EndPoint, message: Message<T>) {
         val packet = DatagramPacket(byteArrayOf(), 0, InetSocketAddress(ip, port))
         val encodedMessage = encodeMessage(endPoint, message)
         encodedMessage.slices.forEach { (offset, length) ->
@@ -275,14 +275,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         block.invoke(asMessage())
     }
 
-    private val Long.asByteArray: ByteArray
-        get() = ByteArray(Long.SIZE_BYTES).apply {
-            var l = this@asByteArray
-            for (i in java.lang.Long.BYTES - 1 downTo 0) {
-                this[i] = (l and 0xFF).toByte()
-                l = l shr java.lang.Byte.SIZE
-            }
-        }
 }
 
 

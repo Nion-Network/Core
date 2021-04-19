@@ -46,7 +46,7 @@ class DHTManager(private val networkManager: NetworkManager) {
         knownNodes[lookingFor]?.apply {
             val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
             networkManager.sendMessage(body.node, EndPoint.Found, foundMessage)
-        } ?: networkManager.broadcast(EndPoint.Query, message, false)
+        } ?: networkManager.broadcast(EndPoint.Query, message)
     }
 
     /**
