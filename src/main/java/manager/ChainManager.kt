@@ -137,8 +137,6 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
-                // if (networkManager.isTrustedNode && block.epoch >= 1) exitProcess(-1)
-
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 if (++currentState.slot == configuration.slotCount) {
                     currentState.epoch++
@@ -155,7 +153,6 @@ class ChainManager(private val networkManager: NetworkManager) {
                 }
 
                 runAfter(configuration.slotDuration * 2 / 3) {
-                    Logger.debug("Running a block after (slotDuration * 2) / 3 ...")
                     val thisBlockVotes = votes[newBlock.hash]
                     val votesAmount = thisBlockVotes?.size ?: 0
                     val broadcastMessage = networkManager.generateMessage(newBlock)
@@ -165,8 +162,8 @@ class ChainManager(private val networkManager: NetworkManager) {
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
                     val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minBy { it.totalCPU }
 
-                    Logger.info("Most used node: $mostUsedNode")
-                    Logger.info("Least used node: $leastUsedNode")
+                    Logger.info("\t\tMost used node: $mostUsedNode")
+                    Logger.info("\t\tLeast used node: $leastUsedNode")
 
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
