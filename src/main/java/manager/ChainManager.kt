@@ -78,7 +78,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         if (block.precedentHash != previousHash) {
             val currentIndex = block.epoch * configuration.slotCount + block.slot
-            if (lastIndexRequest == currentIndex) return
+            if (currentIndex - lastIndexRequest <= 3) return
             lastIndexRequest = currentIndex
             requestSync()
             return
