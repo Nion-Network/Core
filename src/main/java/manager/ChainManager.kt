@@ -301,7 +301,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     }
 
     fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
-        val lastBlock = chain.lastOrNull() ?: return true
+        val lastBlock = chain.lastOrNull() ?: return isIncluded
         return lastBlock.epoch == inclusionRequest.currentEpoch && lastBlock.slot == inclusionRequest.currentSlot
     }
 
