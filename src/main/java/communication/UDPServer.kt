@@ -20,7 +20,10 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
     var shouldListen = true
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
-    private val datagramSocket = DatagramSocket(port)
+    private val datagramSocket = DatagramSocket(port).apply {
+        this.receiveBufferSize = 10_000_000
+        this.sendBufferSize = 10_000_000
+    }
 
     fun send(packet: DatagramPacket) {
         datagramSocket.send(packet)
@@ -28,7 +31,7 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
 
 
     fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) = Thread {
-        val pureArray = ByteArray(10_000_000) // TODO add to configuration.
+        val pureArray = ByteArray(65535) // TODO add to configuration.
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
         while (shouldListen) {

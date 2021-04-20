@@ -149,7 +149,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                 val newBlock = blockProducer.createBlock(block, vdfProof)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
-                runAfter(configuration.slotDuration * 1 / 5) {
+                runAfter(configuration.slotDuration * 1 / 3) {
                     val message = networkManager.generateMessage(voteRequest)
                     networkManager.apply {
                         nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.OnVoteRequest, message) }
@@ -157,12 +157,11 @@ class ChainManager(private val networkManager: NetworkManager) {
                 }
 
                 runAfter(configuration.slotDuration * 2 / 3) {
-                    val thisBlockVotes = votes[newBlock.hash]
-                    val votesAmount = thisBlockVotes?.size ?: 0
+                    val votesAmount = votes[newBlock.hash]?.size ?: 0
                     val broadcastMessage = networkManager.generateMessage(newBlock)
 
                     val latestStatistics = informationManager.latestNetworkStatistics
-                    Logger.info("We have ${latestStatistics.size} latest statistics!")
+                    Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
                     val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minBy { it.totalCPU }
 
@@ -171,7 +170,7 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                     if (leastUsedNode != null && mostUsedNode != null) {
                         val leastConsumingApp = mostUsedNode.containers.minBy { it.cpuUsage }
-                        Logger.debug("Least consuming app: $leastConsumingApp")
+                        Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
                         if (leastConsumingApp != null) {
                             val senderBefore = mostUsedNode.totalCPU
                             val receiverBefore = leastUsedNode.totalCPU

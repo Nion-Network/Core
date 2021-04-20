@@ -6,6 +6,8 @@ import data.EndPoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
@@ -246,7 +248,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
         val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
-        shuffledNodes.take(amountToTake).forEach { sendMessage(it, endPoint, message) }
+        shuffledNodes.take(amountToTake).forEach {
+            GlobalScope.launch {
+                sendMessage(it, endPoint, message)
+            }
+        }
     }
 
     /**

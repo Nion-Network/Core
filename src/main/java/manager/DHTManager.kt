@@ -28,7 +28,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     fun onFound(message: Message<FoundMessage>) {
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
-        knownNodes[newNode.publicKey] = newNode
+        knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
     }
 
     /**

@@ -27,7 +27,6 @@ class VDFManager {
 
     fun findProof(difficulty: Int, hash: String): String {
         killAll()
-        return getSaltString()
         return ProcessBuilder()
                 .command("vdf-cli", hash, "$difficulty")
                 .redirectErrorStream(true)
@@ -38,7 +37,6 @@ class VDFManager {
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
-        return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
         val processOutput = proofProcess.inputStream.reader().readText().trim()
         val exitCode = proofProcess.waitFor()
