@@ -56,9 +56,12 @@ class DHTManager(private val networkManager: NetworkManager) {
      */
     fun joinRequest(message: Message<Node>) {
         val node = message.body
+        networkManager.broadcast(EndPoint.OnJoin, message)
 
+        Logger.info("Received join request!")
         if (!networkManager.isFull) node.apply {
             knownNodes[publicKey] = this
+            Logger.info("Added it to our collection!")
             networkManager.sendMessage(this, EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
         }
     }

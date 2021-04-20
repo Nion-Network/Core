@@ -158,8 +158,6 @@ class ChainManager(private val networkManager: NetworkManager) {
 
                 runAfter(configuration.slotDuration * 2 / 3) {
                     val votesAmount = votes[newBlock.hash]?.size ?: 0
-                    val broadcastMessage = networkManager.generateMessage(newBlock)
-
                     val latestStatistics = informationManager.latestNetworkStatistics
                     Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
                     val mostUsedNode = latestStatistics.maxBy { it.totalCPU }
@@ -195,6 +193,8 @@ class ChainManager(private val networkManager: NetworkManager) {
                     }
                     dashboard.reportStatistics(latestStatistics, currentState)
                     newBlock.votes = votesAmount
+
+                    val broadcastMessage = networkManager.generateMessage(newBlock)
                     networkManager.apply {
                         nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
                     }

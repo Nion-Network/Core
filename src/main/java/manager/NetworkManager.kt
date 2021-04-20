@@ -18,10 +18,7 @@ import java.lang.Integer.min
 import java.net.*
 import java.nio.ByteBuffer
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 
 /**
  * Created by Mihael Valentin Berčič
@@ -44,7 +41,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val informationManager = InformationManager(this)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
-    private val messageQueue = LinkedBlockingQueue<QueuedMessage<*>>()
+    private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
     private val startingInclusionSet = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
     val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
@@ -76,17 +73,17 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
         udpServer.startListening { endPoint, data ->
             when (endPoint) {
-                Query -> data executeImmediately dht::onQuery
-                Found -> data executeImmediately dht::onFound
+                Query -> data queueMessage dht::onQuery
+                Found -> data queueMessage dht::onFound
                 OnJoin -> data executeImmediately dht::onJoin
-                Join -> data executeImmediately dht::joinRequest
+                Join -> data queueMessage dht::joinRequest
 
-                Vote -> data executeImmediately chainManager::voteReceived
-                Include -> data executeImmediately validatorManager::inclusionRequest
-                SyncRequest -> data executeImmediately chainManager::syncRequestReceived
-                OnVoteRequest -> data executeImmediately committeeManager::voteRequest
-                NodeStatistics -> data executeImmediately informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> data executeImmediately informationManager::representativeStatisticsReceived
+                Vote -> data queueMessage chainManager::voteReceived
+                Include -> data queueMessage validatorManager::inclusionRequest
+                SyncRequest -> data queueMessage chainManager::syncRequestReceived
+                OnVoteRequest -> data queueMessage committeeManager::voteRequest
+                NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
+                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
 
                 SyncReply -> data queueMessage chainManager::syncReplyReceived
                 BlockReceived -> data queueMessage chainManager::blockReceived
@@ -206,7 +203,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param block Lambda that is executed when message is taken out of queue.
      */
     private inline infix fun <reified T> ByteArray.queueMessage(noinline block: (Message<T>) -> Unit) {
-        messageQueue.put(QueuedMessage(asMessage(), block))
+        messageQueue.put(QueuedMessage(asMessage(), block).apply {
+            Logger.info("Put to queue ${T::class.java.toGenericString()}. Current size: ${messageQueue.size + 1}")
+        })
     }
 
 
@@ -248,8 +247,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
         val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
-        shuffledNodes.take(amountToTake).forEach {
-            GlobalScope.launch {
+        GlobalScope.launch {
+            shuffledNodes.take(amountToTake).parallelStream().forEach {
                 sendMessage(it, endPoint, message)
             }
         }
