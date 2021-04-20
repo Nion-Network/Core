@@ -26,7 +26,6 @@ class ValidatorManager(private val networkManager: NetworkManager, private val c
         Logger.consensus("Inclusion request received with: Current[${currentState.epoch}][${currentState.slot}] vs Inc[${inclusionRequest.currentEpoch}][${inclusionRequest.currentSlot}]")
 
         currentState.inclusionChanges[publicKey] = true
-        networkManager.broadcast(EndPoint.Include, message)
 
         val currentValidatorsSize = currentValidators.size
         val newValidators = currentState.inclusionChanges.filter { it.value }.count()

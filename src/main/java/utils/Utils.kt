@@ -53,7 +53,6 @@ class Utils {
                     when (body) {
                         is String -> if (body.isNotEmpty()) it.write(body.toByteArray())
                         is File -> {
-                            println("File size: " + body.length())
                             FileInputStream(body).apply {
                                 transferTo(it)
                                 close()

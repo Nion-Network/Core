@@ -88,7 +88,7 @@ class ChainManager(private val networkManager: NetworkManager) {
             block.validatorChanges.forEach { (publicKey, change) ->
                 if (change) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
                 inclusionChanges.remove(publicKey)
-                Logger.chain("${publicKey.subSequence(120, 140)} has been ${if (change) "added" else "removed"}")
+                Logger.info("${publicKey.subSequence(120, 140)} has been ${if (change) "added" else "removed"}")
             }
             slot = block.slot
             epoch = block.epoch
@@ -119,6 +119,11 @@ class ChainManager(private val networkManager: NetworkManager) {
             if (this[key] == false) isIncluded = false
         }
 
+        if (isFromSync) {
+            Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}]")
+            return
+        }
+
         val nextTask = calculateNextTask(block, !isFromSync)
         val textColor = when (nextTask.myTask) {
             SlotDuty.PRODUCER -> Logger.green
@@ -131,9 +136,8 @@ class ChainManager(private val networkManager: NetworkManager) {
 
         Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}${Logger.reset}")
         dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
-        if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block)
+        if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block, knownNodes.size)
 
-        if (isFromSync) return
 
         when (nextTask.myTask) {
             SlotDuty.PRODUCER -> {
@@ -298,6 +302,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     }
 
     fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
+        if (!isIncluded) return false
         val lastBlock = chain.lastOrNull() ?: return isIncluded
         return lastBlock.epoch == inclusionRequest.currentEpoch && lastBlock.slot == inclusionRequest.currentSlot
     }

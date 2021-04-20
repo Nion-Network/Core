@@ -81,10 +81,11 @@ class DashboardManager(private val configuration: Configuration) {
         }
     }
 
-    fun newBlockProduced(state: State, blockData: Block) {
+    fun newBlockProduced(state: State, blockData: Block, knownNodesSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
+            addField("knownSize", knownNodesSize)
             addField("validatorSet", state.currentValidators.size)
             addField("epoch", blockData.epoch)
             addField("slot", blockData.slot)
@@ -95,6 +96,7 @@ class DashboardManager(private val configuration: Configuration) {
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)
+
         }.build()
         queue.add(point)
     }

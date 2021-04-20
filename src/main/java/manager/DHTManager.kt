@@ -55,7 +55,6 @@ class DHTManager(private val networkManager: NetworkManager) {
      * @param context HTTP Context
      */
     fun joinRequest(message: Message<Node>) {
-        networkManager.broadcast(EndPoint.Join, message)
         val node = message.body
 
         if (!networkManager.isFull) node.apply {
