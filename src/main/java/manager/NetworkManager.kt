@@ -147,7 +147,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         sendMessage(configuration.trustedNodeIP, configuration.trustedNodePort, Join, joinRequestMessage)
 
         Logger.debug("Waiting to be accepted into the network...")
-        Thread.sleep(5000)
+        Thread.sleep(10000)
         if (!isInNetwork) joinTheNetwork()
         else Logger.debug("We're in the network. Happy networking!")
     }

@@ -59,10 +59,12 @@ class DHTManager(private val networkManager: NetworkManager) {
         networkManager.broadcast(EndPoint.OnJoin, message)
 
         Logger.info("Received join request!")
-        if (!networkManager.isFull) node.apply {
-            knownNodes[publicKey] = this
+        if (!networkManager.isFull && !knownNodes.containsKey(node.publicKey)) node.apply {
+            val nodesToShare = knownNodes.values
+            val joinedMessage = JoinedMessage(networkManager.ourNode, nodesToShare)
+            knownNodes.computeIfAbsent(publicKey) { this }
             Logger.info("Added it to our collection!")
-            networkManager.sendMessage(this, EndPoint.OnJoin, networkManager.generateMessage(networkManager.ourNode))
+            networkManager.sendMessage(this, EndPoint.OnJoin, networkManager.generateMessage(joinedMessage))
         }
     }
 
@@ -71,14 +73,19 @@ class DHTManager(private val networkManager: NetworkManager) {
      *
      * @param context
      */
-    fun onJoin(message: Message<Node>) {
+    fun onJoin(message: Message<JoinedMessage>) {
         val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
         if (confirmed) {
-            val acceptor: Node = message.body
+            val joinedMessage = message.body
+            val acceptor: Node = joinedMessage.acceptor
             val acceptorKey = acceptor.publicKey
             val isTrustedNode = acceptor.ip == configuration.trustedNodeIP && acceptor.port == configuration.trustedNodePort
 
-            knownNodes[acceptorKey] = acceptor
+            knownNodes.computeIfAbsent(acceptorKey) { acceptor }
+            joinedMessage.knownNodes.forEach { newNode ->
+                knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
+                Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
+            }
             networkManager.isInNetwork = true
             Logger.debug("We've been accepted into network by ${acceptor.ip}")
             if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)

@@ -23,7 +23,7 @@ class Utils {
 
     companion object {
 
-        val gson = GsonBuilder().setPrettyPrinting().create()
+        val gson get() = GsonBuilder().create()
 
         fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", message.asJson) {

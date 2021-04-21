@@ -17,6 +17,8 @@ data class InclusionRequest(val currentEpoch: Int, val currentSlot: Int, val nod
 
 data class QueuedMessage<T>(val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block.invoke(value) })
 
+data class JoinedMessage(val acceptor: Node, val knownNodes: Collection<Node>)
+
 /**
  * Message with body of type T.
  *
