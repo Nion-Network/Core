@@ -242,12 +242,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
      */
     fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = true) {
-        val hexHash = message.uid
-        // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
-        val shuffledNodes = knownNodes.values.shuffled()
-        val totalSize = shuffledNodes.size
-        val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
         GlobalScope.launch {
+            // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
+            val shuffledNodes = knownNodes.values.shuffled()
+            val totalSize = shuffledNodes.size
+            val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
             shuffledNodes.take(amountToTake).parallelStream().forEach {
                 sendMessage(it, endPoint, message)
             }

@@ -82,13 +82,14 @@ class DHTManager(private val networkManager: NetworkManager) {
             val isTrustedNode = acceptor.ip == configuration.trustedNodeIP && acceptor.port == configuration.trustedNodePort
 
             knownNodes.computeIfAbsent(acceptorKey) { acceptor }
+            networkManager.isInNetwork = true
+            Logger.debug("We've been accepted into network by ${acceptor.ip}")
+            if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)
+
             joinedMessage.knownNodes.forEach { newNode ->
                 knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
                 Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
             }
-            networkManager.isInNetwork = true
-            Logger.debug("We've been accepted into network by ${acceptor.ip}")
-            if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)
         }
     }
 }
