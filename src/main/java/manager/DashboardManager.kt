@@ -65,6 +65,7 @@ class DashboardManager(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: List<DockerStatistics>, currentState: State) {
+        return
         for (measurement in statistics) {
             val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
             for (container in measurement.containers) {

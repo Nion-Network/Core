@@ -9,7 +9,6 @@ import java.lang.Integer.max
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -135,7 +134,7 @@ class ChainManager(private val networkManager: NetworkManager) {
         informationManager.latestNetworkStatistics.clear()
 
         Logger.chain("Added block [${block.epoch}][${block.slot}][${Logger.green}${block.votes}${Logger.reset}] Next task: $textColor${nextTask.myTask}${Logger.reset}")
-        dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
+        if (nextTask.myTask == SlotDuty.PRODUCER || nextTask.myTask == SlotDuty.COMMITTEE) dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), currentState);
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(currentState, block, knownNodes.size)
 
 
@@ -207,6 +206,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                 informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
                 val delay = configuration.slotDuration * 1.5
                 val nextIndex = block.epoch * configuration.slotCount + block.slot + 1
+                /*
                 scheduledCommitteeFuture = committeeExecutor.schedule({
                     val hasReceived = chain.getOrNull(nextIndex) != null
                     // if (hasReceived) return@runAfter
@@ -223,6 +223,7 @@ class ChainManager(private val networkManager: NetworkManager) {
                     // addBlock(skipBlock)
                 }, delay.toLong(), TimeUnit.MILLISECONDS)
 
+                 */
             }
             SlotDuty.VALIDATOR -> if (!isFromSync) informationManager.prepareForStatistics(nextTask.blockProducer, currentState.currentValidators, block)
         }
@@ -307,6 +308,7 @@ class ChainManager(private val networkManager: NetworkManager) {
     }
 
     private fun revertChanges(block: Block) {
+        return
         currentState.currentValidators.apply {
             block.validatorChanges.forEach { (publicKey, change) ->
                 if (change) remove(publicKey)
