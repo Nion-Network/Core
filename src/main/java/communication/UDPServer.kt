@@ -25,8 +25,10 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
         this.sendBufferSize = 10_000_000
     }
 
+    private val sendingSocket = DatagramSocket(port + 1)
+
     fun send(packet: DatagramPacket) {
-        datagramSocket.send(packet)
+        sendingSocket.send(packet)
     }
 
 

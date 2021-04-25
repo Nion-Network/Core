@@ -3,17 +3,19 @@ package manager
 import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
+import utils.Crypto
 
 /**
  * Created by Mihael Valentin Berčič
  * on 04/10/2020 at 17:17
  * using IntelliJ IDEA
  */
-class CommitteeManager(private val networkManager: NetworkManager) {
-
-    private val crypto = networkManager.crypto
-    private val vdfManager = networkManager.vdf
-    private val dashboardManager = networkManager.dashboard
+class CommitteeManager(
+    private val networkManager: NetworkManager,
+    private val crypto: Crypto,
+    private val vdfManager: VDFManager,
+    private val dashboardManager: DashboardManager
+) {
 
     fun voteRequest(message: Message<VoteRequest>) {
         val voteRequest = message.body

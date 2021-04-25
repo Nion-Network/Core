@@ -2,7 +2,7 @@ package chain
 
 import data.Block
 import data.Configuration
-import data.State
+import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 
@@ -11,9 +11,11 @@ import utils.Crypto
  * on 24/09/2020 at 14:08
  * using IntelliJ IDEA
  */
-class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, private val currentState: State) {
+class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, isTrustedNode: Boolean) {
 
     private val currentTime: Long get() = System.currentTimeMillis()
+    val inclusionChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
+    val currentValidators: MutableSet<String> = mutableSetOf()
 
     /**
      * Computes genesis (first, initial) block for the blockchain.
@@ -22,14 +24,12 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
      * @return Genesis block that is used to start the chain.
      */
     fun genesisBlock(vdfProof: String): Block = Block(
-        epoch = 0,
-        slot = 0,
+        slot = 1,
         difficulty = configuration.initialDifficulty,
         timestamp = currentTime,
         committeeIndex = 0,
-        votes = 0,
         blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-        validatorChanges = currentState.inclusionChanges.toMap(),
+        validatorChanges = inclusionChanges.toMap(),
         vdfProof = vdfProof
     )
 
@@ -41,18 +41,18 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
      * @param votes Votes that have been sourced for the given block.
      * @return Newly computed block.
      */
-    fun createBlock(previousBlock: Block, vdfProof: String = ""): Block = Block(
-        epoch = currentState.epoch,
-        slot = currentState.slot,
+    fun createBlock(previousBlock: Block, vdfProof: String = "", slot: Int, committeeIndex: Int = 0): Block = Block(
+        slot,
         difficulty = configuration.initialDifficulty,
         timestamp = currentTime,
-        committeeIndex = currentState.committeeIndex,
+        committeeIndex = committeeIndex,
         vdfProof = vdfProof,
         blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-        validatorChanges = currentState.inclusionChanges.toMap(),
+        validatorChanges = inclusionChanges.toMap(),
         precedentHash = previousBlock.hash
     )
 
+    /*
     fun createSkipBlock(previousBlock: Block): Block {
         val epoch = currentState.epoch
         val slot = currentState.slot
@@ -67,6 +67,14 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             hash = DigestUtils.sha256Hex("$epoch-SKIP-$slot$precedentHash")
         )
 
+    }
+
+     */
+
+    fun validatorChange(publicKey: String, isAdded: Boolean) {
+        if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
+        inclusionChanges.remove(publicKey)
+        Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}")
     }
 
     fun adjustDifficulty(previousBlock: Block): Int {

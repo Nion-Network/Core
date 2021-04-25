@@ -10,14 +10,12 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
-    private val configuration = networkManager.configuration
-    private val knownNodes = networkManager.knownNodes
-    private val crypto = networkManager.crypto
-
     infix fun searchFor(forPublicKey: String) {
-        if (knownNodes.containsKey(forPublicKey)) return
-        val message = networkManager.generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
-        networkManager.broadcast(EndPoint.Query, message)
+        networkManager.apply {
+            if (knownNodes.containsKey(forPublicKey)) return
+            val message = generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
+            broadcast(EndPoint.Query, message)
+        }
     }
 
     /**
@@ -28,7 +26,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     fun onFound(message: Message<FoundMessage>) {
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
-        knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
+        networkManager.knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
     }
 
     /**
@@ -41,12 +39,13 @@ class DHTManager(private val networkManager: NetworkManager) {
         val lookingFor: String = body.searchingPublicKey
         Logger.info("Received DHT query for ${lookingFor.subSequence(30, 50)}")
         val comingFrom = body.node
-        knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
-
-        knownNodes[lookingFor]?.apply {
-            val foundMessage = networkManager.generateMessage(FoundMessage(ip, port, publicKey))
-            networkManager.sendMessage(body.node, EndPoint.Found, foundMessage)
-        } ?: networkManager.broadcast(EndPoint.Query, message)
+        networkManager.apply {
+            knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
+            knownNodes[lookingFor]?.apply {
+                val foundMessage = generateMessage(FoundMessage(ip, port, publicKey))
+                sendMessage(body.node, EndPoint.Found, foundMessage)
+            } ?: broadcast(EndPoint.Query, message)
+        }
     }
 
     /**
@@ -55,17 +54,19 @@ class DHTManager(private val networkManager: NetworkManager) {
      * @param context HTTP Context
      */
     fun joinRequest(message: Message<Node>) {
-        val node = message.body
-        networkManager.broadcast(EndPoint.OnJoin, message)
+        networkManager.apply {
+            val node = message.body
+            broadcast(EndPoint.OnJoin, message)
 
-        Logger.info("Received join request!")
-        if (!networkManager.isFull && !knownNodes.containsKey(node.publicKey)) node.apply {
-            val nodesToShare = knownNodes.values
-            val joinedMessage = JoinedMessage(networkManager.ourNode, nodesToShare)
-            knownNodes.computeIfAbsent(publicKey) { this }
-            Logger.info("Added it to our collection!")
-            networkManager.sendMessage(this, EndPoint.OnJoin, networkManager.generateMessage(joinedMessage))
+            Logger.info("Received join request!")
+            if (!isFull && !knownNodes.containsKey(node.publicKey)) node.apply {
+                val nodesToShare = knownNodes.values
+                val joinedMessage = JoinedMessage(ourNode, nodesToShare)
+                knownNodes.computeIfAbsent(publicKey) { this }
+                sendMessage(this, EndPoint.OnJoin, generateMessage(joinedMessage))
+            }
         }
+
     }
 
     /**
@@ -74,21 +75,21 @@ class DHTManager(private val networkManager: NetworkManager) {
      * @param context
      */
     fun onJoin(message: Message<JoinedMessage>) {
-        val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
-        if (confirmed) {
-            val joinedMessage = message.body
-            val acceptor: Node = joinedMessage.acceptor
-            val acceptorKey = acceptor.publicKey
-            val isTrustedNode = acceptor.ip == configuration.trustedNodeIP && acceptor.port == configuration.trustedNodePort
+        networkManager.apply {
+            val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
+            if (confirmed) {
+                val joinedMessage = message.body
+                val acceptor: Node = joinedMessage.acceptor
+                val acceptorKey = acceptor.publicKey
 
-            knownNodes.computeIfAbsent(acceptorKey) { acceptor }
-            networkManager.isInNetwork = true
-            Logger.debug("We've been accepted into network by ${acceptor.ip}")
-            if (isTrustedNode) networkManager.validatorManager.requestInclusion(acceptorKey)
+                knownNodes.computeIfAbsent(acceptorKey) { acceptor }
+                networkManager.isInNetwork = true
+                Logger.debug("We've been accepted into network by ${acceptor.ip}")
 
-            joinedMessage.knownNodes.forEach { newNode ->
-                knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
-                Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
+                joinedMessage.knownNodes.forEach { newNode ->
+                    knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
+                    Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
+                }
             }
         }
     }

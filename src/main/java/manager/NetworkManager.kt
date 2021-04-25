@@ -1,5 +1,6 @@
 package manager
 
+import chain.BlockProducer
 import communication.UDPServer
 import data.*
 import data.EndPoint.*
@@ -33,22 +34,22 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
     val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
+
     val crypto = Crypto(".")
-    val vdf = VDFManager()
     val dht = DHTManager(this)
+    val vdf = VDFManager()
     val docker = DockerManager(crypto, configuration)
     val dashboard = DashboardManager(configuration)
+
     val informationManager = InformationManager(this)
-
     private val networkHistory = ConcurrentHashMap<String, Long>()
+
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
-    private val startingInclusionSet = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
 
-    val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
-
-    private val chainManager = ChainManager(this)
-    private val committeeManager = CommitteeManager(this)
-    val validatorManager = chainManager.validatorManager
+    // val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
+    private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
+    private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
+    private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
     private val udpServer = UDPServer(configuration, dashboard, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
@@ -79,7 +80,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 Join -> data queueMessage dht::joinRequest
 
                 Vote -> data queueMessage chainManager::voteReceived
-                Include -> data queueMessage validatorManager::inclusionRequest
+                Include -> data queueMessage chainManager::inclusionRequest
                 SyncRequest -> data queueMessage chainManager::syncRequestReceived
                 OnVoteRequest -> data queueMessage committeeManager::voteRequest
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
@@ -149,7 +150,10 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
         if (!isInNetwork) joinTheNetwork()
-        else Logger.debug("We're in the network. Happy networking!")
+        else {
+            Logger.debug("We're in the network. Happy networking!")
+            chainManager.requestInclusion(true)
+        }
     }
 
     /**
@@ -246,7 +250,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
-            val amountToTake = if (limited) 3 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
+            val amountToTake = if (limited) 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
             shuffledNodes.take(amountToTake).parallelStream().forEach {
                 sendMessage(it, endPoint, message)
             }

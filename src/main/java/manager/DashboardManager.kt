@@ -82,13 +82,12 @@ class DashboardManager(private val configuration: Configuration) {
         }
     }
 
-    fun newBlockProduced(state: State, blockData: Block, knownNodesSize: Int) {
+    fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
-            addField("validatorSet", state.currentValidators.size)
-            addField("epoch", blockData.epoch)
+            addField("validatorSet", validatorSize)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
@@ -114,15 +113,14 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun newRole(chainTask: ChainTask, publicKey: String, currentState: State) {
+    fun newRole(chainTask: ChainTask, publicKey: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending new chain task : ${chainTask.myTask}")
         val point = Point.measurement("chainTask").apply {
             time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
             addField("nodeId", publicKey)
             addField("task", chainTask.myTask.toString())
-            addField("slot", currentState.slot)
-            addField("epoch", currentState.epoch)
+            addField("slot", slot)
         }.build()
         queue.add(point)
     }
@@ -170,12 +168,21 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun requestedInclusion(from: String, producer: String, state: State) {
+    fun requestedInclusion(from: String, producer: String, slot: Int) {
+        if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
             .addField("from", from)
             .addField("producer", producer)
-            .addField("epoch", state.epoch)
-            .addField("slot", state.slot).build()
+            .addField("slot", slot).build()
+        queue.add(point)
+    }
+
+    fun scheduledTimer(task: SlotDuty, state: State) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("timers")
+            .addField("task", task.name)
+            .addField("index", state.epoch * configuration.slotCount + state.slot)
+            .build()
         queue.add(point)
     }
 
