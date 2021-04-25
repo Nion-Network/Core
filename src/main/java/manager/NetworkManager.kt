@@ -51,7 +51,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
-    private val udpServer = UDPServer(configuration, dashboard, networkHistory, listeningPort)
+    private val udpServer = UDPServer(crypto, dashboard, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
@@ -134,7 +134,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 packetSlices.add(PacketSlice(start, position() - start))
             }
         }
-        return EncodedMessage(buffer.array(), packetSlices)
+        return EncodedMessage(buffer.array(), packetSlices, message.uid)
     }
 
     /**
@@ -225,6 +225,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             packet.setData(encodedMessage.data, offset, length)
             udpServer.send(packet)
         }
+        dashboard.sentMessage(encodedMessage.uid, DigestUtils.sha256Hex(crypto.publicKey))
     }
 
     /**
@@ -286,5 +287,5 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 }
 
 
-class EncodedMessage(val data: ByteArray, val slices: List<PacketSlice>)
+class EncodedMessage(val data: ByteArray, val slices: List<PacketSlice>, val uid: String)
 data class PacketSlice(val offset: Int, val length: Int)

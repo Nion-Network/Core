@@ -1,11 +1,12 @@
 package communication
 
-import data.Configuration
 import data.EndPoint
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
 import manager.DashboardManager
+import org.apache.commons.codec.digest.DigestUtils
+import utils.Crypto
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.nio.ByteBuffer
@@ -15,7 +16,7 @@ import java.nio.ByteBuffer
  * on 13/04/2021 at 00:57
  * using IntelliJ IDEA
  */
-class UDPServer(configuration: Configuration, private val dashboardManager: DashboardManager, private val networkHistory: MutableMap<String, Long>, port: Int) {
+class UDPServer(private val crypto: Crypto, private val dashboardManager: DashboardManager, private val networkHistory: MutableMap<String, Long>, port: Int) {
 
     var shouldListen = true
 
@@ -51,6 +52,7 @@ class UDPServer(configuration: Configuration, private val dashboardManager: Dash
                     val messageIdentification = ByteArray(64)
                     buffer[messageIdentification]
                     val messageId = String(messageIdentification)
+                    dashboardManager.receivedMessage(messageId, DigestUtils.sha256Hex(crypto.publicKey))
                     val totalSlices = buffer.get().toInt()
                     val currentSlice = buffer.get().toInt()
                     val dataArray = ByteArray(buffer.int)

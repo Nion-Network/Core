@@ -100,8 +100,11 @@ class ChainManager(
 
                 val broadcastMessage = networkManager.generateMessage(newBlock)
                 networkManager.apply {
+                    Logger.debug("Sending out block message to committee!")
                     nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
+                    Logger.debug("Broadcasting out block message.")
                     broadcast(EndPoint.BlockReceived, broadcastMessage)
+                    Logger.debug("Broadcasting ended.")
                 }
             }
         }
