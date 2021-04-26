@@ -7,17 +7,12 @@ import data.EndPoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
 import utils.asMessage
 import java.lang.Integer.max
-import java.lang.Integer.min
 import java.net.*
-import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.*
 
@@ -51,7 +46,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
-    private val udpServer = UDPServer(crypto, dashboard, networkHistory, listeningPort)
+    private val udpServer = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
@@ -73,18 +68,19 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.debug("My IP is $myIP")
 
         udpServer.startListening { endPoint, data ->
+            Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
                 Query -> data queueMessage dht::onQuery
                 Found -> data queueMessage dht::onFound
-                OnJoin -> data executeImmediately dht::onJoin
+                OnJoin -> data queueMessage dht::onJoin
                 Join -> data queueMessage dht::joinRequest
 
                 Vote -> data queueMessage chainManager::voteReceived
                 Include -> data queueMessage chainManager::inclusionRequest
                 SyncRequest -> data queueMessage chainManager::syncRequestReceived
                 OnVoteRequest -> data queueMessage committeeManager::voteRequest
-                NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
+                // NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
+                // RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
 
                 SyncReply -> data queueMessage chainManager::syncReplyReceived
                 BlockReceived -> data queueMessage chainManager::blockReceived
@@ -99,42 +95,13 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             post("/run/migration/image", docker::runMigratedImage)
         }
 
+        startQueueThread()
+        startHistoryCleanup()
+
         if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
 
         Logger.debug("Listening on port: $listeningPort")
-        startQueueThread()
-        startHistoryCleanup()
-    }
-
-    private fun <T> encodeMessage(endPoint: EndPoint, message: Message<T>): EncodedMessage {
-        val messageId = message.uid.toByteArray()
-        val messageBytes = message.asJson.toByteArray()
-        val dataSize = messageBytes.size
-
-        val packetSize = configuration.packetSplitSize
-        val slicesNeeded = dataSize / packetSize + 1
-
-        val packetSlices = mutableListOf<PacketSlice>()
-        val buffer = ByteBuffer.allocate(slicesNeeded * 135 + dataSize).apply {
-            (0 until slicesNeeded).forEach { slicePosition ->
-                val from = slicePosition * packetSize
-                val to = min(from + packetSize, dataSize)
-                val data = messageBytes.sliceArray((from until to))
-                val packetId = DigestUtils.sha256Hex(data).toByteArray()
-
-                val start = position()
-                put(packetId)
-                put(endPoint.identification)
-                put(messageId)
-                put(slicesNeeded.toByte())
-                put(slicePosition.toByte())
-                putInt(data.size)
-                put(data)
-                packetSlices.add(PacketSlice(start, position() - start))
-            }
-        }
-        return EncodedMessage(buffer.array(), packetSlices, message.uid)
     }
 
     /**
@@ -145,7 +112,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.info("Sending join request to our trusted node...")
 
         val joinRequestMessage = generateMessage(ourNode)
-        sendMessage(configuration.trustedNodeIP, configuration.trustedNodePort, Join, joinRequestMessage)
+        val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
+        sendMessage(trustedNode, Join, joinRequestMessage, false)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
@@ -208,35 +176,15 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      */
     private inline infix fun <reified T> ByteArray.queueMessage(noinline block: (Message<T>) -> Unit) {
         messageQueue.put(QueuedMessage(asMessage(), block).apply {
-            Logger.info("Put to queue ${T::class.java.toGenericString()}. Current size: ${messageQueue.size + 1}")
+            // Logger.info("Put to queue ${T::class.java.toGenericString()}. Current size: ${messageQueue.size + 1}")
         })
     }
 
 
-    fun <T> sendMessage(node: Node?, endPoint: EndPoint, message: Message<T>) {
+    fun <T> sendMessage(node: Node?, endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean = false) {
         if (node == null) return
-        sendMessage(node.ip, node.port, endPoint, message)
+        udpServer.send(endPoint, message, node, isBroadcast = isBroadcast)
     }
-
-    private fun <T> sendMessage(ip: String, port: Int, endPoint: EndPoint, message: Message<T>) {
-        val packet = DatagramPacket(byteArrayOf(), 0, InetSocketAddress(ip, port))
-        val encodedMessage = encodeMessage(endPoint, message)
-        encodedMessage.slices.forEach { (offset, length) ->
-            packet.setData(encodedMessage.data, offset, length)
-            udpServer.send(packet)
-        }
-        dashboard.sentMessage(encodedMessage.uid, DigestUtils.sha256Hex(crypto.publicKey))
-    }
-
-    /**
-     * Sends the message to a few randomly chosen nodes from the known nodes.
-     *
-     * @param T Message body type.
-     * @param path Endpoint for the message to go to.
-     * @param spread Amount of nodes to choose (if less are known, all are chosen)
-     * @param message Message with body of type T.
-     */
-    fun <T> sendMessageToRandomNodes(endPoint: EndPoint, spread: Int, message: Message<T>) = pickRandomNodes(spread).forEach { sendMessage(it, endPoint, message) }
 
     /**
      * Broadcasts the specified message to known nodes in the network.
@@ -244,18 +192,14 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param T Message body type.
      * @param path Endpoint for the message to go to.
      * @param message Message with body of type T.
-     * @param limited If true, broadcast spread will be limited to the amount specified in configuration,
+     * @param isBroadcast If true, broadcast spread will be limited to the amount specified in configuration,
      */
-    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, limited: Boolean = true) {
-        GlobalScope.launch {
-            // if (!networkHistory.contains(hexHash)) networkHistory[hexHash] = message.timeStamp
-            val shuffledNodes = knownNodes.values.shuffled()
-            val totalSize = shuffledNodes.size
-            val amountToTake = if (limited) 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
-            shuffledNodes.take(amountToTake).parallelStream().forEach {
-                sendMessage(it, endPoint, message)
-            }
-        }
+    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean = true) {
+        val shuffledNodes = knownNodes.values.shuffled()
+        val totalSize = shuffledNodes.size
+        val amountToTake = if (isBroadcast) 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
+        val nodes = shuffledNodes.take(amountToTake)
+        udpServer.send(endPoint, message, *nodes.toTypedArray(), isBroadcast = isBroadcast) // TODO think of more optimal
     }
 
     /**
@@ -287,5 +231,3 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 }
 
 
-class EncodedMessage(val data: ByteArray, val slices: List<PacketSlice>, val uid: String)
-data class PacketSlice(val offset: Int, val length: Int)

@@ -26,17 +26,19 @@ class VDFManager {
     private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
 
     fun findProof(difficulty: Int, hash: String): String {
+        return "WTFISDISSHITNIMIJASNOKOJIBANNAANCKEJSETO"
         killAll()
         return ProcessBuilder()
-                .command("vdf-cli", hash, "$difficulty")
-                .redirectErrorStream(true)
-                .start()
-                .inputStream
-                .reader()
-                .readText()
+            .command("vdf-cli", hash, "$difficulty")
+            .redirectErrorStream(true)
+            .start()
+            .inputStream
+            .reader()
+            .readText()
     }
 
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
+        return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
         val processOutput = proofProcess.inputStream.reader().readText().trim()
         val exitCode = proofProcess.waitFor()

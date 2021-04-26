@@ -5,7 +5,7 @@
   "maxNodes": 1000,
   "slotDuration": 10000,
   "maxCommitteeMembers": 32,
-  "initialDifficulty": 1000,
+  "initialDifficulty": 1,
   "maxCommittees": 64,
   "broadcastSpreadPercentage": 10,
   "validatorsCount": 3,

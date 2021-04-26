@@ -32,7 +32,6 @@ class ChainManager(
 
 
     private val minValidatorsCount = configuration.validatorsCount
-    private val initialDifficulty = configuration.initialDifficulty
 
     private var isIncluded = networkManager.isTrustedNode
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
@@ -53,10 +52,12 @@ class ChainManager(
         val currentSlot = chain.lastOrNull()?.slot ?: 0
 
         Logger.info("New block came [$blockSlot][$currentSlot] from ${block.blockProducer}")
-        if (blockSlot != currentSlot + 1) {
+
+        /*if (blockSlot != currentSlot + 1 && !isFromSync) {
             requestSync()
             return
         }
+        */
 
         block.validatorChanges.forEach(blockProducer::validatorChange)
 
@@ -70,7 +71,7 @@ class ChainManager(
         }
         if (isFromSync) return
 
-        if (!isIncluded) requestInclusion()
+        if (!isIncluded) requestInclusion(true)
 
         val nextTask = calculateNextTask(block)
         if (nextTask.myTask == SlotDuty.PRODUCER || nextTask.myTask == SlotDuty.COMMITTEE) dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), blockSlot + 1)
@@ -81,30 +82,30 @@ class ChainManager(
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
+            // Logger.debug("Starting vdf with hash ${DigestUtils.sha256Hex(block.hash)}!")
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
+            // Logger.debug("VDF is back!")
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
             runAfter(configuration.slotDuration * 1 / 3) {
-                // dashboard.scheduledTimer(nextTask.myTask, cur)
                 val message = networkManager.generateMessage(voteRequest)
                 networkManager.apply {
+                    Logger.trace("Requesting votes!")
                     nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.OnVoteRequest, message) }
                 }
             }
 
             runAfter(configuration.slotDuration * 2 / 3) {
-                // dashboard.scheduledTimer(nextTask.myTask)
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
 
                 val broadcastMessage = networkManager.generateMessage(newBlock)
                 networkManager.apply {
-                    Logger.debug("Sending out block message to committee!")
-                    nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
-                    Logger.debug("Broadcasting out block message.")
-                    broadcast(EndPoint.BlockReceived, broadcastMessage)
-                    Logger.debug("Broadcasting ended.")
+                    // Logger.debug("Sending out block message to committee!")
+                    // nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
+                    // broadcast(EndPoint.BlockReceived, broadcastMessage)
+                    broadcast(EndPoint.BlockReceived, broadcastMessage, true)
                 }
             }
         }
@@ -309,7 +310,8 @@ class ChainManager(
         val from = chain.lastOrNull()?.slot ?: 0
         val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")
-        networkManager.sendMessageToRandomNodes(EndPoint.SyncRequest, 1, message)
+        val trusted = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
+        networkManager.sendMessage(trusted, EndPoint.SyncRequest, message)
     }
 
     /**
@@ -318,10 +320,11 @@ class ChainManager(
      * @param body Web request body.
      */
     fun syncRequestReceived(message: Message<Int>) {
-        val blocks = chain.drop(message.body)
-        val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         val node = networkManager.knownNodes[message.publicKey] ?: return
+        val blocks = chain.drop(message.body).take(50)
+        val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         networkManager.sendMessage(node, EndPoint.SyncReply, responseBlocksMessageBody)
+        Logger.debug("Sent back ${blocks.size} blocks!")
     }
 
     /**
@@ -352,7 +355,7 @@ class ChainManager(
         val committee = validatorSetCopy.take(configuration.committeeSize)
 
         val ourRole = when {
-            blockProducerNode == ourKey -> SlotDuty.PRODUCER
+            networkManager.isTrustedNode /*blockProducerNode == ourKey*/ -> SlotDuty.PRODUCER
             committee.contains(ourKey) -> SlotDuty.COMMITTEE
             else -> SlotDuty.VALIDATOR
         }
@@ -363,6 +366,7 @@ class ChainManager(
 
     fun voteReceived(message: Message<BlockVote>) {
         val blockVote = message.body
+        Logger.trace("Vote received!")
         votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }
 
@@ -385,6 +389,7 @@ class ChainManager(
         val publicKey = message.publicKey
         val inclusionRequest = message.body
         val canBeIncluded = canBeIncluded(inclusionRequest)
+        Logger.error("Inclusion request received: ${inclusionRequest.currentSlot} and can be included: $canBeIncluded")
         if (!canBeIncluded) return
 
         blockProducer.inclusionChanges[publicKey] = true
@@ -395,7 +400,7 @@ class ChainManager(
         val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount + 1
         val isChainEmpty = isChainEmpty
         if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
-            val vdfProof = vdf.findProof(initialDifficulty, "FFFF")
+            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }

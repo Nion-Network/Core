@@ -1,6 +1,9 @@
 package communication
 
+import data.Configuration
 import data.EndPoint
+import data.Message
+import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
@@ -9,16 +12,27 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Created by Mihael Valentin Berčič
  * on 13/04/2021 at 00:57
  * using IntelliJ IDEA
  */
-class UDPServer(private val crypto: Crypto, private val dashboardManager: DashboardManager, private val networkHistory: MutableMap<String, Long>, port: Int) {
+class UDPServer(
+    private val configuration: Configuration,
+    private val crypto: Crypto,
+    private val dashboardManager: DashboardManager,
+    private val knownNodes: Map<String, Node>,
+    private val networkHistory: MutableMap<String, Long>,
+    port: Int
+) {
 
     var shouldListen = true
+
+    private val messageQueue = LinkedBlockingQueue<UDPMessage>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port).apply {
@@ -27,11 +41,32 @@ class UDPServer(private val crypto: Crypto, private val dashboardManager: Dashbo
     }
 
     private val sendingSocket = DatagramSocket(port + 1)
+    private val broadcastingSocket = DatagramSocket(port + 2)
 
-    fun send(packet: DatagramPacket) {
-        sendingSocket.send(packet)
+    fun send(endPoint: EndPoint, packet: Message<*>, vararg nodes: Node, isBroadcast: Boolean) {
+        messageQueue.put(UDPMessage(endPoint, packet, nodes, isBroadcast))
     }
 
+    init {
+        Thread {
+            val writingBuffer = ByteBuffer.allocate(10_000_000_0)
+            while (shouldListen) {
+                messageQueue.take().apply {
+                    try {
+                        val encodedMessage = encodeMessage(writingBuffer, endpoint, message, isBroadcast)
+                        encodedMessage.slices.forEach { (offset, length) ->
+                            val data = writingBuffer.array()
+                            recipients.forEach { node ->
+                                sendingSocket.send(DatagramPacket(data, offset, length, InetSocketAddress(node.ip, node.port)))
+                            }
+                        }
+                    } catch (e: Exception) {
+                        dashboardManager.reportException(e)
+                    }
+                }
+            }
+        }.start()
+    }
 
     fun startListening(block: (endPoint: EndPoint, data: ByteArray) -> Unit) = Thread {
         val pureArray = ByteArray(65535) // TODO add to configuration.
@@ -47,12 +82,13 @@ class UDPServer(private val crypto: Crypto, private val dashboardManager: Dashbo
                 val packetIdentification = String(packetId)
                 if (!networkHistory.containsKey(packetIdentification)) {
                     networkHistory[packetIdentification] = System.currentTimeMillis()
+                    val isBroadcast = buffer.get() > 0
                     val endPointId = buffer.get()
                     val endPoint = EndPoint.byId(endPointId) ?: throw Exception("Such ID of $endPointId does not exist.")
                     val messageIdentification = ByteArray(64)
                     buffer[messageIdentification]
                     val messageId = String(messageIdentification)
-                    dashboardManager.receivedMessage(messageId, DigestUtils.sha256Hex(crypto.publicKey))
+                    // dashboardManager.receivedMessage(messageId, DigestUtils.sha256Hex(crypto.publicKey))
                     val totalSlices = buffer.get().toInt()
                     val currentSlice = buffer.get().toInt()
                     val dataArray = ByteArray(buffer.int)
@@ -71,7 +107,21 @@ class UDPServer(private val crypto: Crypto, private val dashboardManager: Dashbo
                         }
                     } else GlobalScope.launch { block(endPoint, dataArray) }
 
-                }
+                    val dataLength = buffer.position()
+                    if (isBroadcast) {
+                        val shuffledNodes = knownNodes.values.shuffled()
+                        val totalSize = shuffledNodes.size
+                        val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)
+                        val nodes = shuffledNodes.take(amountToTake)
+                        packet.length = dataLength
+                        Logger.debug("Started re broadcasting!")
+                        nodes.forEach {
+                            packet.socketAddress = InetSocketAddress(it.ip, it.port)
+                            broadcastingSocket.send(packet)
+                        }
+                        Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
+                    }
+                } else Logger.error("Already seen this message ${System.currentTimeMillis() - networkHistory[packetIdentification]!!} ago")
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
                 dashboardManager.reportException(e)
@@ -100,4 +150,41 @@ class UDPServer(private val crypto: Crypto, private val dashboardManager: Dashbo
         val asOne get() = data.fold(ByteArray(0)) { a, b -> a + b!! }
 
     }
+
+    private fun <T> encodeMessage(buffer: ByteBuffer, endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean): EncodedMessage {
+        val messageId = message.uid.toByteArray()
+        val messageBytes = message.asJson.toByteArray()
+        val dataSize = messageBytes.size
+
+        val packetSize = configuration.packetSplitSize
+        val slicesNeeded = dataSize / packetSize + 1
+
+        val packetSlices = mutableListOf<PacketSlice>()
+        buffer.apply {
+            (0 until slicesNeeded).forEach { slicePosition ->
+                val from = slicePosition * packetSize
+                val to = Integer.min(from + packetSize, dataSize)
+                val data = messageBytes.sliceArray((from until to))
+                val packetId = DigestUtils.sha256Hex(data).toByteArray()
+                val broadcastByte: Byte = if (isBroadcast) 1 else 0
+
+                val start = position()
+                put(packetId)
+                put(broadcastByte)
+                put(endPoint.identification)
+                put(messageId)
+                put(slicesNeeded.toByte())
+                put(slicePosition.toByte())
+                putInt(data.size)
+                put(data)
+                packetSlices.add(PacketSlice(start, position() - start))
+            }
+        }
+        return EncodedMessage(packetSlices, message.uid)
+    }
+
 }
+
+class EncodedMessage(val slices: List<PacketSlice>, val uid: String)
+data class PacketSlice(val offset: Int, val length: Int)
+class UDPMessage(val endpoint: EndPoint, val message: Message<*>, val recipients: Array<out Node>, val isBroadcast: Boolean)
