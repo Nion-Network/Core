@@ -1,6 +1,7 @@
 package manager
 
 import chain.BlockProducer
+import chain.ChainManager
 import communication.TransmissionType
 import communication.UDPServer
 import data.*

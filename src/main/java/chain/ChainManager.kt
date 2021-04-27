@@ -1,9 +1,9 @@
-package manager
+package chain
 
-import chain.BlockProducer
 import communication.TransmissionType
 import data.*
 import logging.Logger
+import manager.*
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.runAfter
