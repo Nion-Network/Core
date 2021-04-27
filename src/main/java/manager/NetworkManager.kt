@@ -183,6 +183,15 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
 
+    /**
+     * Sends the specified message to either specified or random nodes in the network.
+     *
+     * @param T Message type.
+     * @param endPoint [EndPoint] for which the message is targeted.
+     * @param message Body to be sent to the specified endpoint.
+     * @param transmissionType How should the message be sent.
+     * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
+     */
     fun <T> sendUDP(endPoint: EndPoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
@@ -192,22 +201,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         } else udp.send(endPoint, message, transmissionType, nodes)
     }
 
-    /**
-     * Broadcasts the specified message to known nodes in the network.
-     *
-     * @param T Message body type.
-     * @param path Endpoint for the message to go to.
-     * @param message Message with body of type T.
-     * @param isBroadcast If true, broadcast spread will be limited to the amount specified in configuration,
-     */
-    fun <T> sendUDPs(endPoint: EndPoint, message: Message<T>, transmissionType: TransmissionType) {
-        /*
-        val shuffledNodes = knownNodes.values.shuffled()
-        val totalSize = shuffledNodes.size
-        val amountToTake = 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1))
-        val nodes = shuffledNodes.take(amountToTake)
-        udp.send(endPoint, message, transmissionType, *nodes.toTypedArray())
-        */
+    fun clearMessageQueue() {
+        messageQueue.clear()
     }
 
     /**
@@ -218,10 +213,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
     fun <T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
-
-    fun clearMessageQueue() {
-        messageQueue.clear()
-    }
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

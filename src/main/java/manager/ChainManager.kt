@@ -79,7 +79,6 @@ class ChainManager(
 
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
-
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
