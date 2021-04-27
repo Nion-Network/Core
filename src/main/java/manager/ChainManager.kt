@@ -1,6 +1,7 @@
 package manager
 
 import chain.BlockProducer
+import communication.TransmissionType
 import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
@@ -77,14 +78,12 @@ class ChainManager(
         if (nextTask.myTask == SlotDuty.PRODUCER || nextTask.myTask == SlotDuty.COMMITTEE) dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), blockSlot + 1)
 
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
-        Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}] Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
+        Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
-            // Logger.debug("Starting vdf with hash ${DigestUtils.sha256Hex(block.hash)}!")
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
-            // Logger.debug("VDF is back!")
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
@@ -92,7 +91,8 @@ class ChainManager(
                 val message = networkManager.generateMessage(voteRequest)
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
-                    nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.OnVoteRequest, message) }
+                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                    sendUDP(EndPoint.OnVoteRequest, message, TransmissionType.Unicast, *committeeNodes)
                 }
             }
 
@@ -102,10 +102,9 @@ class ChainManager(
 
                 val broadcastMessage = networkManager.generateMessage(newBlock)
                 networkManager.apply {
-                    // Logger.debug("Sending out block message to committee!")
-                    // nextTask.committee.forEach { key -> sendMessage(knownNodes[key], EndPoint.BlockReceived, broadcastMessage) }
-                    // broadcast(EndPoint.BlockReceived, broadcastMessage)
-                    broadcast(EndPoint.BlockReceived, broadcastMessage, true)
+                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                    sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
         }
@@ -311,7 +310,7 @@ class ChainManager(
         val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")
         val trusted = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        networkManager.sendMessage(trusted, EndPoint.SyncRequest, message)
+        networkManager.sendUDP(EndPoint.SyncRequest, message, TransmissionType.Unicast, trusted)
     }
 
     /**
@@ -323,7 +322,7 @@ class ChainManager(
         val node = networkManager.knownNodes[message.publicKey] ?: return
         val blocks = chain.drop(message.body).take(50)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
-        networkManager.sendMessage(node, EndPoint.SyncReply, responseBlocksMessageBody)
+        networkManager.sendUDP(EndPoint.SyncReply, responseBlocksMessageBody, TransmissionType.Unicast, node)
         Logger.debug("Sent back ${blocks.size} blocks!")
     }
 
@@ -341,7 +340,6 @@ class ChainManager(
 
     fun blockReceived(message: Message<Block>) {
         val newBlock = message.body
-        networkManager.broadcast(EndPoint.BlockReceived, message)
         addBlock(newBlock)
     }
 
@@ -360,7 +358,7 @@ class ChainManager(
             else -> SlotDuty.VALIDATOR
         }
 
-        if (ourRole == SlotDuty.PRODUCER) committee.parallelStream().forEach(dht::searchFor)
+        if (ourRole == SlotDuty.PRODUCER) committee.forEach(dht::searchFor)
         return ChainTask(ourRole, blockProducerNode, committee)
     }
 
@@ -389,7 +387,7 @@ class ChainManager(
         val publicKey = message.publicKey
         val inclusionRequest = message.body
         val canBeIncluded = canBeIncluded(inclusionRequest)
-        Logger.error("Inclusion request received: ${inclusionRequest.currentSlot} and can be included: $canBeIncluded")
+        Logger.error("Inclusion request received: ${inclusionRequest.currentSlot} and can be included: ${Logger.yellow} $canBeIncluded${Logger.reset}")
         if (!canBeIncluded) return
 
         blockProducer.inclusionChanges[publicKey] = true
@@ -404,7 +402,7 @@ class ChainManager(
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            networkManager.broadcast(EndPoint.BlockReceived, networkManager.generateMessage(block))
+            networkManager.sendUDP(EndPoint.BlockReceived, networkManager.generateMessage(block), TransmissionType.Broadcast)
         }
     }
 
@@ -417,7 +415,7 @@ class ChainManager(
             val node = if (askTrusted) knownNodes.values.firstOrNull { it.ip == configuration.trustedNodeIP && it.port == configuration.trustedNodePort }
             else knownNodes.values.random()
             (node ?: knownNodes.values.random()).apply {
-                sendMessage(this, EndPoint.Include, message)
+                sendUDP(EndPoint.Include, message, TransmissionType.Unicast, this)
                 networkManager.dashboard.requestedInclusion(crypto.publicKey, this.publicKey, slot)
             }
         }

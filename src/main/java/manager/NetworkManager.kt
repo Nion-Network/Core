@@ -1,6 +1,7 @@
 package manager
 
 import chain.BlockProducer
+import communication.TransmissionType
 import communication.UDPServer
 import data.*
 import data.EndPoint.*
@@ -29,25 +30,26 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
     val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
     val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
-
     val crypto = Crypto(".")
+
     val dht = DHTManager(this)
     val vdf = VDFManager()
     val docker = DockerManager(crypto, configuration)
     val dashboard = DashboardManager(configuration)
 
-    val informationManager = InformationManager(this)
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
+    val informationManager = InformationManager(this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
 
     // val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
+
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
-    private val udpServer = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
-    private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 1)
+    private val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
+    private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
 
@@ -67,7 +69,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     fun start() {
         Logger.debug("My IP is $myIP")
 
-        udpServer.startListening { endPoint, data ->
+        udp.startListening { endPoint, data ->
             Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
                 Query -> data queueMessage dht::onQuery
@@ -113,7 +115,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
         val joinRequestMessage = generateMessage(ourNode)
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendMessage(trustedNode, Join, joinRequestMessage, false)
+        sendUDP(Join, joinRequestMessage, TransmissionType.Unicast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
@@ -181,9 +183,13 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
 
-    fun <T> sendMessage(node: Node?, endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean = false) {
-        if (node == null) return
-        udpServer.send(endPoint, message, node, isBroadcast = isBroadcast)
+    fun <T> sendUDP(endPoint: EndPoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+        if (nodes.isEmpty()) {
+            val shuffledNodes = knownNodes.values.shuffled()
+            val totalSize = shuffledNodes.size
+            val amountToTake = 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1))
+            udp.send(endPoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
+        } else udp.send(endPoint, message, transmissionType, nodes)
     }
 
     /**
@@ -194,12 +200,14 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param message Message with body of type T.
      * @param isBroadcast If true, broadcast spread will be limited to the amount specified in configuration,
      */
-    fun <T> broadcast(endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean = true) {
+    fun <T> sendUDPs(endPoint: EndPoint, message: Message<T>, transmissionType: TransmissionType) {
+        /*
         val shuffledNodes = knownNodes.values.shuffled()
         val totalSize = shuffledNodes.size
-        val amountToTake = if (isBroadcast) 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1)) else totalSize
+        val amountToTake = 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1))
         val nodes = shuffledNodes.take(amountToTake)
-        udpServer.send(endPoint, message, *nodes.toTypedArray(), isBroadcast = isBroadcast) // TODO think of more optimal
+        udp.send(endPoint, message, transmissionType, *nodes.toTypedArray())
+        */
     }
 
     /**
@@ -210,15 +218,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
     fun <T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
-
-    /**
-     * Picks the random [amount] nodes from the known nodes map.
-     * If size of known nodes is less than the amount specified, all will be picked, but still in random order.
-     *
-     * @param amount How many nodes to take.
-     * @return
-     */
-    private fun pickRandomNodes(amount: Int): List<Node> = knownNodes.values.shuffled().take(amount)
 
     fun clearMessageQueue() {
         messageQueue.clear()

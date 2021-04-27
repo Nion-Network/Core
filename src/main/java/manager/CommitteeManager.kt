@@ -1,5 +1,6 @@
 package manager
 
+import communication.TransmissionType
 import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
@@ -28,9 +29,7 @@ class CommitteeManager(
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        if (isValidProof) {
-            networkManager.sendMessage(producer, EndPoint.Vote, messageToSend)
-        }
+        else networkManager.sendUDP(EndPoint.Vote, messageToSend, TransmissionType.Unicast, producer)
     }
 
 }

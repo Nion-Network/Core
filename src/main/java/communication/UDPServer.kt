@@ -4,7 +4,6 @@ import data.Configuration
 import data.EndPoint
 import data.Message
 import data.Node
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
@@ -16,7 +15,6 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.coroutines.CoroutineContext
 
 /**
  * Created by Mihael Valentin Berčič
@@ -45,8 +43,8 @@ class UDPServer(
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
 
-    fun send(endPoint: EndPoint, packet: Message<*>, vararg nodes: Node, isBroadcast: Boolean) {
-        messageQueue.put(UDPMessage(endPoint, packet, nodes, isBroadcast))
+    fun send(endPoint: EndPoint, packet: Message<*>, transmissionType: TransmissionType, nodes: Array<out Node>) {
+        messageQueue.put(UDPMessage(endPoint, packet, nodes, transmissionType == TransmissionType.Broadcast))
     }
 
     init {
@@ -123,7 +121,7 @@ class UDPServer(
                         }
                         Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
                     }
-                } else Logger.error("Already seen this message ${System.currentTimeMillis() - networkHistory[packetIdentification]!!} ago")
+                }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
                 dashboardManager.reportException(e)
