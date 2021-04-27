@@ -3,7 +3,6 @@ package manager
 import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
-import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
@@ -14,13 +13,10 @@ import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-
-private lateinit var influxDB: InfluxDB
-private lateinit var mysql: Connection;
-
 class DashboardManager(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
+    private lateinit var mysql: Connection;
 
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000;
@@ -33,7 +29,7 @@ class DashboardManager(private val configuration: Configuration) {
 
     init {
         if (configuration.dashboardEnabled) {
-            influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
+            val influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
             influxDB.query(Query("CREATE DATABASE PROD"));
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
@@ -64,7 +60,7 @@ class DashboardManager(private val configuration: Configuration) {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: List<DockerStatistics>, currentState: State) {
+    fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
         return
         for (measurement in statistics) {
             val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
@@ -74,8 +70,7 @@ class DashboardManager(private val configuration: Configuration) {
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
                     addField("memory", container.memoryUsage)
-                    addField("epoch", currentState.epoch)
-                    addField("slot", currentState.slot)
+                    addField("slot", slot)
                 }.build()
                 queue.add(point)
             }
@@ -134,13 +129,12 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, currentState: State) {
+    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
             addField("from", publicKey)
             addField("to", receiver)
-            addField("epoch", currentState.epoch)
-            addField("slot", currentState.slot)
+            addField("slot", slot)
             addField("containerId", containerId)
             addField("duration", duration)
         }.build()
@@ -184,7 +178,4 @@ class DashboardManager(private val configuration: Configuration) {
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
         statement.executeUpdate();
     }
-    
 }
-
-
