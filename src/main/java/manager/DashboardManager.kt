@@ -11,8 +11,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
 import java.sql.Statement
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -179,15 +177,6 @@ class DashboardManager(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun scheduledTimer(task: SlotDuty, state: State) {
-        if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("timers")
-            .addField("task", task.name)
-            .addField("index", state.epoch * configuration.slotCount + state.slot)
-            .build()
-        queue.add(point)
-    }
-
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         return
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");
@@ -195,29 +184,7 @@ class DashboardManager(private val configuration: Configuration) {
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
         statement.executeUpdate();
     }
-
-    private val timeFormatter = DateTimeFormatter.ofPattern("dd. MM | HH:mm:ss.SSS")
-
-
-    fun sentMessage(uid: String, nodeId: String) {
-        val point = Point.measurement("messages")
-            .addField("message", uid)
-            .addField("node", nodeId)
-            .addField("type", "SENT")
-            .addField("timestamp", LocalDateTime.now().format(timeFormatter))
-            .build()
-        queue.add(point)
-    }
-
-    fun receivedMessage(uid: String, nodeId: String) {
-        val point = Point.measurement("messages")
-            .addField("message", uid)
-            .addField("node", nodeId)
-            .addField("type", "RECEIVED")
-            .addField("timestamp", LocalDateTime.now().format(timeFormatter))
-            .build()
-        queue.add(point)
-    }
+    
 }
 
 
