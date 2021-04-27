@@ -25,7 +25,7 @@ class ChainManager(
     private val vdf: VDFManager,
     private val dht: DHTManager,
     private val docker: DockerManager,
-    private val dashboard: DashboardManager,
+    private val dashboard: Dashboard,
     private val informationManager: InformationManager,
     private val blockProducer: BlockProducer
 ) {

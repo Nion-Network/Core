@@ -15,7 +15,7 @@ class CommitteeManager(
     private val networkManager: NetworkManager,
     private val crypto: Crypto,
     private val vdfManager: VDFManager,
-    private val dashboardManager: DashboardManager
+    private val dashboard: Dashboard
 ) {
 
     fun voteRequest(message: Message<VoteRequest>) {
@@ -24,7 +24,7 @@ class CommitteeManager(
         val producer = voteRequest.producer
 
         val blockVote = BlockVote(block.hash, crypto.sign(block.hash), VoteType.FOR)
-        dashboardManager.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
+        dashboard.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
         val messageToSend = networkManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)

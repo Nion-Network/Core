@@ -13,13 +13,13 @@ import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class DashboardManager(private val configuration: Configuration) {
+class Dashboard(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
-    private lateinit var mysql: Connection;
+    private lateinit var mysql: Connection
 
     private fun formatTime(millis: Long): String {
-        val timeDifference = millis / 1000;
+        val timeDifference = millis / 1000
         val h = timeDifference / (3600)
         val m = (timeDifference - (h * 3600)) / 60
         val s = timeDifference - (h * 3600) - m * 60
@@ -30,10 +30,10 @@ class DashboardManager(private val configuration: Configuration) {
     init {
         if (configuration.dashboardEnabled) {
             val influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
-            influxDB.query(Query("CREATE DATABASE PROD"));
+            influxDB.query(Query("CREATE DATABASE PROD"))
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
-            influxDB.enableBatch(2000, 500, TimeUnit.MILLISECONDS);
+            influxDB.enableBatch(2000, 500, TimeUnit.MILLISECONDS)
             Thread {
                 while (true) queue.take().apply {
                     influxDB.write(this)
@@ -47,8 +47,8 @@ class DashboardManager(private val configuration: Configuration) {
                 "jdbc:mysql://sensors.innorenew.eu:3306/grafana",
                 configuration.mysqlUser,
                 configuration.mysqlPassword
-            );
-            val statement: Statement = mysql.createStatement();
+            )
+            val statement: Statement = mysql.createStatement()
             statement.executeUpdate("TRUNCATE network")
 
         } else Logger.info("Dashboard disabled")
@@ -173,9 +173,9 @@ class DashboardManager(private val configuration: Configuration) {
 
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         return
-        val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)");
-        statement.setString(1, DigestUtils.sha256Hex(publicKey));
+        val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)")
+        statement.setString(1, DigestUtils.sha256Hex(publicKey))
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
-        statement.executeUpdate();
+        statement.executeUpdate()
     }
 }

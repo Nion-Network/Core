@@ -7,7 +7,7 @@ import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
-import manager.DashboardManager
+import manager.Dashboard
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket
@@ -24,7 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue
 class UDPServer(
     private val configuration: Configuration,
     private val crypto: Crypto,
-    private val dashboardManager: DashboardManager,
+    private val dashboard: Dashboard,
     private val knownNodes: Map<String, Node>,
     private val networkHistory: MutableMap<String, Long>,
     port: Int
@@ -61,7 +61,7 @@ class UDPServer(
                             }
                         }
                     } catch (e: Exception) {
-                        dashboardManager.reportException(e)
+                        dashboard.reportException(e)
                     }
                 }
             }
@@ -124,7 +124,7 @@ class UDPServer(
                 }
             } catch (e: java.lang.Exception) {
                 e.printStackTrace()
-                dashboardManager.reportException(e)
+                dashboard.reportException(e)
             }
         }
     }.start()

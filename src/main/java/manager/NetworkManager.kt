@@ -36,7 +36,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val dht = DHTManager(this)
     val vdf = VDFManager()
     val docker = DockerManager(crypto, configuration)
-    val dashboard = DashboardManager(configuration)
+    val dashboard = Dashboard(configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
