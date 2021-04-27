@@ -53,11 +53,11 @@ class ChainManager(
 
         Logger.info("New block came [$blockSlot][$currentSlot] from ${block.blockProducer}")
 
-        /*if (blockSlot != currentSlot + 1 && !isFromSync) {
+        if (blockSlot != currentSlot + 1 && !isFromSync) {
             requestSync()
             return
         }
-        */
+
 
         block.validatorChanges.forEach(blockProducer::validatorChange)
 
@@ -71,7 +71,7 @@ class ChainManager(
         }
         if (isFromSync) return
 
-        if (!isIncluded) requestInclusion(true)
+        if (!isIncluded) requestInclusion()
 
         val nextTask = calculateNextTask(block)
         if (nextTask.myTask == SlotDuty.PRODUCER || nextTask.myTask == SlotDuty.COMMITTEE) dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), blockSlot + 1)
@@ -355,7 +355,7 @@ class ChainManager(
         val committee = validatorSetCopy.take(configuration.committeeSize)
 
         val ourRole = when {
-            networkManager.isTrustedNode /*blockProducerNode == ourKey*/ -> SlotDuty.PRODUCER
+            blockProducerNode == ourKey -> SlotDuty.PRODUCER
             committee.contains(ourKey) -> SlotDuty.COMMITTEE
             else -> SlotDuty.VALIDATOR
         }
@@ -370,7 +370,7 @@ class ChainManager(
         votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
     }
 
-    fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
+    private fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
         if (!isIncluded) return false
         val lastBlock = chain.lastOrNull() ?: return isIncluded
         return lastBlock.slot == inclusionRequest.currentSlot

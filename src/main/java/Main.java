@@ -16,6 +16,8 @@ public class Main {
     public static void main(String[] args) {
         List<String> arguments = Arrays.asList(args);
 
+        System.setProperty("kotlinx.coroutines.scheduler", "off");
+
         int pathArgumentIndex    = arguments.indexOf("-c");
         int portArgumentIndex    = arguments.indexOf("-p");
         int loggingArgumentIndex = arguments.indexOf("-l");

@@ -4,6 +4,7 @@ import data.Configuration
 import data.EndPoint
 import data.Message
 import data.Node
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
@@ -15,6 +16,7 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Created by Mihael Valentin Berčič
