@@ -16,7 +16,6 @@ data class VoteInformation(val from: String, val timestamp: Long = System.curren
 
 data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val committee: List<String> = emptyList())
 
-
 data class Block(
     val slot: Int,
     val difficulty: Int,
@@ -31,5 +30,5 @@ data class Block(
     var vdfProof: String = ""
 ) {
 
-    val getRandomSeed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+    val getSeed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
 }

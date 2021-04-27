@@ -343,7 +343,7 @@ class ChainManager(
     }
 
     private fun calculateNextTask(block: Block): ChainTask {
-        val seed = block.getRandomSeed
+        val seed = block.getSeed
         val random = Random(seed)
         val ourKey = crypto.publicKey
 

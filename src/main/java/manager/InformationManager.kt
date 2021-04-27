@@ -29,7 +29,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     val latestNetworkStatistics = mutableListOf<DockerStatistics>()
 
     private fun generateClusters(k: Int, maxIterations: Int, validators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
-        val random = Random(lastBlock.getRandomSeed)
+        val random = Random(lastBlock.getSeed)
         var centroids = validators.shuffled(random).take(k)
         val clusters = mutableMapOf<String, MutableMap<String, Int>>()
         var lastState = clusters
