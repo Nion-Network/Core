@@ -197,7 +197,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
-            val amountToTake = 5 + (configuration.broadcastSpreadPercentage * 100 / max(totalSize, 1))
+            val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
             udp.send(endPoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
         } else udp.send(endPoint, message, transmissionType, nodes)
     }
