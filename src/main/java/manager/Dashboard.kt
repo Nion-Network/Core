@@ -156,7 +156,7 @@ class Dashboard(private val configuration: Configuration) {
     fun reportException(e: Exception) {
         val point = Point.measurement("exceptions")
             .addField("cause", e.toString())
-            .addField("message", e.message)
+            .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
             .build()
         queue.add(point)
