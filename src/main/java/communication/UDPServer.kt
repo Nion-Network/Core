@@ -35,10 +35,7 @@ class UDPServer(
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
-    private val datagramSocket = DatagramSocket(port).apply {
-        this.receiveBufferSize = 10_000_000
-        this.sendBufferSize = 10_000_000
-    }
+    private val datagramSocket = DatagramSocket(port)
 
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
@@ -49,18 +46,43 @@ class UDPServer(
 
     init {
         Thread {
-            val writingBuffer = ByteBuffer.allocate(10_000_000_0)
+            val writingBuffer = ByteBuffer.allocate(65535)
             while (shouldListen) {
                 messageQueue.take().apply {
                     try {
-                        val encodedMessage = encodeMessage(writingBuffer, endpoint, message, isBroadcast)
-                        encodedMessage.slices.forEach { (offset, length) ->
-                            val data = writingBuffer.array()
-                            recipients.forEach { node ->
-                                sendingSocket.send(DatagramPacket(data, offset, length, InetSocketAddress(node.ip, node.port)))
+                        val messageId = message.uid.toByteArray()
+                        val messageBytes = message.asJson.toByteArray()
+                        val dataSize = messageBytes.size
+
+                        val packetSize = configuration.packetSplitSize
+                        val slicesNeeded = dataSize / packetSize + 1
+
+                        writingBuffer.apply {
+                            (0 until slicesNeeded).forEach { slicePosition ->
+                                clear()
+                                val from = slicePosition * packetSize
+                                val to = Integer.min(from + packetSize, dataSize)
+                                val data = messageBytes.sliceArray((from until to))
+                                val packetId = DigestUtils.sha256Hex(data).toByteArray()
+                                val broadcastByte: Byte = if (isBroadcast) 1 else 0
+
+                                put(packetId)
+                                put(broadcastByte)
+                                put(endPoint.identification)
+                                put(messageId)
+                                put(slicesNeeded.toByte())
+                                put(slicePosition.toByte())
+                                putInt(data.size)
+                                put(data)
+                                val packet = DatagramPacket(array(), 0, position())
+                                recipients.forEach {
+                                    packet.socketAddress = it.socketAddress
+                                    sendingSocket.send(packet)
+                                }
                             }
                         }
                     } catch (e: Exception) {
+                        e.printStackTrace()
                         dashboard.reportException(e)
                     }
                 }
@@ -151,40 +173,6 @@ class UDPServer(
 
     }
 
-    private fun <T> encodeMessage(buffer: ByteBuffer, endPoint: EndPoint, message: Message<T>, isBroadcast: Boolean): EncodedMessage {
-        val messageId = message.uid.toByteArray()
-        val messageBytes = message.asJson.toByteArray()
-        val dataSize = messageBytes.size
-
-        val packetSize = configuration.packetSplitSize
-        val slicesNeeded = dataSize / packetSize + 1
-
-        val packetSlices = mutableListOf<PacketSlice>()
-        buffer.apply {
-            (0 until slicesNeeded).forEach { slicePosition ->
-                val from = slicePosition * packetSize
-                val to = Integer.min(from + packetSize, dataSize)
-                val data = messageBytes.sliceArray((from until to))
-                val packetId = DigestUtils.sha256Hex(data).toByteArray()
-                val broadcastByte: Byte = if (isBroadcast) 1 else 0
-
-                val start = position()
-                put(packetId)
-                put(broadcastByte)
-                put(endPoint.identification)
-                put(messageId)
-                put(slicesNeeded.toByte())
-                put(slicePosition.toByte())
-                putInt(data.size)
-                put(data)
-                packetSlices.add(PacketSlice(start, position() - start))
-            }
-        }
-        return EncodedMessage(packetSlices, message.uid)
-    }
-
 }
 
-class EncodedMessage(val slices: List<PacketSlice>, val uid: String)
-data class PacketSlice(val offset: Int, val length: Int)
-class UDPMessage(val endpoint: EndPoint, val message: Message<*>, val recipients: Array<out Node>, val isBroadcast: Boolean)
+class UDPMessage(val endPoint: EndPoint, val message: Message<*>, val recipients: Array<out Node>, val isBroadcast: Boolean)

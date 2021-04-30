@@ -1,5 +1,7 @@
 package data
 
+import java.net.InetSocketAddress
+
 /**
  * Created by Mihael Valentin Berčič
  * on 27/03/2020 at 12:11
@@ -31,9 +33,7 @@ data class Configuration(
     val maxIterations: Int,
     val packetSplitSize: Int,
     val useCriu: Boolean
-) {
-    val trustedHttpAddress: String get() = "http://$trustedNodeIP:$trustedNodePort"
-}
+)
 
 /**
  * Stores information of some Node in the network.
@@ -44,5 +44,7 @@ data class Configuration(
  * @property returnAddress String representing URL to access the Node.
  */
 data class Node(val publicKey: String, val ip: String, val port: Int) {
+
+    val socketAddress get() = InetSocketAddress(ip, port)
 
 }

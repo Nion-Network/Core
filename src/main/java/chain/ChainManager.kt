@@ -59,7 +59,6 @@ class ChainManager(
             return
         }
 
-
         block.validatorChanges.forEach(blockProducer::validatorChange)
 
         scheduledCommitteeFuture?.cancel(true)

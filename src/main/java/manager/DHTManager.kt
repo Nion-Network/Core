@@ -70,7 +70,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     }
 
     /**
-     * After we've been accepted into the network, the node that has accepted us sends confirmation to this endpoint.
+     * After we've been accepted into the network, the node that has accepted us sends confirmation to this endPoint.
      *
      * @param context
      */

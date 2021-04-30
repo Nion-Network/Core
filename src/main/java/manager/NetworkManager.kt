@@ -189,7 +189,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      *
      * @param T Message type.
      * @param endPoint [EndPoint] for which the message is targeted.
-     * @param message Body to be sent to the specified endpoint.
+     * @param message Body to be sent to the specified endPoint.
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
