@@ -185,6 +185,6 @@ class Dashboard(private val configuration: Configuration) {
             .addField("data", x)
             .addField("slot", slot)
             .build()
-        queue.put(point)
+        queue.add(point)
     }
 }
