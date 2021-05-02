@@ -81,28 +81,39 @@ class ChainManager(
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
+            dashboard.debug("A")
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
+            dashboard.debug("B")
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
+            dashboard.debug("C")
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-
+            dashboard.debug("D")
             runAfter(configuration.slotDuration * 1 / 3) {
+                dashboard.debug("E")
                 val message = networkManager.generateMessage(voteRequest)
+                dashboard.debug("E1")
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(EndPoint.OnVoteRequest, message, TransmissionType.Unicast, *committeeNodes)
+                    dashboard.debug("E2")
                 }
             }
 
             runAfter(configuration.slotDuration * 2 / 3) {
+                dashboard.debug("F")
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
-
+                dashboard.debug("G")
                 val broadcastMessage = networkManager.generateMessage(newBlock)
+                dashboard.debug("H")
                 networkManager.apply {
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                    dashboard.debug("I")
                     sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    dashboard.debug("J")
                     sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast)
+                    dashboard.debug("K")
                 }
             }
         }

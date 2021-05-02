@@ -178,4 +178,12 @@ class Dashboard(private val configuration: Configuration) {
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
         statement.executeUpdate()
     }
+
+    fun debug(x: String) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("debug")
+            .addField("data", x)
+            .build()
+        queue.put(point)
+    }
 }
