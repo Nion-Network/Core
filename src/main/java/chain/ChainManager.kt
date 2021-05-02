@@ -81,39 +81,39 @@ class ChainManager(
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
-            dashboard.debug("A")
+            dashboard.debug("A", blockSlot)
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
-            dashboard.debug("B")
+            dashboard.debug("B", blockSlot)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
-            dashboard.debug("C")
+            dashboard.debug("C", blockSlot)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-            dashboard.debug("D")
+            dashboard.debug("D", blockSlot)
             runAfter(configuration.slotDuration * 1 / 3) {
-                dashboard.debug("E")
+                dashboard.debug("E", blockSlot)
                 val message = networkManager.generateMessage(voteRequest)
-                dashboard.debug("E1")
+                dashboard.debug("E1", blockSlot)
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(EndPoint.OnVoteRequest, message, TransmissionType.Unicast, *committeeNodes)
-                    dashboard.debug("E2")
+                    dashboard.debug("E2", blockSlot)
                 }
             }
 
             runAfter(configuration.slotDuration * 2 / 3) {
-                dashboard.debug("F")
+                dashboard.debug("F", blockSlot)
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
-                dashboard.debug("G")
+                dashboard.debug("G", blockSlot)
                 val broadcastMessage = networkManager.generateMessage(newBlock)
-                dashboard.debug("H")
+                dashboard.debug("H", blockSlot)
                 networkManager.apply {
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    dashboard.debug("I")
+                    dashboard.debug("I", blockSlot)
                     sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
-                    dashboard.debug("J")
+                    dashboard.debug("J", blockSlot)
                     sendUDP(EndPoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast)
-                    dashboard.debug("K")
+                    dashboard.debug("K", blockSlot)
                 }
             }
         }

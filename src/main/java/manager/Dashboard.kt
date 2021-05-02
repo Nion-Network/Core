@@ -179,10 +179,11 @@ class Dashboard(private val configuration: Configuration) {
         statement.executeUpdate()
     }
 
-    fun debug(x: String) {
+    fun debug(x: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("debug")
             .addField("data", x)
+            .addField("slot", slot)
             .build()
         queue.put(point)
     }
