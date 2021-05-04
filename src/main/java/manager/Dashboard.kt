@@ -3,6 +3,7 @@ package manager
 import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
+import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
@@ -17,7 +18,7 @@ class Dashboard(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
     private lateinit var mysql: Connection
-
+    private lateinit var influxDB: InfluxDB
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
         val h = timeDifference / (3600)
@@ -29,7 +30,7 @@ class Dashboard(private val configuration: Configuration) {
 
     init {
         if (configuration.dashboardEnabled) {
-            val influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
+            influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
             influxDB.query(Query("CREATE DATABASE PROD"))
             influxDB.setDatabase("PROD")
             //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
@@ -181,10 +182,17 @@ class Dashboard(private val configuration: Configuration) {
 
     fun debug(x: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
+        var statement: PreparedStatement = mysql.prepareStatement("INSERT INTO debug (slot, data) values (?,?)")
+        statement.setInt(1, slot)
+        statement.setString(2, x)
+        statement.executeUpdate()
+            /*
         val point = Point.measurement("debug")
             .addField("data", x)
             .addField("slot", slot)
             .build()
-        queue.add(point)
+        influxDB.write(point)
+        */
+
     }
 }

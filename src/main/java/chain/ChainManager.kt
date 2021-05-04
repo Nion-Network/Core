@@ -81,13 +81,13 @@ class ChainManager(
         Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
-            dashboard.debug("A", blockSlot)
+            dashboard.debug("Alpha", blockSlot)
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
-            dashboard.debug("B", blockSlot)
+            dashboard.debug("Beta", blockSlot)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
-            dashboard.debug("C", blockSlot)
+            dashboard.debug("Gama", blockSlot)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-            dashboard.debug("D", blockSlot)
+            dashboard.debug("Delta", blockSlot)
             runAfter(configuration.slotDuration * 1 / 3) {
                 dashboard.debug("E", blockSlot)
                 val message = networkManager.generateMessage(voteRequest)
