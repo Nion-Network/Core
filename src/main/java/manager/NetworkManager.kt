@@ -38,12 +38,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val docker = DockerManager(crypto, configuration)
     val dashboard = Dashboard(configuration)
 
-    private val networkHistory = ConcurrentHashMap<String, SeenPacket>()
+    private val networkHistory = ConcurrentHashMap<String, Long>()
 
     val informationManager = InformationManager(this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
 
-    // val currentState = State(-1, -1, 0, configuration.initialDifficulty, startingInclusionSet)
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
 
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
@@ -62,7 +61,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
             if (it.ip().startsWith("127")) return@before
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
-            else networkHistory[hex] = SeenPacket()
+            else networkHistory[hex] = System.currentTimeMillis()
         }
         httpServer.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
     }
@@ -148,8 +147,9 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      *
      */
     private fun startHistoryCleanup() = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
-        networkHistory.toList().forEach { (messageHex, packet) ->
-            if (TimeUnit.MILLISECONDS.toMinutes(packet.elapsed) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
+        networkHistory.toList().forEach { (messageHex, timestamp) ->
+            val difference = System.currentTimeMillis() - timestamp
+            if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
         }
         //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
     }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
@@ -221,6 +221,3 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 }
 
 
-data class SeenPacket(val timestamp: Long = System.currentTimeMillis(), var timesSeen: Int = 0) {
-    val elapsed get() = System.currentTimeMillis() - timestamp
-}
