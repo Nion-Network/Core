@@ -15,6 +15,7 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.random.Random
 
 /**
  * Created by Mihael Valentin Berčič
@@ -78,6 +79,7 @@ class UDPServer(
                                 recipients.forEach {
                                     packet.socketAddress = it.socketAddress
                                     sendingSocket.send(packet)
+                                    Thread.sleep(Random.nextLong(20, 100))
                                 }
                             }
                         }

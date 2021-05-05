@@ -329,7 +329,7 @@ class ChainManager(
      */
     fun syncRequestReceived(message: Message<Int>) {
         val node = networkManager.knownNodes[message.publicKey] ?: return
-        val blocks = chain.drop(message.body) // .take(50)
+        val blocks = chain.drop(message.body).take(50)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         networkManager.sendUDP(EndPoint.SyncReply, responseBlocksMessageBody, TransmissionType.Unicast, node)
         Logger.debug("Sent back ${blocks.size} blocks!")
