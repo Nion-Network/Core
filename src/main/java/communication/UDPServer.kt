@@ -8,6 +8,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
 import manager.Dashboard
+import manager.SeenPacket
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket
@@ -27,7 +28,7 @@ class UDPServer(
     private val crypto: Crypto,
     private val dashboard: Dashboard,
     private val knownNodes: Map<String, Node>,
-    private val networkHistory: MutableMap<String, Long>,
+    private val networkHistory: MutableMap<String, SeenPacket>,
     port: Int
 ) {
 
@@ -104,35 +105,38 @@ class UDPServer(
                 val packetId = ByteArray(64)
                 buffer[packetId]
                 val packetIdentification = String(packetId)
-                if (!networkHistory.containsKey(packetIdentification)) {
-                    networkHistory[packetIdentification] = System.currentTimeMillis()
+                val packetHistory = networkHistory[packetIdentification]
+                if (packetHistory == null || packetHistory.timesSeen < 3) {
+                    networkHistory.computeIfAbsent(packetIdentification) { SeenPacket() }.timesSeen++
                     val isBroadcast = buffer.get() > 0
                     val endPointId = buffer.get()
                     val endPoint = EndPoint.byId(endPointId) ?: throw Exception("Such ID of $endPointId does not exist.")
                     val messageIdentification = ByteArray(64)
                     buffer[messageIdentification]
                     val messageId = String(messageIdentification)
-                    // dashboardManager.receivedMessage(messageId, DigestUtils.sha256Hex(crypto.publicKey))
+
                     val totalSlices = buffer.get().toInt()
                     val currentSlice = buffer.get().toInt()
                     val dataArray = ByteArray(buffer.int)
                     buffer[dataArray]
 
-                    if (totalSlices > 1) {
-                        Logger.trace("Received $currentSlice of $totalSlices [${dataArray.size}] for ${messageId.subSequence(20, 30)}")
-                        val builder = buildingPackets.computeIfAbsent(messageId) {
-                            PacketBuilder(messageId, endPoint, totalSlices)
-                        }
-                        builder.addData(currentSlice, dataArray)
-                        if (builder.isReady) {
-                            Logger.trace("Running freshly built packet!")
-                            GlobalScope.launch { block(endPoint, builder.asOne) }
-                            buildingPackets.remove(messageId)
-                        }
-                    } else GlobalScope.launch { block(endPoint, dataArray) }
+                    if (packetHistory == null) {
+                        if (totalSlices > 1) {
+                            Logger.trace("Received $currentSlice of $totalSlices [${dataArray.size}] for ${messageId.subSequence(20, 30)}")
+                            val builder = buildingPackets.computeIfAbsent(messageId) {
+                                PacketBuilder(messageId, endPoint, totalSlices)
+                            }
+                            builder.addData(currentSlice, dataArray)
+                            if (builder.isReady) {
+                                Logger.trace("Running freshly built packet!")
+                                GlobalScope.launch { block(endPoint, builder.asOne) }
+                                buildingPackets.remove(messageId)
+                            }
+                        } else GlobalScope.launch { block(endPoint, dataArray) }
+                    }
 
                     val dataLength = buffer.position()
-                    if (isBroadcast) {
+                    if (isBroadcast && (packetHistory == null || packetHistory.timesSeen < 3)) {
                         val shuffledNodes = knownNodes.values.shuffled()
                         val totalSize = shuffledNodes.size
                         val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)

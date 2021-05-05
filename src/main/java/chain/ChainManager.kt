@@ -119,6 +119,16 @@ class ChainManager(
         }
     }
 
+    private fun sendBlockRequest(block: Block) {
+        runAfter(configuration.slotDuration * 2) {
+            val lastBlock = chain.lastOrNull()
+            if (lastBlock?.slot == block.slot) {
+                requestSync()
+                sendBlockRequest(block)
+            }
+        }
+    }
+
     /*
     private fun addBlock(block: Block, isFromSync: Boolean = false) {
 
