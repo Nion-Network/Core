@@ -3,7 +3,7 @@ package manager
 import communication.TransmissionType
 import data.Block
 import data.DockerStatistics
-import data.EndPoint
+import data.Endpoint
 import data.Message
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
@@ -65,7 +65,7 @@ class InformationManager(private val networkManager: NetworkManager) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
             val message = networkManager.generateMessage(latestNetworkStatistics.toList())
             val node = knownNodes[blockProducer] ?: return@runAfter
-            networkManager.sendUDP(EndPoint.RepresentativeStatistics, message, TransmissionType.Unicast, node)
+            networkManager.sendUDP(Endpoint.RepresentativeStatistics, message, TransmissionType.Unicast, node)
             Logger.info("Sending info to ${knownNodes[blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
@@ -88,7 +88,7 @@ class InformationManager(private val networkManager: NetworkManager) {
         val latestStatistics = dockerManager.latestStatistics
         val message = networkManager.generateMessage(latestStatistics)
         Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
-        networkManager.sendUDP(EndPoint.NodeStatistics, message, TransmissionType.Unicast, node)
+        networkManager.sendUDP(Endpoint.NodeStatistics, message, TransmissionType.Unicast, node)
     }
 
 }

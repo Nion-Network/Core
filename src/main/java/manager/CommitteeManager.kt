@@ -29,7 +29,7 @@ class CommitteeManager(
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        else networkManager.sendUDP(EndPoint.Vote, messageToSend, TransmissionType.Unicast, producer)
+        else networkManager.sendUDP(Endpoint.Vote, messageToSend, TransmissionType.Unicast, producer)
     }
 
 }

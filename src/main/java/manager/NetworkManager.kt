@@ -5,7 +5,7 @@ import chain.ChainManager
 import communication.TransmissionType
 import communication.UDPServer
 import data.*
-import data.EndPoint.*
+import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
@@ -187,18 +187,18 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * Sends the specified message to either specified or random nodes in the network.
      *
      * @param T Message type.
-     * @param endPoint [EndPoint] for which the message is targeted.
+     * @param endpoint [Endpoint] for which the message is targeted.
      * @param message Body to be sent to the specified endPoint.
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
-    fun <T> sendUDP(endPoint: EndPoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+    fun <T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
             val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
-            udp.send(endPoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
-        } else udp.send(endPoint, message, transmissionType, nodes)
+            udp.send(endpoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
+        } else udp.send(endpoint, message, transmissionType, nodes)
     }
 
     fun clearMessageQueue() {

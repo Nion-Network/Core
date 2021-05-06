@@ -92,7 +92,6 @@ class Dashboard(private val configuration: Configuration) {
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)
-
         }.build()
         queue.add(point)
     }
@@ -172,6 +171,19 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
+        val point = Point.measurement("message")
+            .addField("id", id)
+            .addField("endpoint", endpoint.name)
+            .addField("sender", DigestUtils.sha256Hex(sender))
+            .addField("receiver", DigestUtils.sha256Hex(receiver))
+            .addField("size", messageSize)
+            .addField("delay", delay)
+            .build()
+        queue.add(point)
+    }
+
+
     fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
         return
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)")
@@ -180,19 +192,4 @@ class Dashboard(private val configuration: Configuration) {
         statement.executeUpdate()
     }
 
-    fun debug(x: String, slot: Int) {
-        if (!configuration.dashboardEnabled) return
-        var statement: PreparedStatement = mysql.prepareStatement("INSERT INTO debug (slot, data) values (?,?)")
-        statement.setInt(1, slot)
-        statement.setString(2, x)
-        statement.executeUpdate()
-            /*
-        val point = Point.measurement("debug")
-            .addField("data", x)
-            .addField("slot", slot)
-            .build()
-        influxDB.write(point)
-        */
-
-    }
 }

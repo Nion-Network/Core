@@ -12,7 +12,7 @@ enum class SlotDuty { PRODUCER, COMMITTEE, VALIDATOR }
 enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
 
 
-enum class EndPoint(val identification: Byte) {
+enum class Endpoint(val identification: Byte) {
     Ping(0),
     Join(1),
     Include(2),
