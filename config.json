@@ -16,6 +16,7 @@
   "influxPassword": "e1d2g3e4",
   "dashboardEnabled": true,
   "loggingEnabled": false,
+  "trustedLoggingEnabled": false,
   "historyMinuteClearance": 10,
   "historyCleaningFrequency": 5,
   "mysqlUser": "grafana",

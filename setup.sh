@@ -1,8 +1,4 @@
-clear
-clear
-clear
-clear
 docker build --tag node .
 clear
-docker run -i -v /var/run/docker.sock:/var/run/docker.sock node
+docker run -i --memory="700m" node
 clear

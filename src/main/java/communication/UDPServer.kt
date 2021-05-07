@@ -79,9 +79,11 @@ class UDPServer(
                                 recipients.forEach {
                                     packet.socketAddress = it.socketAddress
                                     sendingSocket.send(packet)
-                                    val randomDelay = Random.nextLong(20, 100)
-                                    totalDelay += randomDelay
-                                    Thread.sleep(randomDelay)
+                                    if (isBroadcast) {
+                                        val randomDelay = Random.nextLong(20, 100)
+                                        totalDelay += randomDelay
+                                        Thread.sleep(randomDelay)
+                                    }
                                 }
                             }
                             recipients.forEach {
@@ -143,12 +145,12 @@ class UDPServer(
                         val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)
                         val nodes = shuffledNodes.take(amountToTake)
                         packet.length = dataLength
-                        Logger.debug("Started re broadcasting!")
+                        // Logger.debug("Started re broadcasting!")
                         nodes.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
                         }
-                        Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
+                        // Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
                     }
                 }
             } catch (e: java.lang.Exception) {

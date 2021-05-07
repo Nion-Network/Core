@@ -25,6 +25,7 @@ data class Configuration(
     val influxPassword: String,
     val dashboardEnabled: Boolean,
     val loggingEnabled: Boolean,
+    val trustedLoggingEnabled: Boolean,
     val historyMinuteClearance: Int,
     val historyCleaningFrequency: Int,
     val mysqlUser: String,

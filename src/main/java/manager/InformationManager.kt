@@ -41,7 +41,7 @@ class InformationManager(private val networkManager: NetworkManager) {
                 val publicKey = chosenCentroid.first
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-                //if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.epoch, validator, publicKey)
+                if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.slot, validator, publicKey)
             }
             if (lastState == clusters) break
             lastState = clusters
@@ -49,14 +49,13 @@ class InformationManager(private val networkManager: NetworkManager) {
 
             centroids = clusters.values.mapNotNull { distances ->
                 val averageDistance = distances.values.average()
-                distances.minBy { (_, distance) -> abs(averageDistance - distance) }?.key
+                distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
     fun prepareForStatistics(blockProducer: String, validators: Collection<String>, lastBlock: Block) {
-        return
         val clusters = generateClusters(configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)

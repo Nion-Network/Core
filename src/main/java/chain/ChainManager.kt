@@ -6,10 +6,13 @@ import logging.Logger
 import manager.*
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import utils.Utils
 import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 
@@ -64,12 +67,30 @@ class ChainManager(
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
+        informationManager.latestNetworkStatistics.clear()
+
         block.validatorChanges.apply {
             val key = crypto.publicKey
             if (this[key] == true) isIncluded = true
             if (this[key] == false) isIncluded = false
         }
         if (isFromSync) return
+
+        val myMigration = block.migrations[crypto.publicKey]
+        if (!isFromSync && myMigration != null) {
+            val toSend = myMigration.containerName
+            val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
+            val savedImage = docker.saveImage(toSend)
+            val receiver = networkManager.knownNodes[myMigration.toNode] ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
+
+            Logger.info("We have to send container $toSend to ${receiver.ip}")
+            val startOfMigration = System.currentTimeMillis();
+            Utils.sendFileTo("http://${receiver.ip}:5005", "/run/migration/image", savedImage, toSend)
+            val migrationDuration = System.currentTimeMillis() - startOfMigration;
+            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, blockSlot)
+            savedImage.delete()
+            docker.ourContainers.remove(toSend)
+        }
 
         if (!isIncluded) requestInclusion()
 
@@ -78,7 +99,7 @@ class ChainManager(
 
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
-        Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
+        // Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
@@ -90,7 +111,7 @@ class ChainManager(
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.OnVoteRequest, message, TransmissionType.Unicast, *committeeNodes)
+                    sendUDP(Endpoint.VoteRequest, message, TransmissionType.Unicast, *committeeNodes)
                 }
             }
 
@@ -99,12 +120,46 @@ class ChainManager(
                 newBlock.votes = votesAmount
                 val broadcastMessage = networkManager.generateMessage(newBlock)
                 networkManager.apply {
+                    val latestStatistics = informationManager.latestNetworkStatistics
+                    Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
+                    val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
+                    val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minByOrNull { it.totalCPU }
+
+                    Logger.info("\t\tMost used node: $mostUsedNode")
+                    Logger.info("\t\tLeast used node: $leastUsedNode")
+
+                    if (leastUsedNode != null && mostUsedNode != null) {
+                        val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
+                        Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
+                        if (leastConsumingApp != null) {
+                            val senderBefore = mostUsedNode.totalCPU
+                            val receiverBefore = leastUsedNode.totalCPU
+                            val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
+
+                            val senderAfter = senderBefore - cpuChange
+                            val receiverAfter = receiverBefore + cpuChange
+
+                            val differenceBefore = abs(senderBefore - receiverBefore)
+                            val differenceAfter = abs(senderAfter - receiverAfter)
+                            val migrationDifference = abs(differenceBefore - differenceAfter)
+
+                            // TODO add to configuration
+                            val minimumDifference = 5
+                            Logger.debug("Percentage difference of before and after: $migrationDifference %")
+                            if (migrationDifference >= minimumDifference) {
+                                val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                                newBlock.migrations[mostUsedNode.publicKey] = newMigration
+                            }
+                        }
+                    }
+                    dashboard.reportStatistics(latestStatistics, blockSlot)
+
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
-                    sendUDP(Endpoint.BlockReceived, broadcastMessage, TransmissionType.Broadcast)
+                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
-        }
+        } else informationManager.prepareForStatistics(nextTask.blockProducer, blockProducer.currentValidators, block)
     }
 
     private fun sendBlockRequest(block: Block) {
@@ -409,7 +464,7 @@ class ChainManager(
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            networkManager.sendUDP(Endpoint.BlockReceived, networkManager.generateMessage(block), TransmissionType.Broadcast)
+            networkManager.sendUDP(Endpoint.NewBlock, networkManager.generateMessage(block), TransmissionType.Broadcast)
         }
     }
 
@@ -419,11 +474,12 @@ class ChainManager(
             val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
             Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
             val message = generateMessage(inclusionRequest)
-            val node = if (askTrusted) knownNodes.values.firstOrNull { it.ip == configuration.trustedNodeIP && it.port == configuration.trustedNodePort }
-            else knownNodes.values.random()
-            (node ?: knownNodes.values.random()).apply {
-                sendUDP(Endpoint.Include, message, TransmissionType.Unicast, this)
-                networkManager.dashboard.requestedInclusion(crypto.publicKey, this.publicKey, slot)
+            if (askTrusted) {
+                val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
+                sendUDP(Endpoint.InclusionRequest, message, TransmissionType.Unicast, trustedNode)
+            } else {
+                val randomNodes = knownNodes.values.shuffled().take(3).toTypedArray()
+                sendUDP(Endpoint.InclusionRequest, message, TransmissionType.Unicast, *randomNodes)
             }
         }
     }

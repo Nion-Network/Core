@@ -1,4 +1,5 @@
 FROM ubuntu:18.04
+RUN sed 's/http:\/\/fr\./http:\/\//' /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get install default-jre -y
 RUN apt-get install libssl-dev -y
@@ -9,7 +10,7 @@ RUN apt-get install docker.io -y
 
 WORKDIR /
 
-ADD build/libs/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
+ADD decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
 # Copy the current directory contents into the container at /app
 COPY . /app

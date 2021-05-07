@@ -62,7 +62,6 @@ class Dashboard(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
-        return
         for (measurement in statistics) {
             val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
             for (container in measurement.containers) {
@@ -175,8 +174,8 @@ class Dashboard(private val configuration: Configuration) {
         val point = Point.measurement("message")
             .addField("id", id)
             .addField("endpoint", endpoint.name)
-            .addField("sender", DigestUtils.sha256Hex(sender))
-            .addField("receiver", DigestUtils.sha256Hex(receiver))
+            .addField("source", DigestUtils.sha256Hex(sender))
+            .addField("target", DigestUtils.sha256Hex(receiver))
             .addField("size", messageSize)
             .addField("delay", delay)
             .build()
@@ -184,8 +183,7 @@ class Dashboard(private val configuration: Configuration) {
     }
 
 
-    fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
-        return
+    fun logCluster(slot: Int, publicKey: String, clusterRepresentative: String) {
         val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)")
         statement.setString(1, DigestUtils.sha256Hex(publicKey))
         statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))

@@ -56,36 +56,39 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     init {
-        Logger.toggleLogging(configuration.loggingEnabled || isTrustedNode)
+        Logger.toggleLogging(configuration.loggingEnabled || (isTrustedNode && configuration.trustedLoggingEnabled))
         httpServer.before {
             if (it.ip().startsWith("127")) return@before
             val hex = it.header("hex") ?: ""
             if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
             else networkHistory[hex] = System.currentTimeMillis()
         }
-        httpServer.exception(Exception::class.java) { exception, _ -> exception.printStackTrace() }
+        httpServer.exception(Exception::class.java) { exception, _ ->
+            exception.printStackTrace()
+            dashboard.reportException(exception)
+        }
     }
 
     fun start() {
         Logger.debug("My IP is $myIP")
 
         udp.startListening { endPoint, data ->
-            Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
+            // Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
-                Query -> data queueMessage dht::onQuery
-                Found -> data queueMessage dht::onFound
-                OnJoin -> data queueMessage dht::onJoin
-                Join -> data queueMessage dht::joinRequest
-
-                Vote -> data queueMessage chainManager::voteReceived
-                Include -> data queueMessage chainManager::inclusionRequest
+                NodeQuery -> data queueMessage dht::onQuery
+                NodeFound -> data queueMessage dht::onFound
+                Endpoint.VoteRequest -> data queueMessage committeeManager::voteRequest
                 SyncRequest -> data queueMessage chainManager::syncRequestReceived
-                OnVoteRequest -> data queueMessage committeeManager::voteRequest
-                // NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                // RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
+
+                Welcome -> data queueMessage dht::onJoin
+                JoinRequest -> data queueMessage dht::joinRequest
+                VoteReceived -> data queueMessage chainManager::voteReceived
+                Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
+                NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
+                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
 
                 SyncReply -> data queueMessage chainManager::syncReplyReceived
-                BlockReceived -> data queueMessage chainManager::blockReceived
+                NewBlock -> data queueMessage chainManager::blockReceived
                 else -> Logger.error("Unexpected $endPoint in packet handler.")
             }
         }
@@ -115,7 +118,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
 
         val joinRequestMessage = generateMessage(ourNode)
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(Join, joinRequestMessage, TransmissionType.Unicast, trustedNode)
+        sendUDP(JoinRequest, joinRequestMessage, TransmissionType.Unicast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)

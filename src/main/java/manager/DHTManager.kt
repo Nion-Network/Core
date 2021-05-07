@@ -15,7 +15,7 @@ class DHTManager(private val networkManager: NetworkManager) {
         networkManager.apply {
             if (knownNodes.containsKey(forPublicKey)) return
             val message = generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
-            sendUDP(Endpoint.Query, message, TransmissionType.Unicast)
+            sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
         }
     }
 
@@ -44,8 +44,8 @@ class DHTManager(private val networkManager: NetworkManager) {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             knownNodes[lookingFor]?.apply {
                 val foundMessage = generateMessage(FoundMessage(ip, port, publicKey))
-                sendUDP(Endpoint.Found, foundMessage, TransmissionType.Unicast, body.node)
-            } ?: sendUDP(Endpoint.Query, message, TransmissionType.Unicast)
+                sendUDP(Endpoint.NodeFound, foundMessage, TransmissionType.Unicast, body.node)
+            } ?: sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
         }
     }
 
@@ -62,9 +62,9 @@ class DHTManager(private val networkManager: NetworkManager) {
                 val nodesToShare = knownNodes.values
                 val joinedMessage = JoinedMessage(ourNode, nodesToShare)
                 knownNodes.computeIfAbsent(publicKey) { this }
-                sendUDP(Endpoint.OnJoin, generateMessage(joinedMessage), TransmissionType.Unicast, this)
+                sendUDP(Endpoint.Welcome, generateMessage(joinedMessage), TransmissionType.Unicast, this)
                 Logger.debug("Sent successful join back to ${node.ip}")
-            } else sendUDP(Endpoint.Join, message, TransmissionType.Unicast)
+            } else sendUDP(Endpoint.JoinRequest, message, TransmissionType.Unicast)
         }
 
     }
@@ -88,7 +88,7 @@ class DHTManager(private val networkManager: NetworkManager) {
 
                 joinedMessage.knownNodes.forEach { newNode ->
                     knownNodes.computeIfAbsent(newNode.publicKey) {
-                        sendUDP(Endpoint.Join, generateMessage(ourNode), TransmissionType.Unicast, newNode)
+                        sendUDP(Endpoint.JoinRequest, generateMessage(ourNode), TransmissionType.Unicast, newNode)
                         newNode
                     }
                     Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
