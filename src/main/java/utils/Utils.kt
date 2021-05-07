@@ -2,6 +2,7 @@ package utils
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import data.Block
 import data.Message
 import data.NetworkRequestType
 import io.javalin.http.Context
@@ -12,6 +13,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 import kotlin.concurrent.schedule
+import kotlin.random.Random
 
 /**
  * Created by Mihael Berčič
@@ -86,9 +88,7 @@ class Utils {
 }
 
 // TODO Comment
-infix fun String.levenshteinDistance(rhss: String): Int {
-    val lhs: CharSequence = this
-    val rhs: CharSequence = rhss
+fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
     val len0 = lhs.length + 1
     val len1 = rhs.length + 1
     var cost = IntArray(len0)

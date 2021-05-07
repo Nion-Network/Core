@@ -30,5 +30,5 @@ data class Block(
     var vdfProof: String = ""
 ) {
 
-    val getSeed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+    val seed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
 }

@@ -7,7 +7,6 @@ import data.Endpoint
 import data.Message
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
-import utils.levenshteinDistance
 import utils.runAfter
 import kotlin.math.abs
 import kotlin.random.Random
@@ -29,19 +28,19 @@ class InformationManager(private val networkManager: NetworkManager) {
     val latestNetworkStatistics = mutableListOf<DockerStatistics>()
 
     private fun generateClusters(k: Int, maxIterations: Int, validators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
-        val random = Random(lastBlock.getSeed)
+        val random = Random(lastBlock.seed)
         var centroids = validators.shuffled(random).take(k)
         val clusters = mutableMapOf<String, MutableMap<String, Int>>()
         var lastState = clusters
 
         for (iteration in 0 until maxIterations) {
-            validators.forEach { validator ->
-                val distances = centroids.map { it to (it levenshteinDistance validator) }
+            validators.shuffled(random).forEach { validator ->
+                val distances = centroids.map { it to random.nextInt() }
                 val chosenCentroid = distances.minBy { it.second }!! // Not possible for validator collection to be empty.
                 val publicKey = chosenCentroid.first
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-                if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.slot, validator, publicKey)
+                // if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.slot, validator, publicKey)
             }
             if (lastState == clusters) break
             lastState = clusters

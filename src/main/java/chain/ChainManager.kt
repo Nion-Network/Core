@@ -159,7 +159,8 @@ class ChainManager(
                     sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
-        } else informationManager.prepareForStatistics(nextTask.blockProducer, blockProducer.currentValidators, block)
+        }
+        informationManager.prepareForStatistics(nextTask.blockProducer, blockProducer.currentValidators, block)
     }
 
     private fun sendBlockRequest(block: Block) {
@@ -406,7 +407,7 @@ class ChainManager(
     }
 
     private fun calculateNextTask(block: Block): ChainTask {
-        val seed = block.getSeed
+        val seed = block.seed
         val random = Random(seed)
         val ourKey = crypto.publicKey
 

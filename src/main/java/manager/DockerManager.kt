@@ -46,6 +46,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         val containerId = runtime.exec("docker run -d $toRun").inputStream.bufferedReader().use(BufferedReader::readLine)
         ourContainers.add(containerId.take(12))
         Logger.debug("Started a new container: $containerId")
+        Logger.debug("Total running containers on our node: ${ourContainers.size}")
     }
 
     fun updateStats(context: Context) {
