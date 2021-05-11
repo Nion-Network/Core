@@ -59,7 +59,7 @@ class InformationManager(private val networkManager: NetworkManager) {
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 
-        if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
+        if (isRepresentative) runAfter((configuration.slotDuration) / 4) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
             val message = networkManager.generateMessage(latestNetworkStatistics.toList())
             val node = knownNodes[blockProducer] ?: return@runAfter

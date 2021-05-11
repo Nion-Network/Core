@@ -39,7 +39,7 @@ data class ContainerStats(
     var cpuUsage: Double,
     val memoryUsage: Double,
     val pids: Int,
-    val random: Random = Random(Integer.valueOf(id, 16))
+    val random: Random = Random(id.take(5).toLong(16))
 )
 
 data class Migration(val fromNode: String, val toNode: String, val containerName: String)
