@@ -40,7 +40,6 @@ class InformationManager(private val networkManager: NetworkManager) {
                 val publicKey = chosenCentroid.first
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-                // if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock.slot, validator, publicKey)
             }
             if (lastState == clusters) break
             lastState = clusters
@@ -51,6 +50,13 @@ class InformationManager(private val networkManager: NetworkManager) {
                 distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
+
+        if (networkManager.isTrustedNode) clusters.forEach { (representative, nodeMap) ->
+            nodeMap.forEach { (publicKey, _) ->
+                dashboard.logCluster(lastBlock.slot, publicKey, representative);
+            }
+        }
+
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 

@@ -184,10 +184,12 @@ class Dashboard(private val configuration: Configuration) {
 
 
     fun logCluster(slot: Int, publicKey: String, clusterRepresentative: String) {
-        val statement: PreparedStatement = mysql.prepareStatement("INSERT INTO network (source, target) values (?,?) ON DUPLICATE KEY UPDATE target = VALUES(target)")
-        statement.setString(1, DigestUtils.sha256Hex(publicKey))
-        statement.setString(2, DigestUtils.sha256Hex(clusterRepresentative))
-        statement.executeUpdate()
+        val point = Point.measurement("cluster")
+            .addField("slot", slot)
+            .addField("representative", clusterRepresentative)
+            .addField("node", publicKey)
+            .build()
+        queue.add(point)
     }
 
 }
