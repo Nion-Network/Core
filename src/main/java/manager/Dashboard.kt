@@ -9,7 +9,6 @@ import org.influxdb.dto.Point
 import org.influxdb.dto.Query
 import java.sql.Connection
 import java.sql.DriverManager
-import java.sql.PreparedStatement
 import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
