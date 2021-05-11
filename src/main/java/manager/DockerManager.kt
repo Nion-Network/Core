@@ -24,12 +24,11 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
     val ourContainers: MutableList<String> = mutableListOf()
 
     var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, emptyList())
-        private set
 
     init {
         runtime.apply {
-            exec("pkill -f dockerStats")
-            exec("bash dockerStats.sh &")
+            // exec("pkill -f dockerStats")
+            // exec("bash dockerStats.sh &")
         }
     }
 
