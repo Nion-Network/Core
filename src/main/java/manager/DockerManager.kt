@@ -8,6 +8,7 @@ import logging.Logger
 import utils.Crypto
 import java.io.BufferedReader
 import java.io.File
+import kotlin.random.Random
 
 /**
  * Created by Mihael Valentin Berčič
@@ -23,7 +24,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
 
     val ourContainers: MutableList<String> = mutableListOf()
 
-    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, emptyList())
+    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, mutableListOf())
 
     init {
         runtime.apply {
@@ -44,6 +45,8 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         val toRun = name.replace(gibberishRegex, "")
         val containerId = runtime.exec("docker run -d $toRun").inputStream.bufferedReader().use(BufferedReader::readLine)
         ourContainers.add(containerId.take(12))
+        latestStatistics.containers.add(ContainerStats(containerId, containerId, 20.0, 20.0, Random.nextInt(100)))
+
         Logger.debug("Started a new container: $containerId")
         Logger.debug("Total running containers on our node: ${ourContainers.size}")
     }
@@ -60,7 +63,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
         val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
-        latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
+        // latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
     fun runMigratedImage(context: Context) {

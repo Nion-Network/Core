@@ -160,10 +160,9 @@ class ChainManager(
                 }
             }
         }
-        val stats = docker.ourContainers.map { ContainerStats(it, it, Random.nextDouble(0.0, 100.0), Random.nextDouble(0.0, 100.0), 69) }
-        docker.latestStatistics = DockerStatistics(crypto.publicKey, stats)
-
-
+        docker.latestStatistics.containers.forEach { container ->
+            container.cpuUsage = container.random.nextDouble(10.0, 40.0)
+        }
         informationManager.prepareForStatistics(nextTask.blockProducer, blockProducer.currentValidators, block)
     }
 
