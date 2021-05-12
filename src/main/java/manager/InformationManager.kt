@@ -50,10 +50,12 @@ class InformationManager(private val networkManager: NetworkManager) {
                 distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
-
-        if (networkManager.isTrustedNode) clusters.forEach { (representative, nodeMap) ->
+        var queryIndex:Int =0
+        if (networkManager.isTrustedNode)
+            clusters.forEach { (representative, nodeMap) ->
             nodeMap.forEach { (publicKey, _) ->
-                dashboard.logCluster(lastBlock.slot, publicKey, representative);
+                queryIndex++
+                dashboard.logCluster(lastBlock.slot, publicKey, representative, queryIndex);
             }
         }
 

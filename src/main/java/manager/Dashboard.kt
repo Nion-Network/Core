@@ -182,11 +182,12 @@ class Dashboard(private val configuration: Configuration) {
     }
 
 
-    fun logCluster(slot: Int, publicKey: String, clusterRepresentative: String) {
+    fun logCluster(slot: Int, publicKey: String, clusterRepresentative: String, queryIndex :Int) {
         val point = Point.measurement("cluster")
+            .time(System.currentTimeMillis()+queryIndex, TimeUnit.MILLISECONDS)
             .addField("slot", slot)
-            .addField("representative", clusterRepresentative)
-            .addField("node", publicKey)
+            .addField("representative", DigestUtils.sha256Hex(clusterRepresentative))
+            .addField("node", DigestUtils.sha256Hex(publicKey))
             .build()
         queue.add(point)
     }
