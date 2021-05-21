@@ -1,10 +1,7 @@
 package manager
 
 import communication.TransmissionType
-import data.Block
-import data.DockerStatistics
-import data.Endpoint
-import data.Message
+import data.*
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
@@ -50,29 +47,22 @@ class InformationManager(private val networkManager: NetworkManager) {
                 distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
-        var queryIndex:Int =0
-        if (networkManager.isTrustedNode)
-            clusters.forEach { (representative, nodeMap) ->
-            nodeMap.forEach { (publicKey, _) ->
-                queryIndex++
-                dashboard.logCluster(lastBlock.slot, publicKey, representative, queryIndex);
-            }
-        }
-
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
-    fun prepareForStatistics(blockProducer: String, validators: Collection<String>, lastBlock: Block) {
+    fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
         val clusters = generateClusters(configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 
+        if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock, task, clusters)
+
         if (isRepresentative) runAfter((configuration.slotDuration) / 4) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
             val message = networkManager.generateMessage(latestNetworkStatistics.toList())
-            val node = knownNodes[blockProducer] ?: return@runAfter
+            val node = knownNodes[task.blockProducer] ?: return@runAfter
             networkManager.sendUDP(Endpoint.RepresentativeStatistics, message, TransmissionType.Unicast, node)
-            Logger.info("Sending info to ${knownNodes[blockProducer]?.ip} with ${latestNetworkStatistics.size}")
+            Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
             if (myRepresentative != null) reportStatistics(myRepresentative)

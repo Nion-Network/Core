@@ -106,18 +106,6 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun newRole(chainTask: ChainTask, publicKey: String, slot: Int) {
-        if (!configuration.dashboardEnabled) return
-        // Logger.debug("Sending new chain task : ${chainTask.myTask}")
-        val point = Point.measurement("chainTask").apply {
-            time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-            addField("nodeId", publicKey)
-            addField("task", chainTask.myTask.toString())
-            addField("slot", slot)
-        }.build()
-        queue.add(point)
-    }
-
     fun logQueue(queueSize: Int, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("queueSize").apply {
@@ -138,18 +126,6 @@ class Dashboard(private val configuration: Configuration) {
         }.build()
         queue.add(point)
     }
-
-    /*
-        fun logCluster(epoch: Int, publicKey: String, clusterRepresentative: String) {
-            if (!configuration.dashboardEnabled) return
-            // Logger.info("${DigestUtils.sha256Hex(publicKey)} -> ${DigestUtils.sha256Hex(clusterRepresentative)}")
-            val point = Point.measurement("networkClusters")
-                    .addField("epoch", epoch)
-                    .addField("nodeId", DigestUtils.sha256Hex(publicKey))
-                    .addField("clusterRepresentative", DigestUtils.sha256Hex(clusterRepresentative)).build()
-            queue.add(point)
-        }
-    */
 
     fun reportException(e: Exception) {
         val point = Point.measurement("exceptions")
@@ -182,14 +158,28 @@ class Dashboard(private val configuration: Configuration) {
     }
 
 
-    fun logCluster(slot: Int, publicKey: String, clusterRepresentative: String, queryIndex :Int) {
-        val point = Point.measurement("cluster")
-            .time(System.currentTimeMillis()+queryIndex, TimeUnit.MILLISECONDS)
-            .addField("slot", slot)
-            .addField("representative", DigestUtils.sha256Hex(clusterRepresentative))
-            .addField("node", DigestUtils.sha256Hex(publicKey))
-            .build()
-        queue.add(point)
+    fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
+        var index = 0
+        clusters.forEach { (representative, nodes) ->
+            queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, representative, index++))
+            nodes.forEach { node ->
+                queue.add(clusterNodePoint(block, nextTask, representative, node, index++))
+            }
+        }
     }
 
+    private fun clusterNodePoint(block: Block, task: ChainTask, representative: String, node: String, index: Int): Point {
+        val slotDuty = when {
+            task.blockProducer == node -> SlotDuty.PRODUCER
+            task.committee.contains(node) -> SlotDuty.COMMITTEE
+            else -> SlotDuty.VALIDATOR
+        }
+        return Point.measurement("cluster")
+            .time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
+            .addField("duty", slotDuty.name)
+            .addField("slot", block.slot)
+            .addField("representative", DigestUtils.sha256Hex(representative))
+            .addField("node", DigestUtils.sha256Hex(node))
+            .build()
+    }
 }

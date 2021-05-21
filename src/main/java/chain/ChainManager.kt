@@ -95,7 +95,6 @@ class ChainManager(
         if (!isIncluded) requestInclusion()
 
         val nextTask = calculateNextTask(block)
-        if (nextTask.myTask == SlotDuty.PRODUCER || nextTask.myTask == SlotDuty.COMMITTEE) dashboard.newRole(nextTask, DigestUtils.sha256Hex(crypto.publicKey), blockSlot + 1)
 
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
@@ -163,7 +162,7 @@ class ChainManager(
         docker.latestStatistics.containers.forEach { container ->
             container.cpuUsage = container.random.nextDouble(10.0, 40.0)
         }
-        informationManager.prepareForStatistics(nextTask.blockProducer, blockProducer.currentValidators, block)
+        informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }
 
     private fun sendBlockRequest(block: Block) {
