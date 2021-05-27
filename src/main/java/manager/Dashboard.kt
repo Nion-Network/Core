@@ -12,6 +12,7 @@ import java.sql.DriverManager
 import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 class Dashboard(private val configuration: Configuration) {
 
@@ -61,18 +62,24 @@ class Dashboard(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
-        for (measurement in statistics) {
-            val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
-            for (container in measurement.containers) {
-                val point = Point.measurement("containers").apply {
-                    addField("nodeId", publicKey)
-                    addField("containerId", container.id)
-                    addField("cpu", container.cpuUsage)
-                    addField("memory", container.memoryUsage)
-                    addField("slot", slot)
-                }.build()
-                queue.add(point)
+        try {
+            val x = DockerStatistics("suckATIT", mutableListOf(ContainerStats("9F893F82", "Titty_Fucker", Random.nextDouble(), Random.nextDouble(), 10)))
+            val stats = statistics.plus(x)
+            for (measurement in stats) {
+                val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
+                for (container in measurement.containers) {
+                    val point = Point.measurement("containers").apply {
+                        addField("nodeId", publicKey)
+                        addField("containerId", container.id)
+                        addField("cpu", container.cpuUsage)
+                        addField("memory", container.memoryUsage)
+                        addField("slot", slot)
+                    }.build()
+                    queue.add(point)
+                }
             }
+        } catch (e: Exception) {
+            reportException(e)
         }
     }
 
@@ -160,6 +167,7 @@ class Dashboard(private val configuration: Configuration) {
 
     fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
         var index = 0
+        queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
         clusters.forEach { (representative, nodes) ->
             queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, representative, index++))
             nodes.forEach { node ->

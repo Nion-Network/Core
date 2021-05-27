@@ -67,7 +67,7 @@ class ChainManager(
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
-        informationManager.latestNetworkStatistics.clear()
+        // informationManager.latestNetworkStatistics.clear()
 
         block.validatorChanges.apply {
             val key = crypto.publicKey

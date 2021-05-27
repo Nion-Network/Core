@@ -14,9 +14,11 @@ import utils.Crypto
 import utils.Utils
 import utils.asMessage
 import java.lang.Integer.max
-import java.net.*
-import java.util.*
-import java.util.concurrent.*
+import java.net.InetAddress
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Mihael Valentin Berčič
@@ -85,7 +87,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 VoteReceived -> data queueMessage chainManager::voteReceived
                 Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
+                RepresentativeStatistics -> data executeImmediately informationManager::representativeStatisticsReceived
 
                 SyncReply -> data queueMessage chainManager::syncReplyReceived
                 NewBlock -> data queueMessage chainManager::blockReceived
