@@ -67,7 +67,7 @@ class ChainManager(
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
-        // informationManager.latestNetworkStatistics.clear()
+        informationManager.latestNetworkStatistics.clear()
 
         block.validatorChanges.apply {
             val key = crypto.publicKey
@@ -160,7 +160,7 @@ class ChainManager(
             }
         }
         docker.latestStatistics.containers.forEach { container ->
-            container.cpuUsage = container.random.nextDouble(10.0, 40.0)
+            container.cpuUsage = Random.nextDouble(10.0, 40.0)
         }
         informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }

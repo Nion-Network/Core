@@ -32,7 +32,7 @@ class InformationManager(private val networkManager: NetworkManager) {
 
         for (iteration in 0 until maxIterations) {
             clusters.clear()
-            validators.minus(centroids).forEach { validator ->
+            validators.minus(centroids).shuffled(random).forEach { validator ->
                 val distances = centroids.map { it to random.nextInt() }
                 val chosenCentroid = distances.minByOrNull { it.second }!! // Not possible for validator collection to be empty.
                 val publicKey = chosenCentroid.first
@@ -58,6 +58,7 @@ class InformationManager(private val networkManager: NetworkManager) {
         if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock, task, clusters)
 
         if (task.blockProducer == crypto.publicKey) return
+
         if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
             val message = networkManager.generateMessage(latestNetworkStatistics.toList())

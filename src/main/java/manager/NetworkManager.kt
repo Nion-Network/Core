@@ -87,7 +87,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 VoteReceived -> data queueMessage chainManager::voteReceived
                 Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> data executeImmediately informationManager::representativeStatisticsReceived
+                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
 
                 SyncReply -> data queueMessage chainManager::syncReplyReceived
                 NewBlock -> data queueMessage chainManager::blockReceived

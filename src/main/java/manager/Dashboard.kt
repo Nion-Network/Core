@@ -12,7 +12,6 @@ import java.sql.DriverManager
 import java.sql.Statement
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 class Dashboard(private val configuration: Configuration) {
 
@@ -63,10 +62,9 @@ class Dashboard(private val configuration: Configuration) {
      */
     fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
         try {
-            val x = DockerStatistics("suckATIT", mutableListOf(ContainerStats("9F893F82", "Titty_Fucker", Random.nextDouble(), Random.nextDouble(), 10)))
-            val stats = statistics.plus(x)
-            for (measurement in stats) {
+            for (measurement in statistics) {
                 val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
+                Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for (container in measurement.containers) {
                     val point = Point.measurement("containers").apply {
                         addField("nodeId", publicKey)

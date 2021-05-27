@@ -133,10 +133,10 @@ class UDPServer(
                         builder.addData(currentSlice, dataArray)
                         if (builder.isReady) {
                             Logger.trace("Running freshly built packet!")
-                            GlobalScope.launch { block(endPoint, builder.asOne) }
+                            coroutineAndReport { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
                         }
-                    } else GlobalScope.launch { block(endPoint, dataArray) }
+                    } else coroutineAndReport { block(endPoint, dataArray) }
 
                     val dataLength = buffer.position()
                     if (isBroadcast) {
@@ -159,6 +159,16 @@ class UDPServer(
             }
         }
     }.start()
+
+    private fun coroutineAndReport(block: () -> Unit) {
+        GlobalScope.launch {
+            try {
+                block()
+            } catch (e: Exception) {
+                dashboard.reportException(e)
+            }
+        }
+    }
 
     data class PacketBuilder(
         val messageIdentification: String,
