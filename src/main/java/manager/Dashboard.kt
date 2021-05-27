@@ -62,11 +62,12 @@ class Dashboard(private val configuration: Configuration) {
      */
     fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
         try {
-            for (measurement in statistics) {
+            for ((index,measurement) in statistics.withIndex()) {
                 val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for (container in measurement.containers) {
                     val point = Point.measurement("containers").apply {
+                        time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
                         addField("nodeId", publicKey)
                         addField("containerId", container.id)
                         addField("cpu", container.cpuUsage)
