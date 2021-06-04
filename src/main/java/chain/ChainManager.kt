@@ -429,8 +429,10 @@ class ChainManager(
 
     fun voteReceived(message: Message<BlockVote>) {
         val blockVote = message.body
+        val voteInformation = VoteInformation(message.publicKey)
         Logger.trace("Vote received!")
-        votes.getOrPut(blockVote.blockHash) { mutableListOf() }.add(VoteInformation(message.publicKey))
+
+        votes.putIfAbsent(blockVote.blockHash, mutableListOf(voteInformation))?.add(VoteInformation(message.publicKey))
     }
 
     private fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {

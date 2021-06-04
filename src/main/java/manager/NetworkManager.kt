@@ -77,20 +77,19 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         udp.startListening { endPoint, data ->
             // Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
-                NodeQuery -> data queueMessage dht::onQuery
-                NodeFound -> data queueMessage dht::onFound
-                Endpoint.VoteRequest -> data queueMessage committeeManager::voteRequest
-                SyncRequest -> data queueMessage chainManager::syncRequestReceived
+                NodeQuery -> data executeImmediately dht::onQuery
+                NodeFound -> data executeImmediately dht::onFound
+                SyncRequest -> data executeImmediately chainManager::syncRequestReceived
+                Endpoint.VoteRequest -> data executeImmediately committeeManager::voteRequest
 
                 Welcome -> data queueMessage dht::onJoin
+                NewBlock -> data queueMessage chainManager::blockReceived
+                SyncReply -> data queueMessage chainManager::syncReplyReceived
                 JoinRequest -> data queueMessage dht::joinRequest
                 VoteReceived -> data queueMessage chainManager::voteReceived
-                Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
                 RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
-
-                SyncReply -> data queueMessage chainManager::syncReplyReceived
-                NewBlock -> data queueMessage chainManager::blockReceived
+                Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
                 else -> Logger.error("Unexpected $endPoint in packet handler.")
             }
         }
