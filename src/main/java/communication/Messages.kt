@@ -13,9 +13,11 @@ data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKe
 
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
 
-data class InclusionRequest(val currentEpoch: Int, val currentSlot: Int, val nodePublicKey: String)
+data class InclusionRequest(val currentSlot: Int, val nodePublicKey: String)
 
-data class QueuedMessage<T>(val hex: String, val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block(value) })
+data class QueuedMessage<T>(val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block.invoke(value) })
+
+data class JoinedMessage(val acceptor: Node, val knownNodes: Collection<Node>)
 
 /**
  * Message with body of type T.
@@ -30,7 +32,7 @@ data class QueuedMessage<T>(val hex: String, val value: Message<T>, val block: (
  * @property asJson returns JSON of the data class.
  * @property bodyAsString returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val hex: String = DigestUtils.sha256Hex(signature)) {
+data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val uid: String = DigestUtils.sha256Hex(signature)) {
     val asJson: String get() = Utils.gson.toJson(this)
     val bodyAsString: String get() = Utils.gson.toJson(body)
 }

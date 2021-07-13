@@ -1,5 +1,4 @@
-clear
 docker build --tag node .
 clear
-docker run -i node
+docker run -i --memory="700m" node
 clear

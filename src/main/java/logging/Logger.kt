@@ -1,6 +1,8 @@
 package logging
 
 import data.DebugType
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 /**
@@ -17,6 +19,7 @@ object Logger {
 
     private var isLoggingEnabled = false
     private var currentDebug: DebugType = DebugType.ALL
+    private val timeFormatter = DateTimeFormatter.ofPattern("dd. MM | HH:mm:ss.SSS")
 
     const val red = "\u001b[31m"
     const val blue = "\u001B[34;1m"
@@ -28,13 +31,14 @@ object Logger {
     const val white = "\u001b[37m"
     const val reset = "\u001B[0m"
 
-    private const val informationString = " -------------------------------------------\n" +
-            "| ${red}Debug information$reset                         |\n" +
-            "| d = debug    e = error     c = chain      |\n" +
-            "| i = info     t = trace     x = consensus  |\n" +
-            "| ------------------------------------------|\n" +
-            "| a = ALL                                   |\n" +
-            " -------------------------------------------\n"
+    private const val informationString =
+        " -------------------------------------------\n" +
+                "| ${red}Debug information$reset                         |\n" +
+                "| d = debug    e = error     c = chain      |\n" +
+                "| i = info     t = trace     x = consensus  |\n" +
+                "| ------------------------------------------|\n" +
+                "| a = ALL                                   |\n" +
+                " -------------------------------------------\n"
 
     /**
      * Prints the given message with the coloring and debug information provided.
@@ -46,7 +50,7 @@ object Logger {
     private fun log(debugType: DebugType, message: Any, color: String = black) {
         if (!isLoggingEnabled) return
         if (currentDebug == DebugType.ALL || currentDebug == debugType) {
-            val typeString = padRight(timestamp) + padRight(debugType.name)
+            val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
             println("$color$typeString$reset$message")
         }
     }

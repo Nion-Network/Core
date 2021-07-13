@@ -1,0 +1,1 @@
+curl http://localhost:5005/run/image?image=dormage/alpinestress

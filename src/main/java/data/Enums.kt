@@ -1,9 +1,5 @@
 package data
 
-import data.NetworkRequestType.GET
-import data.NetworkRequestType.POST
-import manager.DHTManager
-
 /**
  * Created by Mihael Valentin Berčič
  * on 15/10/2020 at 14:44
@@ -16,17 +12,28 @@ enum class SlotDuty { PRODUCER, COMMITTEE, VALIDATOR }
 enum class DebugType { ALL, DEBUG, INFO, ERROR, TRACE, CHAIN, CONSENSUS }
 
 
-enum class EndPoint(val requestType: NetworkRequestType, val path: String) {
-    PING(GET, "/ping"),
-    JOIN(POST, "/join"),
-    INCLUDE(POST, "/include"),
-    QUERY(POST, "/query"),
-    FOUND(POST, "/found"),
-    JOINED(POST, "/joined"),
-    SEARCH(GET, "/search"),
-    VOTE(POST, "/vote"),
-    BLOCK(POST, "/block"),
-    SYNC_REPLY(POST, "/syncReply"),
-    SYNC_REQUEST(POST, "/syncRequest"),
-    VOTE_REQUEST(POST, "/voteRequest"),
+enum class Endpoint(val identification: Byte) {
+    Ping(0),
+    JoinRequest(1),
+    InclusionRequest(2),
+    NodeQuery(3),
+    NodeFound(4),
+    Welcome(5),
+    VoteReceived(6),
+    NewBlock(7),
+    SyncReply(8),
+    SyncRequest(9),
+    VoteRequest(10),
+    UpdateDockerStats(11),
+    RunNewImage(12),
+    RunMigratedImage(13),
+    NodeStatistics(14),
+    RepresentativeStatistics(15);
+
+
+    companion object {
+        private val cache = values().map { it.identification to it }.toMap()
+
+        fun byId(id: Byte) = cache[id]
+    }
 }

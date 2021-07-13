@@ -2,15 +2,18 @@ package utils
 
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import data.Block
 import data.Message
 import data.NetworkRequestType
 import io.javalin.http.Context
-import logging.Logger
+import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
+import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 import kotlin.concurrent.schedule
+import kotlin.random.Random
 
 /**
  * Created by Mihael Berčič
@@ -22,33 +25,55 @@ class Utils {
 
     companion object {
 
-        val gson = GsonBuilder().setPrettyPrinting().create()
+        val gson get() = GsonBuilder().create()
 
-        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> = urlRequest(type, "$url$path", message.asJson) {
-            this.addRequestProperty("hex", message.hex)
-        }
+        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
+            urlRequest(type, "$url$path", message.asJson) {
+                this.addRequestProperty("hex", message.uid)
+            }
 
-        private fun urlRequest(type: NetworkRequestType, url: String, body: String = "", customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
+        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
+            urlRequest(type, "$url$path", file) {
+                this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
+                this.addRequestProperty("name", containerName)
+                this.addRequestProperty("Content-Type", "multipart/form-data;")
+
+                println("Request property hex: ${getRequestProperty("hex")}")
+                println("Request property name: ${getRequestProperty("name")}")
+            }
+
+        private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
             try {
                 connection.requestMethod = type.name
                 connection.apply(customBlock) // Customization
-                connection.doOutput = body.isNotEmpty()
+                connection.doOutput = true
                 connection.doInput = true
-                connection.connectTimeout = 1000
+                // connection.connectTimeout = 1000
                 connection.connect()
-                if (body.isNotEmpty()) connection.outputStream.bufferedWriter().use {
-                    it.write(body)
+                connection.outputStream.use {
+                    when (body) {
+                        is String -> if (body.isNotEmpty()) it.write(body.toByteArray())
+                        is File -> {
+                            FileInputStream(body).apply {
+                                transferTo(it)
+                                close()
+                            }
+                        }
+                        else -> {
+                        }
+                    }
+                    it.flush()
                     it.close()
                 }
                 connection.disconnect()
                 return connection.responseCode to connection.responseMessage
             } catch (e: Exception) {
-                Logger.error("URL error to $url $e")
+                // Logger.error("URL error to $url $e")
             } finally {
                 connection.disconnect()
             }
-            return 0 to "FUCKTWAT"
+            return 0 to "What?"
         }
 
         /**
@@ -60,6 +85,30 @@ class Utils {
         fun readFile(path: String): String = File(path).readText()
     }
 
+}
+
+// TODO Comment
+fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
+    val len0 = lhs.length + 1
+    val len1 = rhs.length + 1
+    var cost = IntArray(len0)
+    var newCost = IntArray(len0)
+
+    for (i in 0 until len0) cost[i] = i
+    for (j in 1 until len1) {
+        newCost[0] = j
+        for (i in 1 until len0) {
+            val match = if (lhs[i - 1] == rhs[j - 1]) 0 else 1
+            val replaceCost = cost[i - 1] + match
+            val insertCost = cost[i] + 1
+            val deleteCost = newCost[i - 1] + 1
+            newCost[i] = insertCost.coerceAtMost(deleteCost).coerceAtMost(replaceCost)
+        }
+        val swap = cost
+        cost = newCost
+        newCost = swap
+    }
+    return cost[len0 - 1]
 }
 
 /**
@@ -77,3 +126,5 @@ fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.i
  * @return Message with body type of T
  */
 inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
+
+inline fun <reified T> ByteArray.asMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(String(this), TypeToken.getParameterized(Message::class.java, T::class.java).type)

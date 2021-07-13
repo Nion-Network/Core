@@ -1,9 +1,8 @@
 package utils;
+
 import logging.Logger;
+
 import javax.crypto.Cipher;
-import java.io.*;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -68,7 +67,8 @@ public class Crypto {
     }
 
     public String sign(String plainText) throws Exception {
-        Signature privateSignature = Signature.getInstance("SHA256withRSA");
+        Signature privateSignature = Signature.getInstance
+                ("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
         privateSignature.update(plainText.getBytes(UTF_8));
 

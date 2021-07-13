@@ -16,6 +16,8 @@ public class Main {
     public static void main(String[] args) {
         List<String> arguments = Arrays.asList(args);
 
+        System.setProperty("kotlinx.coroutines.scheduler", "off");
+
         int pathArgumentIndex    = arguments.indexOf("-c");
         int portArgumentIndex    = arguments.indexOf("-p");
         int loggingArgumentIndex = arguments.indexOf("-l");
@@ -27,6 +29,7 @@ public class Main {
         String configurationPath = isPathSpecified ? args[pathArgumentIndex + 1] : "./config.json";
         int    listeningPort     = isPortSpecified ? Integer.parseInt(args[portArgumentIndex + 1]) : 5000;
 
+        Logger.INSTANCE.toggleLogging(isLoggingEnabled);
         Logger.INSTANCE.debug("Starting...");
         Logger.INSTANCE.info("Path for config file specified: " + isPathSpecified);
         Logger.INSTANCE.info("Using " + listeningPort + " port.");
