@@ -2,7 +2,7 @@
 .idea/
 *.iml
 *.iws
-
+config.json
 out/
 # Mac
 .DS_Store

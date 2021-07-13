@@ -10,7 +10,7 @@ RUN apt-get install docker.io -y
 
 WORKDIR /
 
-ADD decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
+ADD build/libs/decentralized-orchestration-for-edge-computing-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
 # Copy the current directory contents into the container at /app
 COPY . /app

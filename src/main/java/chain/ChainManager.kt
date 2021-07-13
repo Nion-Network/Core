@@ -99,7 +99,6 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
         // Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
-
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
@@ -158,6 +157,11 @@ class ChainManager(
                     sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
+        } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+            val blockMessage = networkManager.generateMessage(block)
+            val nextProducer = nextTask.blockProducer
+            val producerNode = networkManager.getNode(nextProducer)
+            if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, blockMessage, TransmissionType.Unicast, producerNode)
         }
         docker.latestStatistics.containers.forEach { container ->
             container.cpuUsage = Random.nextDouble(10.0, 40.0)

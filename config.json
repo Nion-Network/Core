@@ -4,7 +4,6 @@
   "keystorePath": ".",
   "maxNodes": 10000,
   "slotDuration": 10000,
-  "maxCommitteeMembers": 32,
   "initialDifficulty": 1000,
   "maxCommittees": 64,
   "broadcastSpreadPercentage": 5,

@@ -110,6 +110,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.debug("Listening on port: $listeningPort")
     }
 
+
+    fun getNode(publicKey: String): Node? = knownNodes[publicKey].apply {
+        if (this == null) dht.searchFor(publicKey)
+    }
+
     /**
      * Sends the Join request to the trusted node and waits to be accepted into the network.
      *

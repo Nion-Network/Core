@@ -100,7 +100,7 @@ class UDPServer(
     }
 
     fun startListening(block: (endpoint: Endpoint, data: ByteArray) -> Unit) = Thread {
-        val pureArray = ByteArray(65535) // TODO add to configuration.
+        val pureArray = ByteArray(65535)
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
         while (shouldListen) {
@@ -176,15 +176,13 @@ class UDPServer(
         val arraySize: Int,
         val createdAt: Long = System.currentTimeMillis()
     ) {
-        val isReady get() = total == arraySize
 
-        private var total = 0
+        val isReady get() = data.filterNotNull().size == arraySize
+
         private val data = arrayOfNulls<ByteArray>(arraySize)
 
         fun addData(index: Int, dataToAdd: ByteArray) {
-            total++
             data[index] = dataToAdd
-            Logger.info("Added data, total now $total")
         }
 
         // Note: Use carefully!
