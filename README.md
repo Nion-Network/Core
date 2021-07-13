@@ -72,7 +72,7 @@ Note: depending on the operating system, and docker version you might need to pa
 ## Authors
 
 * **Aleksandar Tošič** - *Initial Work, Research* - [Dormage](https://github.com/Dormage)
-* **Mihael Berčič** - *Development - [Mihael Berčič](https://github.com/MihaelBercic)
+* **Mihael Berčič** - *Development - [MihaelBercic](https://github.com/MihaelBercic)
 
 ## License
 
