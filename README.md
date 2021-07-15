@@ -1,6 +1,5 @@
 # Nion Network Core
-![ProjectLogo](https://nion.network/logo.png)
-
+<img src="https://nion.network/logo.png" width ="150">
 
 ## Getting Started
 
