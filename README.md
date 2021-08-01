@@ -1,6 +1,5 @@
 # Nion Network Core
-![ProjectLogo](https://nion.network/logo.png)
-
+<img src="https://nion.network/logo.png" width ="150">
 
 ## Getting Started
 
@@ -71,7 +70,7 @@ Note: depending on the operating system, and docker version you might need to pa
 
 ## Authors
 
-* **Aleksandar Tošič** - *Initial Work, Research* - [Dormage](https://github.com/Dormage)
+* **Aleksandar Tošič** - *Initial Work, Research, Development* - [Dormage](https://github.com/Dormage)
 * **Mihael Berčič** - *Development - [MihaelBercic](https://github.com/MihaelBercic)
 
 ## License
