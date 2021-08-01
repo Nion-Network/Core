@@ -52,24 +52,17 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         precedentHash = previousBlock.hash
     )
 
-    /*
-    fun createSkipBlock(previousBlock: Block): Block {
-        val epoch = currentState.epoch
-        val slot = currentState.slot
-        val precedentHash = previousBlock.hash
-        return Block(
-            epoch, slot, configuration.initialDifficulty,
-            timestamp = previousBlock.timestamp + configuration.slotDuration,
-            committeeIndex = currentState.committeeIndex,
-            blockProducer = "SkipBlock",
-            validatorChanges = currentState.inclusionChanges.toMap(),
-            precedentHash = precedentHash,
-            hash = DigestUtils.sha256Hex("$epoch-SKIP-$slot$precedentHash")
-        )
 
-    }
-
-     */
+    fun createSkipBlock(previousBlock: Block): Block = Block(
+        slot = previousBlock.slot + 1,
+        difficulty = configuration.initialDifficulty,
+        timestamp = previousBlock.timestamp + configuration.slotDuration,
+        committeeIndex = previousBlock.committeeIndex,
+        blockProducer = "SKIP_BLOCK",
+        validatorChanges = inclusionChanges.toMap(),
+        precedentHash = previousBlock.hash,
+        hash = DigestUtils.sha256Hex("${previousBlock.slot}-SKIP-${previousBlock.precedentHash}")
+    )
 
     fun validatorChange(publicKey: String, isAdded: Boolean) {
         if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)

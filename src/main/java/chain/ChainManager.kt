@@ -170,7 +170,7 @@ class ChainManager(
 
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
-                    val skipBlock = blockProducer.createBlock(block, "SKIP_BLOCK${block.hash}", blockSlot + 1)
+                    val skipBlock = blockProducer.createSkipBlock(block)
                     val broadcastMessage = networkManager.generateMessage(skipBlock)
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
