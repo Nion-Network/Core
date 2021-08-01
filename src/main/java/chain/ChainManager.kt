@@ -11,6 +11,7 @@ import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -99,7 +100,11 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
         // Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
+        scheduledCommitteeFuture?.cancel(true)
+
         if (nextTask.myTask == SlotDuty.PRODUCER) {
+            if (blockSlot % 10 == 0) return // TODO Remove. It is for demonstration purposes only.
+
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
@@ -162,6 +167,16 @@ class ChainManager(
             val nextProducer = nextTask.blockProducer
             val producerNode = networkManager.getNode(nextProducer)
             if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, blockMessage, TransmissionType.Unicast, producerNode)
+
+            scheduledCommitteeFuture = committeeExecutor.schedule({
+                networkManager.apply {
+                    val skipBlock = blockProducer.createBlock(block, "SKIP_BLOCK${block.hash}", blockSlot + 1)
+                    val broadcastMessage = networkManager.generateMessage(skipBlock)
+                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+                }
+            }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
         }
         docker.latestStatistics.containers.forEach { container ->
             container.cpuUsage = Random.nextDouble(10.0, 40.0)
