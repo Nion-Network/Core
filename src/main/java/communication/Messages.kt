@@ -44,7 +44,7 @@ class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
 @Serializable
 data class Message<T>(
     val publicKey: String,
-    val signature: String,
+    val signature: ByteArray,
     val body: T,
     val timeStamp: Long = System.currentTimeMillis(),
     val uid: String = DigestUtils.sha256Hex(signature)

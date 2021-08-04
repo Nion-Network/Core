@@ -9,7 +9,10 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.serialization.*
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
@@ -28,7 +31,6 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-@ExperimentalSerializationApi
 class NetworkManager(configurationPath: String, private val listeningPort: Int) {
 
     var isInNetwork = false
@@ -208,7 +210,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     inline fun <reified T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
         val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
         val encodedJson = Json.encodeToString(message).encodeToByteArray()
-
         dashboard.logMessageSize(encoded.size, encodedJson.size)
 
         val id = message.uid
@@ -231,8 +232,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-    @ExperimentalSerializationApi
-    inline fun <reified T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToHexString(data)), data)
+
+    inline fun <reified T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)), data)
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

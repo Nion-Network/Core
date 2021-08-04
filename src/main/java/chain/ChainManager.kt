@@ -163,13 +163,12 @@ class ChainManager(
                     sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
-        }
-        else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+        } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val blockMessage = networkManager.generateMessage(block)
             val nextProducer = nextTask.blockProducer
             val producerNode = networkManager.getNode(nextProducer)
             if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, blockMessage, TransmissionType.Unicast, producerNode)
-            
+
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
                     val skipBlock = blockProducer.createSkipBlock(block)
@@ -406,7 +405,7 @@ class ChainManager(
      */
     fun syncRequestReceived(message: Message<Int>) {
         val node = networkManager.knownNodes[message.publicKey] ?: return
-        val blocks = chain.drop(message.body).take(50)
+        val blocks = chain.drop(message.body).take(1000)
         val responseBlocksMessageBody = networkManager.generateMessage(blocks)
         networkManager.sendUDP(Endpoint.SyncReply, responseBlocksMessageBody, TransmissionType.Unicast, node)
         Logger.debug("Sent back ${blocks.size} blocks!")

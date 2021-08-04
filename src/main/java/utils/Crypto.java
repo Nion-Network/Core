@@ -66,15 +66,15 @@ public class Crypto {
         return new String(decriptCipher.doFinal(bytes), UTF_8);
     }
 
-    public String sign(String plainText) throws Exception {
+    public byte[] sign(byte[] plainText) throws Exception {
         Signature privateSignature = Signature.getInstance
                 ("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
-        privateSignature.update(plainText.getBytes(UTF_8));
+        privateSignature.update(plainText);
 
         byte[] signature = privateSignature.sign();
-
-        return Base64.getEncoder().encodeToString(signature);
+        return signature;
+        // return Base64.getEncoder().encodeToString(signature);
     }
 
     public boolean verify(String plainText, String signature, String publicKey) throws Exception {
