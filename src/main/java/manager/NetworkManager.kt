@@ -9,6 +9,12 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.encodeToHexString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
 import utils.Crypto
 import utils.Utils
@@ -31,7 +37,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
+    val configuration: Configuration = Json.decodeFromString(Utils.readFile(configurationPath))
     val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
 
@@ -221,7 +227,13 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-    fun <T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
+    @ExperimentalSerializationApi
+    inline fun <reified T> generateMessage(data: T): Message<T> {
+        return Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToHexString(data)), data).apply {
+            encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(this)
+            encodedBody = ProtoBuf { encodeDefaults = true }.encodeToHexString(data)
+        }
+    }
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

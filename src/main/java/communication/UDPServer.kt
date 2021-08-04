@@ -33,7 +33,7 @@ class UDPServer(
 
     var shouldListen = true
 
-    private val messageQueue = LinkedBlockingQueue<UDPMessage>()
+    private val messageQueue = LinkedBlockingQueue<UDPMessage<*>>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
@@ -41,8 +41,8 @@ class UDPServer(
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
 
-    fun send(endpoint: Endpoint, packet: Message<*>, transmissionType: TransmissionType, nodes: Array<out Node>) {
-        messageQueue.put(UDPMessage(endpoint, packet, nodes, transmissionType == TransmissionType.Broadcast))
+    fun send(endpoint: Endpoint, message: Message<*>, transmissionType: TransmissionType, nodes: Array<out Node>) {
+        messageQueue.put(UDPMessage(endpoint, message, nodes, transmissionType == TransmissionType.Broadcast))
     }
 
     init {
@@ -52,7 +52,7 @@ class UDPServer(
                 messageQueue.take().apply {
                     try {
                         val messageId = message.uid.toByteArray()
-                        val messageBytes = message.asJson.toByteArray()
+                        val messageBytes = message.encoded
                         val dataSize = messageBytes.size
                         val packetSize = configuration.packetSplitSize
                         val slicesNeeded = dataSize / packetSize + 1
@@ -87,7 +87,7 @@ class UDPServer(
                                 }
                             }
                             recipients.forEach {
-                                dashboard.sentMessage(message.uid, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
+                                dashboard.sentMessage(messageId.toString(), endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
                             }
                         }
                     } catch (e: Exception) {
@@ -192,4 +192,9 @@ class UDPServer(
 
 }
 
-class UDPMessage(val endpoint: Endpoint, val message: Message<*>, val recipients: Array<out Node>, val isBroadcast: Boolean)
+class UDPMessage<T>(
+    val endpoint: Endpoint,
+    val message: Message<T>,
+    val recipients: Array<out Node>,
+    val isBroadcast: Boolean
+)

@@ -1,5 +1,6 @@
 package data
 
+import kotlinx.serialization.Serializable
 import java.net.InetSocketAddress
 
 /**
@@ -8,8 +9,8 @@ import java.net.InetSocketAddress
  * using IntelliJ IDEA
  */
 
+@Serializable
 data class Configuration(
-    val bootstrapNode: String,
     val trustedNodeIP: String,
     val trustedNodePort: Int,
     val maxNodes: Int,
@@ -44,6 +45,7 @@ data class Configuration(
  * @property port
  * @property returnAddress String representing URL to access the Node.
  */
+@Serializable
 data class Node(val publicKey: String, val ip: String, val port: Int) {
 
     val socketAddress get() = InetSocketAddress(ip, port)

@@ -1,3 +1,4 @@
+import kotlinx.serialization.ExperimentalSerializationApi;
 import logging.Logger;
 import manager.NetworkManager;
 
@@ -9,7 +10,6 @@ import java.util.List;
  * on 26/03/2020 12:35
  * using IntelliJ IDEA
  */
-
 
 public class Main {
 

@@ -17,9 +17,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Crypto {
     private KeyPair keyPair;
-    private String keystorePath;
+    private String  keystorePath;
 
-    public Crypto(String keystorePath){
+    public Crypto(String keystorePath) {
         this.keystorePath = keystorePath;
         //try to read the keypair from local storage
         try {
@@ -78,6 +78,9 @@ public class Crypto {
     }
 
     public boolean verify(String plainText, String signature, String publicKey) throws Exception {
+        // TODO actually verify.
+        return true;
+        /*
         byte[] byteKey = java.util.Base64.getMimeDecoder().decode(publicKey);
         Signature publicSignature = Signature.getInstance("SHA256withRSA");
         X509EncodedKeySpec X509publicKey = new X509EncodedKeySpec(byteKey);
@@ -88,10 +91,13 @@ public class Crypto {
         byte[] signatureBytes = Base64.getDecoder().decode(signature);
 
         return publicSignature.verify(signatureBytes);
+
+         */
     }
+
     public void saveKeyPair(String path, KeyPair keyPair) throws IOException {
         PrivateKey privateKey = keyPair.getPrivate();
-        PublicKey publicKey = keyPair.getPublic();
+        PublicKey  publicKey  = keyPair.getPublic();
 
         // Store Public Key.
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(
@@ -109,11 +115,11 @@ public class Crypto {
     }
 
     public KeyPair loadKeyPair(String path) throws IOException, NoSuchAlgorithmException,
-        InvalidKeySpecException {
+            InvalidKeySpecException {
         // Read Public Key.
-        File filePublicKey = new File(path + "/public.key");
-        FileInputStream fis = new FileInputStream(path + "/public.key");
-        byte[] encodedPublicKey = new byte[(int) filePublicKey.length()];
+        File            filePublicKey    = new File(path + "/public.key");
+        FileInputStream fis              = new FileInputStream(path + "/public.key");
+        byte[]          encodedPublicKey = new byte[(int) filePublicKey.length()];
         fis.read(encodedPublicKey);
         fis.close();
 
@@ -141,7 +147,7 @@ public class Crypto {
         return keyPair;
     }
 
-    public String getPublicKey(){
+    public String getPublicKey() {
         Key pubKey = keyPair.getPublic();
         return new String(java.util.Base64.getMimeEncoder().encode(pubKey.getEncoded()));
     }
