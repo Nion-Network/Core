@@ -24,13 +24,12 @@ class CommitteeManager(
         val producer = voteRequest.producer
 
         val blockVote = BlockVote(block.hash, crypto.sign(block.hash.encodeToByteArray()).toString(), VoteType.FOR)
-        val messageToSend = networkManager.generateMessage(blockVote)
 
         dashboard.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        else networkManager.sendUDP(Endpoint.VoteReceived, messageToSend, TransmissionType.Unicast, producer)
+        else networkManager.sendUDP(Endpoint.VoteReceived, blockVote, TransmissionType.Unicast, producer)
     }
 
 }

@@ -9,7 +9,6 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
@@ -128,9 +127,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private fun joinTheNetwork() {
         Logger.info("Sending join request to our trusted node...")
 
-        val joinRequestMessage = generateMessage(ourNode)
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(JoinRequest, joinRequestMessage, TransmissionType.Unicast, trustedNode)
+        sendUDP(JoinRequest, ourNode, TransmissionType.Broadcast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
@@ -207,7 +205,8 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
-    inline fun <reified T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg nodes: Node) {
+        val message = generateMessage(data)
         val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
         val encodedJson = Json.encodeToString(message).encodeToByteArray()
         dashboard.logMessageSize(encoded.size, encodedJson.size)
@@ -233,7 +232,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
 
-    inline fun <reified T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)), data)
+    inline fun <reified T> generateMessage(data: T): Message<T> = Message(
+        crypto.publicKey,
+        crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)),
+        data
+    )
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

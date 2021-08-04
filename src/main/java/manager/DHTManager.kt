@@ -14,8 +14,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     infix fun searchFor(forPublicKey: String) {
         networkManager.apply {
             if (knownNodes.containsKey(forPublicKey)) return
-            val message = generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
-            sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
+            sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
         }
     }
 
@@ -43,8 +42,7 @@ class DHTManager(private val networkManager: NetworkManager) {
         networkManager.apply {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             knownNodes[lookingFor]?.apply {
-                val foundMessage = generateMessage(FoundMessage(ip, port, publicKey))
-                sendUDP(Endpoint.NodeFound, foundMessage, TransmissionType.Unicast, body.node)
+                sendUDP(Endpoint.NodeFound, FoundMessage(ip, port, publicKey), TransmissionType.Unicast, body.node)
             } ?: sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
         }
     }
@@ -59,11 +57,11 @@ class DHTManager(private val networkManager: NetworkManager) {
             val node = message.body
             Logger.debug("Received join request from ${Logger.cyan}${node.ip}${Logger.reset}")
             if (!isFull) node.apply {
-                val nodesToShare = knownNodes.values.toTypedArray()
+                val toTake = configuration.broadcastSpreadPercentage * knownNodes.values.size / 100
+                val nodesToShare = knownNodes.values.shuffled().take(toTake).toTypedArray()
                 val joinedMessage = JoinedMessage(ourNode, nodesToShare)
                 knownNodes.computeIfAbsent(publicKey) { this }
-                sendUDP(Endpoint.Welcome, generateMessage(joinedMessage), TransmissionType.Unicast, this)
-                Logger.debug("Sent successful join back to ${node.ip}")
+                sendUDP(Endpoint.Welcome, joinedMessage, TransmissionType.Unicast, this)
             } else sendUDP(Endpoint.JoinRequest, message, TransmissionType.Unicast)
         }
 
@@ -87,10 +85,7 @@ class DHTManager(private val networkManager: NetworkManager) {
                 Logger.debug("We've been accepted into network by ${acceptor.ip}")
 
                 joinedMessage.knownNodes.forEach { newNode ->
-                    knownNodes.computeIfAbsent(newNode.publicKey) {
-                        sendUDP(Endpoint.JoinRequest, generateMessage(ourNode), TransmissionType.Unicast, newNode)
-                        newNode
-                    }
+                    knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
                     Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
                 }
                 // networkManager.broadcast(EndPoint.Join, generateMessage(ourNode), false)

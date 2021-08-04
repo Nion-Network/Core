@@ -61,9 +61,8 @@ class InformationManager(private val networkManager: NetworkManager) {
 
         if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
-            val message = networkManager.generateMessage(latestNetworkStatistics.toList())
             val node = knownNodes[task.blockProducer] ?: return@runAfter
-            networkManager.sendUDP(Endpoint.RepresentativeStatistics, message, TransmissionType.Unicast, node)
+            networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, node)
             Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
@@ -84,9 +83,8 @@ class InformationManager(private val networkManager: NetworkManager) {
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
         val latestStatistics = dockerManager.latestStatistics
-        val message = networkManager.generateMessage(latestStatistics)
         Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
-        networkManager.sendUDP(Endpoint.NodeStatistics, message, TransmissionType.Unicast, node)
+        networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
     }
 
 }

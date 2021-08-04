@@ -111,18 +111,16 @@ class ChainManager(
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
             runAfter(configuration.slotDuration * 1 / 3) {
-                val message = networkManager.generateMessage(voteRequest)
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.VoteRequest, message, TransmissionType.Unicast, *committeeNodes)
+                    sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
                 }
             }
 
             runAfter(configuration.slotDuration * 2 / 3) {
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
-                val broadcastMessage = networkManager.generateMessage(newBlock)
                 networkManager.apply {
                     val latestStatistics = informationManager.latestNetworkStatistics
                     Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
@@ -159,22 +157,20 @@ class ChainManager(
                     dashboard.reportStatistics(latestStatistics, blockSlot)
 
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
-                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+                    sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
+                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
-            val blockMessage = networkManager.generateMessage(block)
             val nextProducer = nextTask.blockProducer
             val producerNode = networkManager.getNode(nextProducer)
-            if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, blockMessage, TransmissionType.Unicast, producerNode)
+            if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, producerNode)
 
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
                     val skipBlock = blockProducer.createSkipBlock(block)
-                    val broadcastMessage = networkManager.generateMessage(skipBlock)
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    // sendUDP(Endpoint.NewBlock, skipBlock, TransmissionType.Broadcast, *committeeNodes)
                     // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
@@ -183,16 +179,6 @@ class ChainManager(
             container.cpuUsage = Random.nextDouble(10.0, 40.0)
         }
         informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
-    }
-
-    private fun sendBlockRequest(block: Block) {
-        runAfter(configuration.slotDuration * 2) {
-            val lastBlock = chain.lastOrNull()
-            if (lastBlock?.slot == block.slot) {
-                requestSync()
-                sendBlockRequest(block)
-            }
-        }
     }
 
     /*
@@ -392,10 +378,9 @@ class ChainManager(
     private fun requestSync() {
         networkManager.clearMessageQueue()
         val from = chain.lastOrNull()?.slot ?: 0
-        val message = networkManager.generateMessage(from)
         Logger.info("Requesting new blocks from $from")
         val trusted = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        networkManager.sendUDP(Endpoint.SyncRequest, message, TransmissionType.Unicast, trusted)
+        networkManager.sendUDP(Endpoint.SyncRequest, from, TransmissionType.Unicast, trusted)
     }
 
     /**
@@ -406,8 +391,9 @@ class ChainManager(
     fun syncRequestReceived(message: Message<Int>) {
         val node = networkManager.knownNodes[message.publicKey] ?: return
         val blocks = chain.drop(message.body).take(1000)
-        val responseBlocksMessageBody = networkManager.generateMessage(blocks)
-        networkManager.sendUDP(Endpoint.SyncReply, responseBlocksMessageBody, TransmissionType.Unicast, node)
+        if (blocks.isEmpty()) return
+
+        networkManager.sendUDP(Endpoint.SyncReply, blocks, TransmissionType.Unicast, node)
         Logger.debug("Sent back ${blocks.size} blocks!")
     }
 
@@ -474,7 +460,7 @@ class ChainManager(
         val publicKey = message.publicKey
         val inclusionRequest = message.body
         val canBeIncluded = canBeIncluded(inclusionRequest)
-        Logger.error("Inclusion request received: ${inclusionRequest.currentSlot} and can be included: ${Logger.yellow} $canBeIncluded${Logger.reset}")
+        Logger.trace("Inclusion request received[${inclusionRequest.currentSlot}] and can be included: ${Logger.green} $canBeIncluded${Logger.reset}")
         if (!canBeIncluded) return
 
         blockProducer.inclusionChanges[publicKey] = true
@@ -489,7 +475,7 @@ class ChainManager(
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            networkManager.sendUDP(Endpoint.NewBlock, networkManager.generateMessage(block), TransmissionType.Broadcast)
+            networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Broadcast)
         }
     }
 
@@ -498,13 +484,12 @@ class ChainManager(
             val slot = chain.lastOrNull()?.slot ?: 0
             val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
             Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
-            val message = generateMessage(inclusionRequest)
             if (askTrusted) {
                 val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-                sendUDP(Endpoint.InclusionRequest, message, TransmissionType.Unicast, trustedNode)
+                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast, trustedNode)
             } else {
                 val randomNodes = knownNodes.values.shuffled().take(3).toTypedArray()
-                sendUDP(Endpoint.InclusionRequest, message, TransmissionType.Unicast, *randomNodes)
+                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast, *randomNodes)
             }
         }
     }
