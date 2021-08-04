@@ -48,12 +48,4 @@ data class Message<T>(
     val body: T,
     val timeStamp: Long = System.currentTimeMillis(),
     val uid: String = DigestUtils.sha256Hex(signature)
-) {
-
-    @Transient
-    var encoded: ByteArray = byteArrayOf()
-
-    @Transient
-    var encodedBody: String = "SEX"
-
-}
+)

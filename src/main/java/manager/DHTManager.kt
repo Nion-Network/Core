@@ -76,7 +76,7 @@ class DHTManager(private val networkManager: NetworkManager) {
      */
     fun onJoin(message: Message<JoinedMessage>) {
         networkManager.apply {
-            val confirmed: Boolean = crypto.verify(message.encodedBody, message.signature, message.publicKey)
+            val confirmed: Boolean = crypto.verify(message.body.toString(), message.signature, message.publicKey)
             if (confirmed) {
                 val joinedMessage = message.body
                 val acceptor: Node = joinedMessage.acceptor

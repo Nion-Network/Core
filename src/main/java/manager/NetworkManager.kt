@@ -9,10 +9,7 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.encodeToHexString
+import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
@@ -31,6 +28,7 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 class NetworkManager(configurationPath: String, private val listeningPort: Int) {
 
     var isInNetwork = false
@@ -56,7 +54,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
-    private val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
+    val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
@@ -207,13 +205,19 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
-    fun <T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+    inline fun <reified T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+        val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
+        val encodedJson = Json.encodeToString(message).encodeToByteArray()
+
+        dashboard.logMessageSize(encoded.size, encodedJson.size)
+
+        val id = message.uid
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
             val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
-            udp.send(endpoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
-        } else udp.send(endpoint, message, transmissionType, nodes)
+            udp.send(endpoint, id, encoded, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
+        } else udp.send(endpoint, id, encoded, transmissionType, nodes)
     }
 
     fun clearMessageQueue() {
@@ -228,12 +232,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
     @ExperimentalSerializationApi
-    inline fun <reified T> generateMessage(data: T): Message<T> {
-        return Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToHexString(data)), data).apply {
-            encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(this)
-            encodedBody = ProtoBuf { encodeDefaults = true }.encodeToHexString(data)
-        }
-    }
+    inline fun <reified T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToHexString(data)), data)
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

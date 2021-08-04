@@ -2,7 +2,6 @@ package communication
 
 import data.Configuration
 import data.Endpoint
-import data.Message
 import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -33,7 +32,7 @@ class UDPServer(
 
     var shouldListen = true
 
-    private val messageQueue = LinkedBlockingQueue<UDPMessage<*>>()
+    private val messageQueue = LinkedBlockingQueue<UDPMessage>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
@@ -41,8 +40,8 @@ class UDPServer(
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
 
-    fun send(endpoint: Endpoint, message: Message<*>, transmissionType: TransmissionType, nodes: Array<out Node>) {
-        messageQueue.put(UDPMessage(endpoint, message, nodes, transmissionType == TransmissionType.Broadcast))
+    fun send(endpoint: Endpoint, messageId: String, messageData: ByteArray, transmissionType: TransmissionType, nodes: Array<out Node>) {
+        messageQueue.put(UDPMessage(endpoint, messageId, messageData, nodes, transmissionType == TransmissionType.Broadcast))
     }
 
     init {
@@ -51,9 +50,7 @@ class UDPServer(
             while (shouldListen) {
                 messageQueue.take().apply {
                     try {
-                        val messageId = message.uid.toByteArray()
-                        val messageBytes = message.encoded
-                        val dataSize = messageBytes.size
+                        val dataSize = messageData.size
                         val packetSize = configuration.packetSplitSize
                         val slicesNeeded = dataSize / packetSize + 1
                         var totalDelay: Long = 0
@@ -63,14 +60,14 @@ class UDPServer(
                                 clear()
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
-                                val data = messageBytes.sliceArray((from until to))
+                                val data = messageData.sliceArray((from until to))
                                 val packetId = DigestUtils.sha256Hex(data).toByteArray()
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
                                 put(packetId)
                                 put(broadcastByte)
                                 put(endpoint.identification)
-                                put(messageId)
+                                put(messageId.toByteArray())
                                 put(slicesNeeded.toByte())
                                 put(slicePosition.toByte())
                                 putInt(data.size)
@@ -192,9 +189,10 @@ class UDPServer(
 
 }
 
-class UDPMessage<T>(
+class UDPMessage(
     val endpoint: Endpoint,
-    val message: Message<T>,
+    val messageId: String,
+    val messageData: ByteArray,
     val recipients: Array<out Node>,
     val isBroadcast: Boolean
 )

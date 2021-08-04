@@ -62,7 +62,7 @@ class Dashboard(private val configuration: Configuration) {
      */
     fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
         try {
-            for ((index,measurement) in statistics.withIndex()) {
+            for ((index, measurement) in statistics.withIndex()) {
                 val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for (container in measurement.containers) {
@@ -159,6 +159,14 @@ class Dashboard(private val configuration: Configuration) {
             .addField("target", DigestUtils.sha256Hex(receiver))
             .addField("size", messageSize)
             .addField("delay", delay)
+            .build()
+        queue.add(point)
+    }
+
+    fun logMessageSize(protoBuf: Int, json: Int) {
+        val point = Point.measurement("message_size")
+            .addField("json", json)
+            .addField("protobuf", protoBuf)
             .build()
         queue.add(point)
     }

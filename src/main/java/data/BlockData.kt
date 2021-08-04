@@ -1,6 +1,7 @@
 package data
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.apache.commons.codec.digest.DigestUtils
 import java.math.BigInteger
 
