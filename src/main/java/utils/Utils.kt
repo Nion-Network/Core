@@ -2,10 +2,9 @@ package utils
 
 import com.google.gson.GsonBuilder
 import data.Block
-import data.Message
+import communication.Message
 import data.NetworkRequestType
 import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.decodeFromHexString
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File

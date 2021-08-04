@@ -1,13 +1,24 @@
 package data
 
 import kotlinx.serialization.Serializable
-import java.net.InetSocketAddress
 
 /**
  * Created by Mihael Valentin Berčič
  * on 27/03/2020 at 12:11
  * using IntelliJ IDEA
  */
+
+
+/**
+ * Stores information of some Node in the network.
+ *
+ * @property publicKey
+ * @property ip
+ * @property port
+ * @property returnAddress String representing URL to access the Node.
+ */
+@Serializable
+data class Node(val publicKey: String, val ip: String, val port: Int)
 
 @Serializable
 data class Configuration(
@@ -36,18 +47,3 @@ data class Configuration(
     val packetSplitSize: Int,
     val useCriu: Boolean
 )
-
-/**
- * Stores information of some Node in the network.
- *
- * @property publicKey
- * @property ip
- * @property port
- * @property returnAddress String representing URL to access the Node.
- */
-@Serializable
-data class Node(val publicKey: String, val ip: String, val port: Int) {
-
-    val socketAddress get() = InetSocketAddress(ip, port)
-
-}

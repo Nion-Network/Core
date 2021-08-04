@@ -1,5 +1,6 @@
 package manager
 
+import communication.Message
 import communication.TransmissionType
 import data.*
 import logging.Logger

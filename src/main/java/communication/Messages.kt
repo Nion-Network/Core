@@ -1,5 +1,6 @@
-package data
+package communication
 
+import data.Node
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.apache.commons.codec.digest.DigestUtils
@@ -14,6 +15,9 @@ data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKe
 
 @Serializable
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
+
+@Serializable
+data class SyncRequest(val node: Node, val fromBlock: Int)
 
 @Serializable
 data class InclusionRequest(val currentSlot: Int, val nodePublicKey: String)
@@ -42,7 +46,7 @@ class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
  * @property encodedBody returns @body as JSON.
  */
 @Serializable
-data class Message<T>(
+class Message<T>(
     val publicKey: String,
     val signature: ByteArray,
     val body: T,

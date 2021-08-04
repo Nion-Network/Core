@@ -44,4 +44,4 @@ data class ContainerStats(
 )
 
 @Serializable
-data class Migration(val fromNode: String, val toNode: String, val containerName: String)
+data class Migration(val from: String, val to: String, val containerName: String)

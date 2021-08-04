@@ -74,7 +74,7 @@ class UDPServer(
                                 put(data)
                                 val packet = DatagramPacket(array(), 0, position())
                                 recipients.forEach {
-                                    packet.socketAddress = it.socketAddress
+                                    packet.socketAddress = InetSocketAddress(it.ip, it.port)
                                     sendingSocket.send(packet)
                                     if (isBroadcast) {
                                         val randomDelay = Random.nextLong(20, 100)

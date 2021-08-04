@@ -1,6 +1,6 @@
 package manager
 
-import communication.TransmissionType
+import communication.*
 import data.*
 import logging.Logger
 
@@ -11,9 +11,20 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
-    infix fun searchFor(forPublicKey: String) {
+    private val queue = mutableMapOf<String, () -> Unit>()
+
+    private fun executeOnFound(publicKey: String) {
+        queue.remove(publicKey)?.invoke()
+    }
+
+
+    fun searchFor(forPublicKey: String, onFound: () -> Unit = {}) {
         networkManager.apply {
-            if (knownNodes.containsKey(forPublicKey)) return
+            queue[forPublicKey] = onFound
+            if (knownNodes.containsKey(forPublicKey)) {
+                executeOnFound(forPublicKey)
+                return
+            }
             sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
         }
     }
@@ -27,6 +38,7 @@ class DHTManager(private val networkManager: NetworkManager) {
         val body = message.body
         val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
         networkManager.knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
+        executeOnFound(newNode.publicKey)
     }
 
     /**

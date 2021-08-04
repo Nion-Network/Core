@@ -1,5 +1,8 @@
 package chain
 
+import communication.InclusionRequest
+import communication.Message
+import communication.SyncRequest
 import communication.TransmissionType
 import data.*
 import logging.Logger
@@ -57,8 +60,12 @@ class ChainManager(
         val currentSlot = chain.lastOrNull()?.slot ?: 0
 
         Logger.info("New block came [$blockSlot][$currentSlot] from ${block.blockProducer}")
+        if (blockSlot <= currentSlot) {
+            Logger.error("Ignoring old block...")
+            return
+        }
 
-        if (blockSlot != currentSlot + 1 && !isFromSync) {
+        if (blockSlot > currentSlot + 1 && !isFromSync) {
             requestSync()
             return
         }
@@ -80,17 +87,18 @@ class ChainManager(
         val myMigration = block.migrations[crypto.publicKey]
         if (!isFromSync && myMigration != null) {
             val toSend = myMigration.containerName
-            val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
-            val savedImage = docker.saveImage(toSend)
-            val receiver = networkManager.knownNodes[myMigration.toNode] ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
+            dht.searchFor(myMigration.to) {
+                val savedImage = docker.saveImage(toSend)
+                val receiver = networkManager.knownNodes[myMigration.to] ?: throw Exception("Not able to find ${myMigration.to}")
 
-            Logger.info("We have to send container $toSend to ${receiver.ip}")
-            val startOfMigration = System.currentTimeMillis();
-            Utils.sendFileTo("http://${receiver.ip}:5005", "/run/migration/image", savedImage, toSend)
-            val migrationDuration = System.currentTimeMillis() - startOfMigration;
-            dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, blockSlot)
-            savedImage.delete()
-            docker.ourContainers.remove(toSend)
+                Logger.info("We have to send container $toSend to ${receiver.ip}")
+                val startOfMigration = System.currentTimeMillis();
+                Utils.sendFileTo("http://${receiver.ip}:5005", "/run/migration/image", savedImage, toSend)
+                val migrationDuration = System.currentTimeMillis() - startOfMigration;
+                dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, blockSlot)
+                savedImage.delete()
+                docker.ourContainers.remove(toSend)
+            }
         }
 
         if (!isIncluded) requestInclusion()
@@ -163,8 +171,10 @@ class ChainManager(
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val nextProducer = nextTask.blockProducer
-            val producerNode = networkManager.getNode(nextProducer)
-            if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, producerNode)
+            dht.searchFor(nextProducer) {
+                val producerNode = networkManager.getNode(nextProducer)!!
+                networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, producerNode)
+            }
 
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
@@ -231,9 +241,9 @@ class ChainManager(
         val myMigration = block.migrations[crypto.publicKey]
         if (!isFromSync && myMigration != null) {
             val toSend = myMigration.containerName
-            val receiverNodePublicKey = myMigration.toNode.apply { dht.searchFor(this) }
+            val receiverNodePublicKey = myMigration.to.apply { dht.searchFor(this) }
             val savedImage = dockerManager.saveImage(toSend)
-            val receiver = knownNodes[myMigration.toNode] ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
+            val receiver = knownNodes[myMigration.to] ?: throw Exception("Not able to find ${receiverNodePublicKey.take(16)}")
 
             Logger.info("We have to send container $toSend to ${receiver.ip}")
             val startOfMigration = System.currentTimeMillis();
@@ -378,9 +388,10 @@ class ChainManager(
     private fun requestSync() {
         networkManager.clearMessageQueue()
         val from = chain.lastOrNull()?.slot ?: 0
+        val syncRequest = SyncRequest(networkManager.ourNode, from)
         Logger.info("Requesting new blocks from $from")
         val trusted = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        networkManager.sendUDP(Endpoint.SyncRequest, from, TransmissionType.Unicast, trusted)
+        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, trusted)
     }
 
     /**
@@ -388,12 +399,15 @@ class ChainManager(
      *
      * @param body Web request body.
      */
-    fun syncRequestReceived(message: Message<Int>) {
-        val node = networkManager.knownNodes[message.publicKey] ?: return
-        val blocks = chain.drop(message.body).take(1000)
+    fun syncRequestReceived(message: Message<SyncRequest>) {
+        val syncRequest = message.body
+        val requestingNode = syncRequest.node
+        networkManager.knownNodes.computeIfAbsent(requestingNode.publicKey) { requestingNode }
+
+        val blocks = chain.drop(syncRequest.fromBlock).take(1000)
         if (blocks.isEmpty()) return
 
-        networkManager.sendUDP(Endpoint.SyncReply, blocks, TransmissionType.Unicast, node)
+        networkManager.sendUDP(Endpoint.SyncReply, blocks, TransmissionType.Unicast, requestingNode)
         Logger.debug("Sent back ${blocks.size} blocks!")
     }
 
