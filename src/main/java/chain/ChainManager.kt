@@ -33,8 +33,8 @@ class ChainManager(
     private val informationManager: InformationManager,
     private val blockProducer: BlockProducer
 ) {
-    val isChainEmpty: Boolean get() = chain.isEmpty()
 
+    val isChainEmpty: Boolean get() = chain.isEmpty()
 
     private val minValidatorsCount = configuration.validatorsCount
 
@@ -103,7 +103,8 @@ class ChainManager(
         scheduledCommitteeFuture?.cancel(true)
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
-            if (blockSlot % 10 == 0) return // TODO Remove. It is for demonstration purposes only.
+
+            // if (blockSlot % 10 == 0) return // TODO Remove. It is for demonstration purposes only.
 
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
@@ -162,19 +163,20 @@ class ChainManager(
                     sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }
-        } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+        }
+        else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val blockMessage = networkManager.generateMessage(block)
             val nextProducer = nextTask.blockProducer
             val producerNode = networkManager.getNode(nextProducer)
             if (producerNode != null) networkManager.sendUDP(Endpoint.NewBlock, blockMessage, TransmissionType.Unicast, producerNode)
-
+            
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
                     val skipBlock = blockProducer.createSkipBlock(block)
                     val broadcastMessage = networkManager.generateMessage(skipBlock)
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
-                    sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast, *committeeNodes)
+                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
                 }
             }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
         }
