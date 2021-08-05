@@ -11,7 +11,7 @@ import org.apache.commons.codec.digest.DigestUtils
  * using IntelliJ IDEA
  */
 @Serializable
-data class QueryMessage(val node: Node, val searchingPublicKey: String)
+data class QueryMessage(val seekingNode: Node, val searchingPublicKey: String)
 
 @Serializable
 data class SyncRequest(val node: Node, val fromBlock: Int)

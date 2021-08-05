@@ -41,7 +41,7 @@ class DHTManager(private val networkManager: NetworkManager) {
     }
 
     /**
-     * On query request checks if we have the node cached. If we do, we send back FoundMessageBody...
+     * On query request checks if we have the node cached. If we do, we send back [Node]...
      *
      * @param context HTTP Context
      */
@@ -49,11 +49,11 @@ class DHTManager(private val networkManager: NetworkManager) {
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
         Logger.info("Received DHT query for ${lookingFor.subSequence(30, 50)}")
-        val comingFrom = body.node
+        val comingFrom = body.seekingNode
         networkManager.apply {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
-            if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.node)
+            if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
             else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast)
         }
     }
