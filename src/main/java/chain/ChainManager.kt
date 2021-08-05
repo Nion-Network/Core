@@ -11,10 +11,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
 import utils.runAfter
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledFuture
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -37,6 +34,20 @@ class ChainManager(
     private val blockProducer: BlockProducer
 ) {
 
+    data class BlockToAdd(val isFromSync: Boolean, val block: Block)
+
+    init {
+        Thread {
+            while (true) {
+                val blockToAdd = blockQueue.take()
+                addBlock(blockToAdd.block, blockToAdd.isFromSync)
+            }
+        }.start()
+    }
+
+
+    private val blockQueue = LinkedBlockingQueue<BlockToAdd>()
+
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
     private val minValidatorsCount = configuration.validatorsCount
@@ -54,12 +65,11 @@ class ChainManager(
      *
      * @param block
      */
-
     private fun addBlock(block: Block, isFromSync: Boolean = false) {
         val blockSlot = block.slot
         val currentSlot = chain.lastOrNull()?.slot ?: 0
 
-        Logger.info("New block came [$blockSlot][$currentSlot] from ${block.blockProducer}")
+        // Logger.info("New block came [$blockSlot][$currentSlot] from ${block.blockProducer}")
         if (blockSlot <= currentSlot) {
             Logger.error("Ignoring old block...")
             return
@@ -67,6 +77,7 @@ class ChainManager(
 
         if (blockSlot > currentSlot + 1 && !isFromSync) {
             requestSync()
+            blockQueue.clear()
             return
         }
 
@@ -416,13 +427,14 @@ class ChainManager(
     fun syncReplyReceived(message: Message<Array<Block>>) {
         val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
-        blocks.forEach { block -> addBlock(block, true) }
+        blockQueue.clear()
+        blockQueue.addAll(blocks.map { BlockToAdd(true, it) })
         Logger.info("Syncing finished...")
     }
 
     fun blockReceived(message: Message<Block>) {
         val newBlock = message.body
-        addBlock(newBlock)
+        blockQueue.offer(BlockToAdd(false, newBlock))
     }
 
     private fun calculateNextTask(block: Block): ChainTask {
