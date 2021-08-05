@@ -11,14 +11,16 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
-    private val queue = mutableMapOf<String, () -> Unit>()
+    private val queue = mutableMapOf<String, (Node) -> Unit>()
 
     private fun executeOnFound(publicKey: String) {
-        queue.remove(publicKey)?.invoke()
+        networkManager.knownNodes[publicKey]?.let { node ->
+            queue.remove(publicKey)?.invoke(node)
+        }
     }
 
 
-    fun searchFor(forPublicKey: String, onFound: () -> Unit = {}) {
+    fun searchFor(forPublicKey: String, onFound: (Node) -> Unit = {}) {
         networkManager.apply {
             queue[forPublicKey] = onFound
             if (knownNodes.containsKey(forPublicKey)) {
@@ -93,12 +95,10 @@ class DHTManager(private val networkManager: NetworkManager) {
 
                 knownNodes.computeIfAbsent(acceptorKey) { acceptor }
                 networkManager.isInNetwork = true
-                Logger.debug("We've been accepted into network by ${acceptor.ip}")
+                val newNodes = joinedMessage.knownNodes.size
+                Logger.debug("We've been accepted into network by ${acceptor.ip} with $newNodes nodes.")
 
-                joinedMessage.knownNodes.forEach { newNode ->
-                    knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
-                    Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
-                }
+                joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
                 // networkManager.broadcast(EndPoint.Join, generateMessage(ourNode), false)
             }
         }

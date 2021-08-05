@@ -138,6 +138,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         else {
             Logger.debug("We're in the network. Happy networking!")
             chainManager.requestInclusion(true)
+            chainManager.requestSync()
         }
     }
 

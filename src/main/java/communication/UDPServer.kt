@@ -131,8 +131,8 @@ class UDPServer(
                         builder.addData(currentSlice, dataArray)
                         if (builder.isReady) {
                             Logger.trace("Running freshly built packet!")
-                            coroutineAndReport { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
+                            coroutineAndReport { block(endPoint, builder.asOne) }
                         }
                     } else coroutineAndReport { block(endPoint, dataArray) }
 
@@ -175,7 +175,7 @@ class UDPServer(
         val createdAt: Long = System.currentTimeMillis()
     ) {
 
-        val isReady get() = data.filterNotNull().size == arraySize
+        val isReady get() = data.none { it == null }
 
         private val data = arrayOfNulls<ByteArray>(arraySize)
 
