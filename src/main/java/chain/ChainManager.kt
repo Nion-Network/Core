@@ -71,7 +71,6 @@ class ChainManager(
         }
 
         block.validatorChanges.forEach(blockProducer::validatorChange)
-
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
@@ -108,7 +107,6 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset} Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
         // Logger.trace("Next producer is: ${DigestUtils.sha256Hex(nextTask.blockProducer)}")
-        scheduledCommitteeFuture?.cancel(true)
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
 
@@ -390,8 +388,7 @@ class ChainManager(
         val from = chain.lastOrNull()?.slot ?: 0
         val syncRequest = SyncRequest(networkManager.ourNode, from)
         Logger.info("Requesting new blocks from $from")
-        val trusted = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, trusted)
+        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast)
     }
 
     /**
@@ -501,10 +498,7 @@ class ChainManager(
             if (askTrusted) {
                 val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
                 sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast, trustedNode)
-            } else {
-                val randomNodes = knownNodes.values.shuffled().take(3).toTypedArray()
-                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast, *randomNodes)
-            }
+            } else sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast)
         }
     }
 }

@@ -61,10 +61,10 @@ class UDPServer(
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
                                 val data = messageData.sliceArray((from until to))
-                                val packetId = DigestUtils.sha256Hex(data).toByteArray()
+                                val packetId = DigestUtils.sha256Hex(data)
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
-                                put(packetId)
+                                put(packetId.toByteArray())
                                 put(broadcastByte)
                                 put(endpoint.identification)
                                 put(messageId.toByteArray())
@@ -72,6 +72,7 @@ class UDPServer(
                                 put(slicePosition.toByte())
                                 putInt(data.size)
                                 put(data)
+
                                 val packet = DatagramPacket(array(), 0, position())
                                 recipients.forEach {
                                     packet.socketAddress = InetSocketAddress(it.ip, it.port)
@@ -130,7 +131,12 @@ class UDPServer(
                         builder.addData(currentSlice, dataArray)
                         if (builder.isReady) {
                             Logger.trace("Running freshly built packet!")
-                            coroutineAndReport { block(endPoint, builder.asOne) }
+                            try {
+                                block(endPoint, builder.asOne)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                dashboard.reportException(e)
+                            }
                             buildingPackets.remove(messageId)
                         }
                     } else coroutineAndReport { block(endPoint, dataArray) }

@@ -42,7 +42,7 @@ data class Configuration(
     val historyCleaningFrequency: Int,
     val mysqlUser: String,
     val mysqlPassword: String,
-    val clusterCount: Int,
+    val nodesPerCluster: Int,
     val maxIterations: Int,
     val packetSplitSize: Int,
     val useCriu: Boolean

@@ -2,7 +2,10 @@ package manager
 
 import communication.Message
 import communication.TransmissionType
-import data.*
+import data.Block
+import data.ChainTask
+import data.DockerStatistics
+import data.Endpoint
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
@@ -52,7 +55,8 @@ class InformationManager(private val networkManager: NetworkManager) {
     }
 
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
-        val clusters = generateClusters(task, configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
+        val clusterCount = validators.size / configuration.nodesPerCluster
+        val clusters = generateClusters(task, clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 

@@ -54,7 +54,7 @@ class DHTManager(private val networkManager: NetworkManager) {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
-            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast)
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast, knownNodes.values.random())
         }
     }
 
