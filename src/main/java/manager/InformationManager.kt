@@ -9,6 +9,7 @@ import data.Endpoint
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
+import java.lang.Integer.max
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -31,7 +32,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     private fun generateClusters(task: ChainTask, k: Int, maxIterations: Int, currentValidators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
         val random = Random(lastBlock.seed)
         val validators = currentValidators.minus(task.blockProducer)
-        var centroids = validators.shuffled(random).take(k - 1)
+        var centroids = validators.shuffled(random).take(k - 1).plus(task.blockProducer)
         val clusters = mutableMapOf<String, MutableMap<String, Int>>()
 
         for (iteration in 0 until maxIterations) {
@@ -55,7 +56,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     }
 
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
-        val clusterCount = validators.size / configuration.nodesPerCluster
+        val clusterCount = max(1, validators.size / configuration.nodesPerCluster)
         val clusters = generateClusters(task, clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
