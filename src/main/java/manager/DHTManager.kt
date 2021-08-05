@@ -34,11 +34,10 @@ class DHTManager(private val networkManager: NetworkManager) {
      *
      * @param context Http request context
      */
-    fun onFound(message: Message<FoundMessage>) {
-        val body = message.body
-        val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
-        networkManager.knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
-        executeOnFound(newNode.publicKey)
+    fun onFound(message: Message<Node>) {
+        val node = message.body
+        networkManager.knownNodes.computeIfAbsent(node.publicKey) { node }
+        executeOnFound(node.publicKey)
     }
 
     /**
@@ -53,9 +52,9 @@ class DHTManager(private val networkManager: NetworkManager) {
         val comingFrom = body.node
         networkManager.apply {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
-            knownNodes[lookingFor]?.apply {
-                sendUDP(Endpoint.NodeFound, FoundMessage(ip, port, publicKey), TransmissionType.Unicast, body.node)
-            } ?: sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
+            val searchedNode = knownNodes[lookingFor]
+            if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.node)
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast)
         }
     }
 

@@ -11,9 +11,6 @@ import org.apache.commons.codec.digest.DigestUtils
  * using IntelliJ IDEA
  */
 @Serializable
-data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
-
-@Serializable
 data class QueryMessage(val node: Node, val searchingPublicKey: String)
 
 @Serializable
