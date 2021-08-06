@@ -61,10 +61,12 @@ class UDPServer(
                         writingBuffer.apply {
                             (0 until slicesNeeded).forEach { slicePosition ->
                                 clear()
+                                val timestamp = "${System.currentTimeMillis()}".toByteArray()
+                                val signedTimestamp = crypto.sign(timestamp)
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
                                 val data = messageData.sliceArray(from until to)
-                                val packetId = DigestUtils.sha256Hex(data + "${System.currentTimeMillis()}".toByteArray())
+                                val packetId = DigestUtils.sha256Hex(data + signedTimestamp)
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
                                 put(packetId.toByteArray())
