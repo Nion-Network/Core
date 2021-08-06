@@ -44,10 +44,9 @@ jar {
     manifest {
         attributes "Main-Class": "Main"
     }
-    baseName("decentralized-orchestration-for-edge-computing")
+    baseName("nion")
 
     from {
-
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }

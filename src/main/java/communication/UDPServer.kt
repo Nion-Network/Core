@@ -33,9 +33,12 @@ class UDPServer(
     var shouldListen = true
 
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
+    private val incomingQueue = LinkedBlockingQueue<ByteArray>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
-    private val datagramSocket = DatagramSocket(port)
+    private val datagramSocket = DatagramSocket(port).apply {
+        receiveBufferSize = 1_000_000
+    }
 
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
@@ -61,7 +64,7 @@ class UDPServer(
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
                                 val data = messageData.sliceArray(from until to)
-                                val packetId = DigestUtils.sha256Hex(data)
+                                val packetId = DigestUtils.sha256Hex(data + "${System.currentTimeMillis()}".toByteArray())
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
                                 put(packetId.toByteArray())
@@ -76,13 +79,11 @@ class UDPServer(
                                 val packet = DatagramPacket(array(), 0, position())
                                 recipients.forEach {
                                     packet.socketAddress = InetSocketAddress(it.ip, it.port)
-                                    sendingSocket.send(packet)
-                                    if (isBroadcast) {
-                                        val randomDelay = Random.nextLong(20, 100)
-                                        totalDelay += randomDelay
-                                        Thread.sleep(randomDelay)
-                                    }
+                                    sendingSocket.send(DatagramPacket(array(), 0, position(), InetSocketAddress(it.ip, it.port)))
                                 }
+                                val randomDelay = Random.nextLong(20, 50)
+                                totalDelay += randomDelay
+                                Thread.sleep(randomDelay)
                             }
                             recipients.forEach {
                                 dashboard.sentMessage(messageId.toString(), endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
@@ -124,13 +125,14 @@ class UDPServer(
                     buffer[dataArray]
 
                     if (totalSlices > 1) {
-                        Logger.trace("Received $currentSlice of $totalSlices [${dataArray.size}] for ${messageId.subSequence(20, 30)}")
                         val builder = buildingPackets.computeIfAbsent(messageId) {
                             PacketBuilder(messageId, endPoint, totalSlices)
                         }
                         builder.addData(currentSlice, dataArray)
+                        val neededMore = builder.data.count { it == null }
+                        val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
+                        Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
                         if (builder.isReady) {
-                            Logger.trace("Running freshly built packet!")
                             buildingPackets.remove(messageId)
                             coroutineAndReport { block(endPoint, builder.asOne) }
                         }
@@ -143,12 +145,10 @@ class UDPServer(
                         val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)
                         val nodes = shuffledNodes.take(amountToTake)
                         packet.length = dataLength
-                        // Logger.debug("Started re broadcasting!")
                         nodes.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
                         }
-                        // Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
                     }
                 }
             } catch (e: java.lang.Exception) {
@@ -177,7 +177,7 @@ class UDPServer(
 
         val isReady get() = data.none { it == null }
 
-        private val data = arrayOfNulls<ByteArray>(arraySize)
+        val data = arrayOfNulls<ByteArray>(arraySize)
 
         fun addData(index: Int, dataToAdd: ByteArray) {
             data[index] = dataToAdd

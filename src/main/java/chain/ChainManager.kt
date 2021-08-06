@@ -207,7 +207,7 @@ class ChainManager(
         val from = chain.lastOrNull()?.slot ?: 0
         val syncRequest = SyncRequest(networkManager.ourNode, from)
         Logger.info("Requesting new blocks from $from")
-        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast)
+        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, networkManager.knownNodes.values.random())
     }
 
     /**
