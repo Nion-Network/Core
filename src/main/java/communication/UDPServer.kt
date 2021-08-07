@@ -13,6 +13,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 import kotlin.random.Random
 
@@ -61,12 +62,12 @@ class UDPServer(
                         writingBuffer.apply {
                             (0 until slicesNeeded).forEach { slicePosition ->
                                 clear()
-                                val timestamp = "${System.currentTimeMillis()}".toByteArray()
+                                val timestamp = "${System.currentTimeMillis()}${UUID.randomUUID()}".toByteArray()
                                 val signedTimestamp = crypto.sign(timestamp)
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
                                 val data = messageData.sliceArray(from until to)
-                                val packetId = DigestUtils.sha256Hex(data + signedTimestamp)
+                                val packetId = DigestUtils.sha256Hex(signedTimestamp + data)
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
                                 put(packetId.toByteArray())
@@ -81,14 +82,16 @@ class UDPServer(
                                 val packet = DatagramPacket(array(), 0, position())
                                 recipients.forEach {
                                     packet.socketAddress = InetSocketAddress(it.ip, it.port)
-                                    sendingSocket.send(DatagramPacket(array(), 0, position(), InetSocketAddress(it.ip, it.port)))
+                                    sendingSocket.send(packet)
+                                    if (true || isBroadcast) {
+                                        val randomDelay = Random.nextLong(10, 30)
+                                        totalDelay += randomDelay
+                                        Thread.sleep(randomDelay)
+                                    }
                                 }
-                                val randomDelay = Random.nextLong(20, 50)
-                                totalDelay += randomDelay
-                                Thread.sleep(randomDelay)
                             }
                             recipients.forEach {
-                                dashboard.sentMessage(messageId.toString(), endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
+                                dashboard.sentMessage(messageId, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
                             }
                         }
                     } catch (e: Exception) {
@@ -150,6 +153,7 @@ class UDPServer(
                         nodes.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
+                            Thread.sleep(Random.nextLong(10, 30))
                         }
                     }
                 }

@@ -130,7 +130,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.info("Sending join request to our trusted node...")
 
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(JoinRequest, ourNode, TransmissionType.Broadcast, trustedNode)
+        sendUDP(JoinRequest, ourNode, TransmissionType.Unicast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)

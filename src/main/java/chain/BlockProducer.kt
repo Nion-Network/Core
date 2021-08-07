@@ -17,6 +17,9 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
     val inclusionChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
     val currentValidators: MutableSet<String> = mutableSetOf()
 
+    var isIncluded = isTrustedNode
+        private set
+
     /**
      * Computes genesis (first, initial) block for the blockchain.
      *
@@ -52,7 +55,6 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         precedentHash = previousBlock.hash
     )
 
-
     fun createSkipBlock(previousBlock: Block): Block = Block(
         slot = previousBlock.slot + 1,
         difficulty = configuration.initialDifficulty,
@@ -65,6 +67,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
     )
 
     fun validatorChange(publicKey: String, isAdded: Boolean) {
+        if (publicKey == crypto.publicKey) isIncluded = isAdded
         if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
         inclusionChanges.remove(publicKey)
         Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}")

@@ -52,7 +52,6 @@ class ChainManager(
 
     private val minValidatorsCount = configuration.validatorsCount
 
-    private var isIncluded = networkManager.isTrustedNode
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
@@ -87,11 +86,6 @@ class ChainManager(
         votes.remove(block.hash)
         informationManager.latestNetworkStatistics.clear()
 
-        block.validatorChanges.apply {
-            val key = crypto.publicKey
-            if (this[key] == true) isIncluded = true
-            if (this[key] == false) isIncluded = false
-        }
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
         if (isFromSync) return
 
@@ -112,7 +106,7 @@ class ChainManager(
             }
         }
 
-        if (!isIncluded) requestInclusion()
+        if (!blockProducer.isIncluded) requestInclusion()
 
         val nextTask = calculateNextTask(block)
 
@@ -170,11 +164,11 @@ class ChainManager(
                             }
                         }
                     }
-                    dashboard.reportStatistics(latestStatistics, blockSlot)
 
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
                     // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+                    dashboard.reportStatistics(latestStatistics, blockSlot)
                 }
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
@@ -195,7 +189,6 @@ class ChainManager(
         docker.latestStatistics.containers.forEach { container ->
             container.cpuUsage = Random.nextDouble(10.0, 40.0)
         }
-        informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }
 
     /**
@@ -273,8 +266,8 @@ class ChainManager(
     }
 
     private fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {
-        if (!isIncluded) return false
-        val lastBlock = chain.lastOrNull() ?: return isIncluded
+        if (!blockProducer.isIncluded) return false
+        val lastBlock = chain.lastOrNull() ?: return blockProducer.isIncluded
         return lastBlock.slot == inclusionRequest.currentSlot
     }
 
@@ -314,6 +307,7 @@ class ChainManager(
         networkManager.apply {
             val slot = chain.lastOrNull()?.slot ?: 0
             val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
+            dashboard.requestedInclusion(crypto.publicKey.substring(30..50), slot)
             Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
             if (askTrusted) {
                 val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)

@@ -72,8 +72,7 @@ public class Crypto {
         privateSignature.initSign(this.keyPair.getPrivate());
         privateSignature.update(plainText);
 
-        byte[] signature = privateSignature.sign();
-        return signature;
+        return privateSignature.sign();
         // return Base64.getEncoder().encodeToString(signature);
     }
 
