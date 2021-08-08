@@ -167,8 +167,8 @@ class ChainManager(
 
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
-                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
-                    dashboard.reportStatistics(latestStatistics, blockSlot)
+                    // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
+                    //dashboard.reportStatistics(latestStatistics, blockSlot)
                 }
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
@@ -262,7 +262,7 @@ class ChainManager(
         val voteInformation = VoteInformation(message.publicKey)
         Logger.trace("Vote received!")
 
-        votes.putIfAbsent(blockVote.blockHash, mutableListOf(voteInformation))?.add(VoteInformation(message.publicKey))
+        votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation)
     }
 
     private fun canBeIncluded(inclusionRequest: InclusionRequest): Boolean {

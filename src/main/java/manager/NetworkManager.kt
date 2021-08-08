@@ -118,10 +118,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
 
-    fun getNode(publicKey: String): Node? = knownNodes[publicKey].apply {
-        if (this == null) dht.searchFor(publicKey)
-    }
-
     /**
      * Sends the Join request to the trusted node and waits to be accepted into the network.
      *
@@ -130,7 +126,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.info("Sending join request to our trusted node...")
 
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(JoinRequest, ourNode, TransmissionType.Unicast, trustedNode)
+        sendUDP(JoinRequest, ourNode, TransmissionType.Broadcast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)

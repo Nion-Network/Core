@@ -20,9 +20,9 @@ class DHTManager(private val networkManager: NetworkManager) {
     }
 
 
-    fun searchFor(forPublicKey: String, onFound: (Node) -> Unit = {}) {
+    fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         networkManager.apply {
-            queue[forPublicKey] = onFound
+            if (onFound != null) queue[forPublicKey] = onFound
             if (knownNodes.containsKey(forPublicKey)) {
                 executeOnFound(forPublicKey)
                 return

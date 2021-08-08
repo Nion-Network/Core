@@ -34,13 +34,9 @@ class UDPServer(
     var shouldListen = true
 
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
-    private val incomingQueue = LinkedBlockingQueue<ByteArray>()
 
     private val buildingPackets = hashMapOf<String, PacketBuilder>()
-    private val datagramSocket = DatagramSocket(port).apply {
-        receiveBufferSize = 1_000_000
-    }
-
+    private val datagramSocket = DatagramSocket(port)
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
 
@@ -80,15 +76,17 @@ class UDPServer(
                                 put(data)
 
                                 val packet = DatagramPacket(array(), 0, position())
+                                val started = System.currentTimeMillis()
                                 recipients.forEach {
                                     packet.socketAddress = InetSocketAddress(it.ip, it.port)
                                     sendingSocket.send(packet)
-                                    if (true || isBroadcast) {
+                                    if (false && isBroadcast) {
                                         val randomDelay = Random.nextLong(10, 30)
                                         totalDelay += randomDelay
                                         Thread.sleep(randomDelay)
                                     }
                                 }
+                                totalDelay += System.currentTimeMillis() - started
                             }
                             recipients.forEach {
                                 dashboard.sentMessage(messageId, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
@@ -153,7 +151,6 @@ class UDPServer(
                         nodes.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
-                            Thread.sleep(Random.nextLong(10, 30))
                         }
                     }
                 }
