@@ -230,7 +230,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-
     inline fun <reified T> generateMessage(data: T): Message<T> = Message(
         crypto.publicKey,
         crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)),
