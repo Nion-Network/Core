@@ -62,7 +62,7 @@ docker run -it node
 Note: depending on the operating system, and docker version you might need to pass a memmory limit flag to the container to avoid a problem where JVM assumes it has the entire system memory available. An expected memory usage should be between 300 and 500 MB.
 ## Dependancies
 
-* [GSON](https://github.com/google/gson) - Google's json library for Java
+* [Kotlinx Serialization (json + protobuf)](https://github.com/Kotlin/kotlinx.serialization) - Kotlin multiplatform / multi-format reflectionless serialization
 * [Docker](https://www.docker.com/) - Container framework
 * [slf4j](http://www.slf4j.org/index.html) - The Simple Logging Facade for Java (SLF4J)
 * [Codec](https://commons.apache.org/proper/commons-codec/) - Apache Commons Codec

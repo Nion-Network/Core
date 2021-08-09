@@ -1,6 +1,5 @@
 package utils
 
-import com.google.gson.GsonBuilder
 import communication.Message
 import data.Block
 import data.NetworkRequestType
