@@ -7,19 +7,6 @@ import kotlinx.serialization.Serializable
  * on 27/03/2020 at 12:11
  * using IntelliJ IDEA
  */
-
-
-/**
- * Stores information of some Node in the network.
- *
- * @property publicKey
- * @property ip
- * @property port
- * @property returnAddress String representing URL to access the Node.
- */
-@Serializable
-data class Node(val publicKey: String, val ip: String, val port: Int)
-
 @Serializable
 data class Configuration(
     val trustedNodeIP: String,

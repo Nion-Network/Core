@@ -48,6 +48,6 @@ class Message<T>(
     val publicKey: String,
     val signature: ByteArray,
     val body: T,
-    val timeStamp: Long = System.currentTimeMillis(),
+    val timestamp: Long = System.currentTimeMillis(),
     val uid: String = DigestUtils.sha256Hex(UUID.randomUUID().toString())
 )
