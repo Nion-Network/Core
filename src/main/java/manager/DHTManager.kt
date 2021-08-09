@@ -2,7 +2,10 @@ package manager
 
 import communication.*
 import data.*
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -11,7 +14,7 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
-    private val queue = mutableMapOf<String, (Node) -> Unit>()
+    private val queue = ConcurrentHashMap<String, (Node) -> Unit>()
 
     private fun executeOnFound(publicKey: String) {
         networkManager.knownNodes[publicKey]?.let { node ->
@@ -87,7 +90,8 @@ class DHTManager(private val networkManager: NetworkManager) {
      */
     fun onJoin(message: Message<JoinedMessage>) {
         networkManager.apply {
-            val confirmed: Boolean = crypto.verify(message.body.toString(), message.signature.decodeToString(), message.publicKey)
+            val encoded = ProtoBuf.encodeToByteArray(message.body)
+            val confirmed: Boolean = crypto.verify(encoded, message.signature, message.publicKey)
             if (confirmed) {
                 val joinedMessage = message.body
                 val acceptor: Node = joinedMessage.acceptor
@@ -99,7 +103,7 @@ class DHTManager(private val networkManager: NetworkManager) {
                 Logger.debug("We've been accepted into network by ${acceptor.ip} with $newNodes nodes.")
 
                 joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
-            }
+            } else Logger.error("Verification failed.")
         }
     }
 }

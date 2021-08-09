@@ -67,31 +67,23 @@ public class Crypto {
     }
 
     public byte[] sign(byte[] plainText) throws Exception {
-        Signature privateSignature = Signature.getInstance
-                ("SHA256withRSA");
+        Signature privateSignature = Signature.getInstance("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
         privateSignature.update(plainText);
-
         return privateSignature.sign();
-        // return Base64.getEncoder().encodeToString(signature);
     }
 
-    public boolean verify(String plainText, String signature, String publicKey) throws Exception {
-        // TODO actually verify.
-        return true;
-        /*
-        byte[] byteKey = java.util.Base64.getMimeDecoder().decode(publicKey);
-        Signature publicSignature = Signature.getInstance("SHA256withRSA");
-        X509EncodedKeySpec X509publicKey = new X509EncodedKeySpec(byteKey);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
+    public boolean verify(byte[] data, byte[] signature, String publicKey) throws Exception {
+        byte[]             byteKey         = java.util.Base64.getMimeDecoder().decode(publicKey);
+        Signature          publicSignature = Signature.getInstance("SHA256withRSA");
+        X509EncodedKeySpec X509publicKey   = new X509EncodedKeySpec(byteKey);
+        KeyFactory         kf              = KeyFactory.getInstance("RSA");
         publicSignature.initVerify(kf.generatePublic(X509publicKey));
-        publicSignature.update(plainText.getBytes(UTF_8));
+        publicSignature.update(data);
 
         byte[] signatureBytes = Base64.getDecoder().decode(signature);
 
         return publicSignature.verify(signatureBytes);
-
-         */
     }
 
     public void saveKeyPair(String path, KeyPair keyPair) throws IOException {
