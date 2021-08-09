@@ -311,8 +311,8 @@ class ChainManager(
             Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
             if (askTrusted) {
                 val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast, trustedNode)
-            } else sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Unicast)
+                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast, trustedNode)
+            } else sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast)
         }
     }
 

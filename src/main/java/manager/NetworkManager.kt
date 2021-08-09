@@ -82,7 +82,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.debug("My IP is $myIP")
 
         udp.startListening { endPoint, data ->
-            // Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
                 NodeQuery -> data executeImmediately dht::onQuery
                 NodeFound -> data executeImmediately dht::onFound
@@ -205,6 +204,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
     inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg nodes: Node) {
+        // TODO add "additionalNodes" flag.
         val message = generateMessage(data)
         val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
         val encodedJson = Json.encodeToString(message).encodeToByteArray()

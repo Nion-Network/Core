@@ -5,6 +5,7 @@ import data.Configuration
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -14,7 +15,11 @@ import utils.Crypto
 class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, isTrustedNode: Boolean) {
 
     private val currentTime: Long get() = System.currentTimeMillis()
-    val inclusionChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
+
+    val inclusionChanges: MutableMap<String, Boolean> = ConcurrentHashMap<String, Boolean>().apply {
+        if (isTrustedNode) this[crypto.publicKey] = true
+    }
+
     val currentValidators: MutableSet<String> = mutableSetOf()
 
     var isIncluded = isTrustedNode
