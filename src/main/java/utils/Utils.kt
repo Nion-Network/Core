@@ -24,8 +24,6 @@ class Utils {
 
     companion object {
 
-        val gson get() = GsonBuilder().create()
-
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", file) {
                 this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
