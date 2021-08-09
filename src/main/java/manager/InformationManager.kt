@@ -26,7 +26,6 @@ class InformationManager(private val networkManager: NetworkManager) {
     private val dockerManager = networkManager.docker
     private val configuration = networkManager.configuration
 
-    // <BlockHash, Stats..>
     val latestNetworkStatistics = mutableListOf<DockerStatistics>()
 
     private fun generateClusters(task: ChainTask, k: Int, maxIterations: Int, currentValidators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
@@ -44,14 +43,11 @@ class InformationManager(private val networkManager: NetworkManager) {
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
             }
-            // TODO add failsafe last state
-
             centroids = clusters.values.mapNotNull { distances ->
                 val averageDistance = distances.values.average()
                 distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
-        // clusters[task.blockProducer] = clusters.keys.associateWith { 1 }.toMutableMap()
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
