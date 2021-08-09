@@ -81,9 +81,7 @@ public class Crypto {
         publicSignature.initVerify(kf.generatePublic(X509publicKey));
         publicSignature.update(data);
 
-        byte[] signatureBytes = Base64.getDecoder().decode(signature);
-
-        return publicSignature.verify(signatureBytes);
+        return publicSignature.verify(signature);
     }
 
     public void saveKeyPair(String path, KeyPair keyPair) throws IOException {

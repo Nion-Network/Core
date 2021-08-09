@@ -4,6 +4,7 @@ import data.Node
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import org.apache.commons.codec.digest.DigestUtils
+import java.util.*
 
 /**
  * Created by Mihael Valentin Berčič
@@ -48,5 +49,5 @@ class Message<T>(
     val signature: ByteArray,
     val body: T,
     val timeStamp: Long = System.currentTimeMillis(),
-    val uid: String = DigestUtils.sha256Hex(signature)
+    val uid: String = DigestUtils.sha256Hex(UUID.randomUUID().toString())
 )
