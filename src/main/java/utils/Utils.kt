@@ -1,8 +1,8 @@
 package utils
 
 import com.google.gson.GsonBuilder
-import data.Block
 import communication.Message
+import data.Block
 import data.NetworkRequestType
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -114,11 +114,9 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
 fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.invoke() }
 
 /**
- * Parses the message with body of type T from the http request using gson (if possible).
+ * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
  *
- * @param T Message's body type
- * @return Message with body type of T
+ * @param T What data does the Message contain.
+ * @return Message with data of type T.
  */
-// inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
-
 inline fun <reified T> ByteArray.asMessage(): Message<T> = ProtoBuf.decodeFromByteArray(this)
