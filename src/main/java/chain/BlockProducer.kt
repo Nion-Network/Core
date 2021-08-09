@@ -20,7 +20,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         if (isTrustedNode) this[crypto.publicKey] = true
     }
 
-    val currentValidators: MutableSet<String> = mutableSetOf()
+    val currentValidators: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     var isIncluded = isTrustedNode
         private set
@@ -75,7 +75,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         if (publicKey == crypto.publicKey) isIncluded = isAdded
         if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
         inclusionChanges.remove(publicKey)
-        Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}")
+        Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}. Total: ${currentValidators.size}")
     }
 
     fun adjustDifficulty(previousBlock: Block): Int {
