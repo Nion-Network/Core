@@ -48,24 +48,6 @@ public class Crypto {
         }
     }
 
-    public String encrypt(String plainText, PublicKey publicKey) throws Exception {
-        Cipher encryptCipher = Cipher.getInstance("RSA");
-        encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
-
-        byte[] cipherText = encryptCipher.doFinal(plainText.getBytes(UTF_8));
-
-        return Base64.getEncoder().encodeToString(cipherText);
-    }
-
-    public String decrypt(String cipherText, PrivateKey privateKey) throws Exception {
-        byte[] bytes = Base64.getDecoder().decode(cipherText);
-
-        Cipher decriptCipher = Cipher.getInstance("RSA");
-        decriptCipher.init(Cipher.DECRYPT_MODE, privateKey);
-
-        return new String(decriptCipher.doFinal(bytes), UTF_8);
-    }
-
     public byte[] sign(byte[] plainText) throws Exception {
         Signature privateSignature = Signature.getInstance("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
