@@ -60,7 +60,7 @@ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' con
 docker run -it node
 ```
 Note: depending on the operating system, and docker version you might need to pass a memmory limit flag to the container to avoid a problem where JVM assumes it has the entire system memory available. An expected memory usage should be between 300 and 500 MB.
-## Dependancies
+## Dependencies
 
 * [Kotlinx Serialization (json + protobuf)](https://github.com/Kotlin/kotlinx.serialization) - Kotlin multiplatform / multi-format reflectionless serialization
 * [Docker](https://www.docker.com/) - Container framework
@@ -71,7 +71,7 @@ Note: depending on the operating system, and docker version you might need to pa
 ## Authors
 
 * **Aleksandar Tošič** - *Initial Work, Research, Development* - [Dormage](https://github.com/Dormage)
-* **Mihael Berčič** - *Development - [MihaelBercic](https://github.com/MihaelBercic)
+* **Mihael Berčič** - *Development* - [MihaelBercic](https://github.com/MihaelBercic)
 
 ## License
 
