@@ -41,7 +41,7 @@ compileTestKotlin {
 
 jar {
     manifest {
-        attributes "Main-Class": "Main"
+        attributes "Main-Class": "MainKt"
     }
     baseName("nion")
 

@@ -11,14 +11,12 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
 import utils.Crypto
-import utils.Utils
 import utils.asMessage
 import java.lang.Integer.max
 import java.net.InetAddress
@@ -32,20 +30,18 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configurationPath: String, private val listeningPort: Int) {
+class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, private val listeningPort: Int) {
 
     var isInNetwork = false
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val configuration: Configuration = Json.decodeFromString(Utils.readFile(configurationPath))
     val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
 
     val dht = DHTManager(this)
     val vdf = VDFManager()
     val docker = DockerManager(crypto, configuration)
-    val dashboard = Dashboard(configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
