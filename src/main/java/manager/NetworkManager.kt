@@ -131,7 +131,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         if (!isInNetwork) joinTheNetwork()
         else {
             Logger.debug("We're in the network. Happy networking!")
-            chainManager.requestInclusion(true)
+            chainManager.requestInclusion()
             chainManager.requestSync()
         }
     }
