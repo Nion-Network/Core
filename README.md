@@ -9,7 +9,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 * Gradle
 * Docker
-* Java 8 or greater
+* Java 9 or greater
 
 ### Configuration
 The build jar requiers a config.json in the working dir.

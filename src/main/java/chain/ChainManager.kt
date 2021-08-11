@@ -77,6 +77,7 @@ class ChainManager(
         if (blockSlot > currentSlot + 1 && !isFromSync) {
             requestSync()
             blockQueue.clear()
+            dashboard.requestedInclusion("SYNCREQUEST", 0)
             return
         }
 
@@ -261,7 +262,6 @@ class ChainManager(
         val blockVote = message.body
         val voteInformation = VoteInformation(message.publicKey)
         Logger.trace("Vote received!")
-
         votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation)
     }
 

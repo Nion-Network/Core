@@ -127,28 +127,21 @@ class UDPServer(
                     val dataArray = ByteArray(buffer.int)
                     buffer[dataArray]
 
-                    if (totalSlices > 1) {
-                        val builder = buildingPackets.computeIfAbsent(messageId) {
-                            PacketBuilder(messageId, endPoint, totalSlices)
-                        }
-                        builder.addData(currentSlice, dataArray)
-                        val neededMore = builder.data.count { it == null }
-                        val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
-                        Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
-                        if (builder.isReady) {
-                            buildingPackets.remove(messageId)
-                            coroutineAndReport { block(endPoint, builder.asOne) }
-                        }
-                    } else coroutineAndReport { block(endPoint, dataArray) }
+                    val builder = buildingPackets.computeIfAbsent(messageId) {
+                        PacketBuilder(knownNodes.values, configuration, messageId, endPoint, totalSlices)
+                    }
+                    builder.addData(currentSlice, dataArray)
+                    val neededMore = builder.data.count { it == null }
+                    val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
+                    Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
+                    if (builder.isReady) {
+                        coroutineAndReport { block(endPoint, builder.asOne) }
+                        buildingPackets.remove(messageId)
+                    }
 
-                    val dataLength = buffer.position()
                     if (isBroadcast) {
-                        val shuffledNodes = knownNodes.values.shuffled()
-                        val totalSize = shuffledNodes.size
-                        val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)
-                        val nodes = shuffledNodes.take(amountToTake)
-                        packet.length = dataLength
-                        nodes.forEach {
+                        packet.length = buffer.position()
+                        builder.recipients.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
                         }
@@ -172,6 +165,8 @@ class UDPServer(
     }
 
     data class PacketBuilder(
+        val knownNodes: Collection<Node>,
+        val configuration: Configuration,
         val messageIdentification: String,
         val endpoint: Endpoint,
         val arraySize: Int,
@@ -181,6 +176,10 @@ class UDPServer(
         val isReady get() = data.none { it == null }
 
         val data = arrayOfNulls<ByteArray>(arraySize)
+        val recipients = knownNodes.shuffled().let {
+            val toTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(it.size, 1) / 100)
+            it.take(toTake)
+        }
 
         fun addData(index: Int, dataToAdd: ByteArray) {
             data[index] = dataToAdd

@@ -101,7 +101,6 @@ class DHTManager(private val networkManager: NetworkManager) {
                 networkManager.isInNetwork = true
                 val newNodes = joinedMessage.knownNodes.size
                 Logger.debug("We've been accepted into network by ${acceptor.ip} with $newNodes nodes.")
-
                 joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
             } else Logger.error("Verification failed.")
         }

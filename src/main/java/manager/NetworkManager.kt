@@ -92,7 +92,10 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
                 RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
                 Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
-                else -> Logger.error("Unexpected $endPoint in packet handler.")
+                else -> {
+                    Logger.error("Unexpected $endPoint in packet handler.")
+                    dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                }
             }
         }
 

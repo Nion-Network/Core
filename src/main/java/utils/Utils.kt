@@ -10,6 +10,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.*
 import kotlin.concurrent.schedule
 
@@ -22,6 +23,11 @@ import kotlin.concurrent.schedule
 class Utils {
 
     companion object {
+
+        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA256").let {
+            it.update(data)
+            it.digest()
+        }
 
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", file) {
