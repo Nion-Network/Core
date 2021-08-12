@@ -5,6 +5,7 @@ import data.Configuration
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -20,7 +21,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         if (isTrustedNode) this[crypto.publicKey] = true
     }
 
-    val currentValidators: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    val currentValidators = mutableSetOf<String>()
 
     var isIncluded = isTrustedNode
         private set

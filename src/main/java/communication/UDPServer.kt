@@ -6,7 +6,7 @@ import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Logger
-import manager.Dashboard
+import logging.Dashboard
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket

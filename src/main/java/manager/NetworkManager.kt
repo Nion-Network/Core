@@ -15,6 +15,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import logging.Logger
 import utils.Crypto
 import utils.asMessage
@@ -91,7 +92,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                 VoteReceived -> data queueMessage chainManager::voteReceived
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
                 RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
-                Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
+                InclusionRequest -> data queueMessage chainManager::inclusionRequest
                 else -> {
                     Logger.error("Unexpected $endPoint in packet handler.")
                     dashboard.reportException(Exception("No fucking endpoint $endPoint."))

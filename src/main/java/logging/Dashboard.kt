@@ -1,7 +1,6 @@
-package manager
+package logging
 
 import data.*
-import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
@@ -151,6 +150,7 @@ class Dashboard(private val configuration: Configuration) {
     }
 
     fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
+        if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
             .addField("id", id)
             .addField("endpoint", endpoint.name)
@@ -162,7 +162,17 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    fun newlyIncluded(ip: String, slot: Int) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("inclusions")
+            .addField("ip", ip)
+            .addField("slot", slot)
+            .build()
+        queue.add(point)
+    }
+
     fun logMessageSize(protoBuf: Int, json: Int) {
+        if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message_size")
             .addField("json", json)
             .addField("protobuf", protoBuf)
@@ -172,6 +182,7 @@ class Dashboard(private val configuration: Configuration) {
 
 
     fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
+        if (!configuration.dashboardEnabled) return
         var index = 0
         queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
         clusters.forEach { (representative, nodes) ->

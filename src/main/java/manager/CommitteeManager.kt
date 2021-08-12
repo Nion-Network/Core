@@ -3,6 +3,7 @@ package manager
 import communication.Message
 import communication.TransmissionType
 import data.*
+import logging.Dashboard
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto

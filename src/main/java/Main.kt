@@ -1,9 +1,9 @@
 import data.Configuration
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import logging.Dashboard
 import logging.Logger.info
 import logging.Logger.toggleLogging
-import manager.Dashboard
 import manager.NetworkManager
 import utils.Utils
 

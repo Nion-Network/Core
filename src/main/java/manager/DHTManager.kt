@@ -94,7 +94,7 @@ class DHTManager(private val networkManager: NetworkManager) {
             val confirmed: Boolean = crypto.verify(encoded, message.signature, message.publicKey)
             if (confirmed) {
                 val joinedMessage = message.body
-                val acceptor: Node = joinedMessage.acceptor
+                val acceptor = joinedMessage.acceptor
                 val acceptorKey = acceptor.publicKey
 
                 knownNodes.computeIfAbsent(acceptorKey) { acceptor }
@@ -102,7 +102,10 @@ class DHTManager(private val networkManager: NetworkManager) {
                 val newNodes = joinedMessage.knownNodes.size
                 Logger.debug("We've been accepted into network by ${acceptor.ip} with $newNodes nodes.")
                 joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
-            } else Logger.error("Verification failed.")
+            } else {
+                Logger.error("Verification failed.")
+                dashboard.reportException(Exception("Verification failed!"))
+            }
         }
     }
 }
