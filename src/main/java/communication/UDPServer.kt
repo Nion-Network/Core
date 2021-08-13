@@ -2,19 +2,22 @@ package communication
 
 import data.Configuration
 import data.Endpoint
-import data.Message
 import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import logging.Dashboard
 import logging.Logger
-import manager.Dashboard
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
@@ -30,30 +33,36 @@ class UDPServer(
     private val networkHistory: MutableMap<String, Long>,
     port: Int
 ) {
-
-    var shouldListen = true
-
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
 
-    private val buildingPackets = hashMapOf<String, PacketBuilder>()
+    private val buildingPackets = ConcurrentHashMap<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
-
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
 
-    fun send(endpoint: Endpoint, packet: Message<*>, transmissionType: TransmissionType, nodes: Array<out Node>) {
-        messageQueue.put(UDPMessage(endpoint, packet, nodes, transmissionType == TransmissionType.Broadcast))
+    fun send(endpoint: Endpoint, messageId: String, messageData: ByteArray, transmissionType: TransmissionType, nodes: Array<out Node>) {
+        messageQueue.put(UDPMessage(endpoint, messageId, messageData, nodes, transmissionType == TransmissionType.Broadcast))
     }
 
     init {
+        startOutput()
+
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
+            buildingPackets.forEach { (key, builder) ->
+                val difference = System.currentTimeMillis() - builder.createdAt
+                val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+                if (shouldBeRemoved) networkHistory.remove(key)
+            }
+        }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
+    }
+
+    private fun startOutput() {
         Thread {
             val writingBuffer = ByteBuffer.allocate(65535)
-            while (shouldListen) {
+            while (true) {
                 messageQueue.take().apply {
                     try {
-                        val messageId = message.uid.toByteArray()
-                        val messageBytes = message.asJson.toByteArray()
-                        val dataSize = messageBytes.size
+                        val dataSize = messageData.size
                         val packetSize = configuration.packetSplitSize
                         val slicesNeeded = dataSize / packetSize + 1
                         var totalDelay: Long = 0
@@ -61,33 +70,38 @@ class UDPServer(
                         writingBuffer.apply {
                             (0 until slicesNeeded).forEach { slicePosition ->
                                 clear()
+                                val timestamp = "${System.currentTimeMillis()}${UUID.randomUUID()}".toByteArray()
+                                val signedTimestamp = crypto.sign(timestamp)
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
-                                val data = messageBytes.sliceArray((from until to))
-                                val packetId = DigestUtils.sha256Hex(data).toByteArray()
+                                val data = messageData.sliceArray(from until to)
+                                val packetId = DigestUtils.sha256Hex(signedTimestamp + data)
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
-                                put(packetId)
+                                put(packetId.toByteArray())
                                 put(broadcastByte)
                                 put(endpoint.identification)
-                                put(messageId)
+                                put(messageId.toByteArray())
                                 put(slicesNeeded.toByte())
                                 put(slicePosition.toByte())
                                 putInt(data.size)
                                 put(data)
+
                                 val packet = DatagramPacket(array(), 0, position())
+                                val started = System.currentTimeMillis()
                                 recipients.forEach {
-                                    packet.socketAddress = it.socketAddress
+                                    packet.socketAddress = InetSocketAddress(it.ip, it.port)
                                     sendingSocket.send(packet)
-                                    if (isBroadcast) {
-                                        val randomDelay = Random.nextLong(20, 100)
+                                    if (false && isBroadcast) {
+                                        val randomDelay = Random.nextLong(10, 30)
                                         totalDelay += randomDelay
                                         Thread.sleep(randomDelay)
                                     }
                                 }
+                                totalDelay += System.currentTimeMillis() - started
                             }
                             recipients.forEach {
-                                dashboard.sentMessage(message.uid, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
+                                dashboard.sentMessage(messageId, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
                             }
                         }
                     } catch (e: Exception) {
@@ -103,7 +117,7 @@ class UDPServer(
         val pureArray = ByteArray(65535)
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
-        while (shouldListen) {
+        while (true) {
             try {
                 packet.data = pureArray
                 buffer.clear()
@@ -125,32 +139,24 @@ class UDPServer(
                     val dataArray = ByteArray(buffer.int)
                     buffer[dataArray]
 
-                    if (totalSlices > 1) {
-                        Logger.trace("Received $currentSlice of $totalSlices [${dataArray.size}] for ${messageId.subSequence(20, 30)}")
-                        val builder = buildingPackets.computeIfAbsent(messageId) {
-                            PacketBuilder(messageId, endPoint, totalSlices)
-                        }
-                        builder.addData(currentSlice, dataArray)
-                        if (builder.isReady) {
-                            Logger.trace("Running freshly built packet!")
-                            coroutineAndReport { block(endPoint, builder.asOne) }
-                            buildingPackets.remove(messageId)
-                        }
-                    } else coroutineAndReport { block(endPoint, dataArray) }
+                    val builder = buildingPackets.computeIfAbsent(messageId) {
+                        PacketBuilder(knownNodes.values, configuration, messageId, endPoint, totalSlices)
+                    }
+                    builder.addData(currentSlice, dataArray)
+                    val neededMore = builder.data.count { it == null }
+                    val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
+                    Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
+                    if (builder.isReady) {
+                        coroutineAndReport { block(endPoint, builder.asOne) }
+                        buildingPackets.remove(messageId)
+                    }
 
-                    val dataLength = buffer.position()
                     if (isBroadcast) {
-                        val shuffledNodes = knownNodes.values.shuffled()
-                        val totalSize = shuffledNodes.size
-                        val amountToTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalSize, 1) / 100)
-                        val nodes = shuffledNodes.take(amountToTake)
-                        packet.length = dataLength
-                        // Logger.debug("Started re broadcasting!")
-                        nodes.forEach {
+                        packet.length = buffer.position()
+                        builder.recipients.forEach {
                             packet.socketAddress = InetSocketAddress(it.ip, it.port)
                             broadcastingSocket.send(packet)
                         }
-                        // Logger.debug("Re-Sent broadcast packet to ${nodes.size} nodes.")
                     }
                 }
             } catch (e: java.lang.Exception) {
@@ -171,15 +177,21 @@ class UDPServer(
     }
 
     data class PacketBuilder(
+        val knownNodes: Collection<Node>,
+        val configuration: Configuration,
         val messageIdentification: String,
         val endpoint: Endpoint,
-        val arraySize: Int,
-        val createdAt: Long = System.currentTimeMillis()
+        val arraySize: Int
     ) {
 
-        val isReady get() = data.filterNotNull().size == arraySize
+        val createdAt: Long = System.currentTimeMillis()
+        val isReady get() = data.none { it == null }
 
-        private val data = arrayOfNulls<ByteArray>(arraySize)
+        val data = arrayOfNulls<ByteArray>(arraySize)
+        val recipients = knownNodes.shuffled().let {
+            val toTake = 5 + (configuration.broadcastSpreadPercentage * Integer.max(it.size, 1) / 100)
+            it.take(toTake)
+        }
 
         fun addData(index: Int, dataToAdd: ByteArray) {
             data[index] = dataToAdd
@@ -192,4 +204,10 @@ class UDPServer(
 
 }
 
-class UDPMessage(val endpoint: Endpoint, val message: Message<*>, val recipients: Array<out Node>, val isBroadcast: Boolean)
+class UDPMessage(
+    val endpoint: Endpoint,
+    val messageId: String,
+    val messageData: ByteArray,
+    val recipients: Array<out Node>,
+    val isBroadcast: Boolean
+)

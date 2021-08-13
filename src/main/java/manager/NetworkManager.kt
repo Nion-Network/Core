@@ -2,6 +2,8 @@ package manager
 
 import chain.BlockProducer
 import chain.ChainManager
+import communication.Message
+import communication.QueuedMessage
 import communication.TransmissionType
 import communication.UDPServer
 import data.*
@@ -9,9 +11,13 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import logging.Logger
 import utils.Crypto
-import utils.Utils
 import utils.asMessage
 import java.lang.Integer.max
 import java.net.InetAddress
@@ -25,20 +31,18 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(configurationPath: String, private val listeningPort: Int) {
+class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, private val listeningPort: Int) {
 
     var isInNetwork = false
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val configuration: Configuration = Utils.gson.fromJson<Configuration>(Utils.readFile(configurationPath), Configuration::class.java)
     val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
 
     val dht = DHTManager(this)
     val vdf = VDFManager()
     val docker = DockerManager(crypto, configuration)
-    val dashboard = Dashboard(configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
@@ -50,7 +54,7 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
-    private val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
+    val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
@@ -75,7 +79,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         Logger.debug("My IP is $myIP")
 
         udp.startListening { endPoint, data ->
-            // Logger.trace("------------------------- Endpoint hit $endPoint! -------------------------")
             when (endPoint) {
                 NodeQuery -> data executeImmediately dht::onQuery
                 NodeFound -> data executeImmediately dht::onFound
@@ -89,8 +92,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
                 VoteReceived -> data queueMessage chainManager::voteReceived
                 NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
                 RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
-                Endpoint.InclusionRequest -> data queueMessage chainManager::inclusionRequest
-                else -> Logger.error("Unexpected $endPoint in packet handler.")
+                InclusionRequest -> data queueMessage chainManager::inclusionRequest
+                else -> {
+                    Logger.error("Unexpected $endPoint in packet handler.")
+                    dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                }
             }
         }
 
@@ -111,10 +117,6 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     }
 
 
-    fun getNode(publicKey: String): Node? = knownNodes[publicKey].apply {
-        if (this == null) dht.searchFor(publicKey)
-    }
-
     /**
      * Sends the Join request to the trusted node and waits to be accepted into the network.
      *
@@ -122,16 +124,16 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
     private fun joinTheNetwork() {
         Logger.info("Sending join request to our trusted node...")
 
-        val joinRequestMessage = generateMessage(ourNode)
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(JoinRequest, joinRequestMessage, TransmissionType.Unicast, trustedNode)
+        sendUDP(JoinRequest, ourNode, TransmissionType.Broadcast, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
         if (!isInNetwork) joinTheNetwork()
         else {
             Logger.debug("We're in the network. Happy networking!")
-            chainManager.requestInclusion(true)
+            chainManager.requestInclusion()
+            chainManager.requestSync()
         }
     }
 
@@ -151,17 +153,14 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
         }
     }.start()
 
-    /**
-     * Runs the executor that will clean old messages every X minutes specified in configuration.
-     *
-     */
     private fun startHistoryCleanup() = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
-        networkHistory.toList().forEach { (messageHex, timestamp) ->
+        networkHistory.forEach { (messageHex, timestamp) ->
             val difference = System.currentTimeMillis() - timestamp
-            if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
+            val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+            if (shouldBeRemoved) networkHistory.remove(messageHex)
         }
         //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
-    }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
+    }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
 
     /**
      *  Set networking to respond using given lambda block to provided path on GET request.
@@ -201,13 +200,20 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
-    fun <T> sendUDP(endpoint: Endpoint, message: Message<T>, transmissionType: TransmissionType, vararg nodes: Node) {
+    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg nodes: Node) {
+        // TODO add "additionalNodes" flag.
+        val message = generateMessage(data)
+        val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
+        val encodedJson = Json.encodeToString(message).encodeToByteArray()
+        dashboard.logMessageSize(encoded.size, encodedJson.size)
+
+        val id = message.uid
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
             val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
-            udp.send(endpoint, message, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
-        } else udp.send(endpoint, message, transmissionType, nodes)
+            udp.send(endpoint, id, encoded, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
+        } else udp.send(endpoint, id, encoded, transmissionType, nodes)
     }
 
     fun clearMessageQueue() {
@@ -221,7 +227,11 @@ class NetworkManager(configurationPath: String, private val listeningPort: Int) 
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-    fun <T> generateMessage(data: T): Message<T> = Message(crypto.publicKey, crypto.sign(Utils.gson.toJson(data)), data)
+    inline fun <reified T> generateMessage(data: T): Message<T> = Message(
+        crypto.publicKey,
+        crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)),
+        data
+    )
 
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())

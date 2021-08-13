@@ -1,8 +1,11 @@
 package manager
 
-import communication.TransmissionType
+import communication.*
 import data.*
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -11,11 +14,23 @@ import logging.Logger
  */
 class DHTManager(private val networkManager: NetworkManager) {
 
-    infix fun searchFor(forPublicKey: String) {
+    private val queue = ConcurrentHashMap<String, (Node) -> Unit>()
+
+    private fun executeOnFound(publicKey: String) {
+        networkManager.knownNodes[publicKey]?.let { node ->
+            queue.remove(publicKey)?.invoke(node)
+        }
+    }
+
+
+    fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         networkManager.apply {
-            if (knownNodes.containsKey(forPublicKey)) return
-            val message = generateMessage(QueryMessage(networkManager.ourNode, forPublicKey))
-            sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
+            if (onFound != null) queue[forPublicKey] = onFound
+            if (knownNodes.containsKey(forPublicKey)) {
+                executeOnFound(forPublicKey)
+                return
+            }
+            sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
         }
     }
 
@@ -24,14 +39,14 @@ class DHTManager(private val networkManager: NetworkManager) {
      *
      * @param context Http request context
      */
-    fun onFound(message: Message<FoundMessage>) {
-        val body = message.body
-        val newNode = Node(body.forPublicKey, body.foundIp, body.foundPort)
-        networkManager.knownNodes.computeIfAbsent(newNode.publicKey) { newNode }
+    fun onFound(message: Message<Node>) {
+        val node = message.body
+        networkManager.knownNodes.computeIfAbsent(node.publicKey) { node }
+        executeOnFound(node.publicKey)
     }
 
     /**
-     * On query request checks if we have the node cached. If we do, we send back FoundMessageBody...
+     * On query request checks if we have the node cached. If we do, we send back [Node]...
      *
      * @param context HTTP Context
      */
@@ -39,13 +54,12 @@ class DHTManager(private val networkManager: NetworkManager) {
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
         Logger.info("Received DHT query for ${lookingFor.subSequence(30, 50)}")
-        val comingFrom = body.node
+        val comingFrom = body.seekingNode
         networkManager.apply {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
-            knownNodes[lookingFor]?.apply {
-                val foundMessage = generateMessage(FoundMessage(ip, port, publicKey))
-                sendUDP(Endpoint.NodeFound, foundMessage, TransmissionType.Unicast, body.node)
-            } ?: sendUDP(Endpoint.NodeQuery, message, TransmissionType.Unicast)
+            val searchedNode = knownNodes[lookingFor]
+            if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast, knownNodes.values.random())
         }
     }
 
@@ -59,12 +73,12 @@ class DHTManager(private val networkManager: NetworkManager) {
             val node = message.body
             Logger.debug("Received join request from ${Logger.cyan}${node.ip}${Logger.reset}")
             if (!isFull) node.apply {
-                val nodesToShare = knownNodes.values
+                val toTake = configuration.broadcastSpreadPercentage * knownNodes.values.size / 100
+                val nodesToShare = knownNodes.values.take(toTake).toTypedArray()
                 val joinedMessage = JoinedMessage(ourNode, nodesToShare)
                 knownNodes.computeIfAbsent(publicKey) { this }
-                sendUDP(Endpoint.Welcome, generateMessage(joinedMessage), TransmissionType.Unicast, this)
-                Logger.debug("Sent successful join back to ${node.ip}")
-            } else sendUDP(Endpoint.JoinRequest, message, TransmissionType.Unicast)
+                sendUDP(Endpoint.Welcome, joinedMessage, TransmissionType.Unicast, this)
+            } else sendUDP(Endpoint.JoinRequest, node, TransmissionType.Broadcast)
         }
 
     }
@@ -76,24 +90,21 @@ class DHTManager(private val networkManager: NetworkManager) {
      */
     fun onJoin(message: Message<JoinedMessage>) {
         networkManager.apply {
-            val confirmed: Boolean = crypto.verify(message.bodyAsString, message.signature, message.publicKey)
+            val encoded = ProtoBuf.encodeToByteArray(message.body)
+            val confirmed: Boolean = crypto.verify(encoded, message.signature, message.publicKey)
             if (confirmed) {
                 val joinedMessage = message.body
-                val acceptor: Node = joinedMessage.acceptor
+                val acceptor = joinedMessage.acceptor
                 val acceptorKey = acceptor.publicKey
 
                 knownNodes.computeIfAbsent(acceptorKey) { acceptor }
                 networkManager.isInNetwork = true
-                Logger.debug("We've been accepted into network by ${acceptor.ip}")
-
-                joinedMessage.knownNodes.forEach { newNode ->
-                    knownNodes.computeIfAbsent(newNode.publicKey) {
-                        sendUDP(Endpoint.JoinRequest, generateMessage(ourNode), TransmissionType.Unicast, newNode)
-                        newNode
-                    }
-                    Logger.debug("Added ${newNode.publicKey.substring(30..50)}")
-                }
-                // networkManager.broadcast(EndPoint.Join, generateMessage(ourNode), false)
+                val newNodes = joinedMessage.knownNodes.size
+                Logger.debug("We've been accepted into network by ${acceptor.ip} with $newNodes nodes.")
+                joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
+            } else {
+                Logger.error("Verification failed.")
+                dashboard.reportException(Exception("Verification failed!"))
             }
         }
     }

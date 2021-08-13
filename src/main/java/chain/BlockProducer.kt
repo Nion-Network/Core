@@ -5,6 +5,8 @@ import data.Configuration
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -14,8 +16,15 @@ import utils.Crypto
 class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, isTrustedNode: Boolean) {
 
     private val currentTime: Long get() = System.currentTimeMillis()
-    val inclusionChanges: MutableMap<String, Boolean> = if (isTrustedNode) mutableMapOf(crypto.publicKey to true) else mutableMapOf()
-    val currentValidators: MutableSet<String> = mutableSetOf()
+
+    val inclusionChanges: MutableMap<String, Boolean> = ConcurrentHashMap<String, Boolean>().apply {
+        if (isTrustedNode) this[crypto.publicKey] = true
+    }
+
+    val currentValidators = mutableSetOf<String>()
+
+    var isIncluded = isTrustedNode
+        private set
 
     /**
      * Computes genesis (first, initial) block for the blockchain.
@@ -52,7 +61,6 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         precedentHash = previousBlock.hash
     )
 
-
     fun createSkipBlock(previousBlock: Block): Block = Block(
         slot = previousBlock.slot + 1,
         difficulty = configuration.initialDifficulty,
@@ -65,9 +73,10 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
     )
 
     fun validatorChange(publicKey: String, isAdded: Boolean) {
+        if (publicKey == crypto.publicKey) isIncluded = isAdded
         if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
         inclusionChanges.remove(publicKey)
-        Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}")
+        Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}. Total: ${currentValidators.size}")
     }
 
     fun adjustDifficulty(previousBlock: Block): Int {

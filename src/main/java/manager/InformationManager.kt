@@ -1,10 +1,15 @@
 package manager
 
+import communication.Message
 import communication.TransmissionType
-import data.*
+import data.Block
+import data.ChainTask
+import data.DockerStatistics
+import data.Endpoint
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.runAfter
+import java.lang.Integer.max
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -21,13 +26,12 @@ class InformationManager(private val networkManager: NetworkManager) {
     private val dockerManager = networkManager.docker
     private val configuration = networkManager.configuration
 
-    // <BlockHash, Stats..>
     val latestNetworkStatistics = mutableListOf<DockerStatistics>()
 
     private fun generateClusters(task: ChainTask, k: Int, maxIterations: Int, currentValidators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
         val random = Random(lastBlock.seed)
         val validators = currentValidators.minus(task.blockProducer)
-        var centroids = validators.shuffled(random).take(k - 1)
+        var centroids = validators.shuffled(random).take(k - 1).plus(task.blockProducer)
         val clusters = mutableMapOf<String, MutableMap<String, Int>>()
 
         for (iteration in 0 until maxIterations) {
@@ -39,19 +43,17 @@ class InformationManager(private val networkManager: NetworkManager) {
                 val distance = chosenCentroid.second
                 clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
             }
-            // TODO add failsafe last state
-
             centroids = clusters.values.mapNotNull { distances ->
                 val averageDistance = distances.values.average()
                 distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
             }
         }
-        // clusters[task.blockProducer] = clusters.keys.associateWith { 1 }.toMutableMap()
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
-        val clusters = generateClusters(task, configuration.clusterCount, configuration.maxIterations, validators, lastBlock)
+        val clusterCount = max(1, validators.size / configuration.nodesPerCluster)
+        val clusters = generateClusters(task, clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 
@@ -61,9 +63,8 @@ class InformationManager(private val networkManager: NetworkManager) {
 
         if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
             latestNetworkStatistics.add(dockerManager.latestStatistics)
-            val message = networkManager.generateMessage(latestNetworkStatistics.toList())
             val node = knownNodes[task.blockProducer] ?: return@runAfter
-            networkManager.sendUDP(Endpoint.RepresentativeStatistics, message, TransmissionType.Unicast, node)
+            networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, node)
             Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
@@ -84,9 +85,8 @@ class InformationManager(private val networkManager: NetworkManager) {
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
         val latestStatistics = dockerManager.latestStatistics
-        val message = networkManager.generateMessage(latestStatistics)
         Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
-        networkManager.sendUDP(Endpoint.NodeStatistics, message, TransmissionType.Unicast, node)
+        networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
     }
 
 }

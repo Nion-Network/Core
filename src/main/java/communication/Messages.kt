@@ -1,23 +1,34 @@
-package data
+package communication
 
+import data.Node
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.apache.commons.codec.digest.DigestUtils
-import utils.Utils
+import java.util.*
 
 /**
  * Created by Mihael Valentin Berčič
  * on 18/04/2020 at 16:33
  * using IntelliJ IDEA
  */
+@Serializable
+data class QueryMessage(val seekingNode: Node, val searchingPublicKey: String)
 
-data class FoundMessage(val foundIp: String, val foundPort: Int, val forPublicKey: String)
+@Serializable
+data class SyncRequest(val node: Node, val fromBlock: Int)
 
-data class QueryMessage(val node: Node, val searchingPublicKey: String)
-
+@Serializable
 data class InclusionRequest(val currentSlot: Int, val nodePublicKey: String)
 
-data class QueuedMessage<T>(val value: Message<T>, val block: (Message<T>) -> Unit, val execute: () -> Unit = { block.invoke(value) })
+@Serializable
+data class QueuedMessage<T>(
+    val value: Message<T>,
+    @Transient val block: (Message<T>) -> Unit = {},
+    @Transient val execute: () -> Unit = { block.invoke(value) }
+)
 
-data class JoinedMessage(val acceptor: Node, val knownNodes: Collection<Node>)
+@Serializable
+class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
 
 /**
  * Message with body of type T.
@@ -29,10 +40,14 @@ data class JoinedMessage(val acceptor: Node, val knownNodes: Collection<Node>)
  * @property signature encryption signature.
  * @property body information message holds.
  * @property timeStamp timestamp when the message was generated.
- * @property asJson returns JSON of the data class.
- * @property bodyAsString returns @body as JSON.
+ * @property encoded returns JSON of the data class.
+ * @property encodedBody returns @body as JSON.
  */
-data class Message<T>(val publicKey: String, val signature: String, val body: T, val timeStamp: Long = System.currentTimeMillis(), val uid: String = DigestUtils.sha256Hex(signature)) {
-    val asJson: String get() = Utils.gson.toJson(this)
-    val bodyAsString: String get() = Utils.gson.toJson(body)
-}
+@Serializable
+class Message<T>(
+    val publicKey: String,
+    val signature: ByteArray,
+    val body: T,
+    val timestamp: Long = System.currentTimeMillis(),
+    val uid: String = DigestUtils.sha256Hex(UUID.randomUUID().toString())
+)

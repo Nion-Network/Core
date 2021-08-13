@@ -1,7 +1,9 @@
 package manager
 
+import communication.Message
 import communication.TransmissionType
 import data.*
+import logging.Dashboard
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
@@ -23,13 +25,13 @@ class CommitteeManager(
         val block = voteRequest.block
         val producer = voteRequest.producer
 
-        val blockVote = BlockVote(block.hash, crypto.sign(block.hash), VoteType.FOR)
+        val blockVote = BlockVote(block.hash, crypto.sign(block.hash.encodeToByteArray()).toString(), VoteType.FOR)
+
         dashboard.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
-        val messageToSend = networkManager.generateMessage(blockVote)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)
-        else networkManager.sendUDP(Endpoint.VoteReceived, messageToSend, TransmissionType.Unicast, producer)
+        else networkManager.sendUDP(Endpoint.VoteReceived, blockVote, TransmissionType.Unicast, producer)
     }
 
 }

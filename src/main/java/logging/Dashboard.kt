@@ -1,7 +1,6 @@
-package manager
+package logging
 
 import data.*
-import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
@@ -60,9 +59,9 @@ class Dashboard(private val configuration: Configuration) {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: List<DockerStatistics>, slot: Int) {
+    fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Int) {
         try {
-            for ((index,measurement) in statistics.withIndex()) {
+            for ((index, measurement) in statistics.iterator().withIndex()) {
                 val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for (container in measurement.containers) {
@@ -142,16 +141,16 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun requestedInclusion(from: String, producer: String, slot: Int) {
+    fun requestedInclusion(from: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
             .addField("from", from)
-            .addField("producer", producer)
             .addField("slot", slot).build()
         queue.add(point)
     }
 
     fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
+        if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
             .addField("id", id)
             .addField("endpoint", endpoint.name)
@@ -163,8 +162,27 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    fun newlyIncluded(ip: String, slot: Int) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("inclusions")
+            .addField("ip", ip)
+            .addField("slot", slot)
+            .build()
+        queue.add(point)
+    }
+
+    fun logMessageSize(protoBuf: Int, json: Int) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("message_size")
+            .addField("json", json)
+            .addField("protobuf", protoBuf)
+            .build()
+        queue.add(point)
+    }
+
 
     fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
+        if (!configuration.dashboardEnabled) return
         var index = 0
         queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
         clusters.forEach { (representative, nodes) ->

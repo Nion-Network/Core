@@ -1,5 +1,7 @@
 package data
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import org.apache.commons.codec.digest.DigestUtils
 import java.math.BigInteger
 
@@ -8,14 +10,19 @@ import java.math.BigInteger
  * on 27/03/2020 at 14:11
  * using IntelliJ IDEA
  */
+@Serializable
 data class BlockVote(val blockHash: String, val signature: String, val voteType: VoteType)
 
+@Serializable
 data class VoteRequest(val block: Block, val producer: Node)
 
+@Serializable
 data class VoteInformation(val from: String, val timestamp: Long = System.currentTimeMillis())
 
+@Serializable
 data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val committee: List<String> = emptyList())
 
+@Serializable
 data class Block(
     val slot: Int,
     val difficulty: Int,

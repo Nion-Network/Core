@@ -1,19 +1,18 @@
 package utils
 
-import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
+import communication.Message
 import data.Block
-import data.Message
 import data.NetworkRequestType
-import io.javalin.http.Context
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.*
 import kotlin.concurrent.schedule
-import kotlin.random.Random
 
 /**
  * Created by Mihael Berčič
@@ -25,12 +24,10 @@ class Utils {
 
     companion object {
 
-        val gson get() = GsonBuilder().create()
-
-        fun <T> sendMessageTo(url: String, path: String = "/", message: Message<T>, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
-            urlRequest(type, "$url$path", message.asJson) {
-                this.addRequestProperty("hex", message.uid)
-            }
+        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA256").let {
+            it.update(data)
+            it.digest()
+        }
 
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", file) {
@@ -120,11 +117,9 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
 fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.invoke() }
 
 /**
- * Parses the message with body of type T from the http request using gson (if possible).
+ * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
  *
- * @param T Message's body type
- * @return Message with body type of T
+ * @param T What data does the Message contain.
+ * @return Message with data of type T.
  */
-inline fun <reified T> Context.getMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(body(), TypeToken.getParameterized(Message::class.java, T::class.java).type)
-
-inline fun <reified T> ByteArray.asMessage(): Message<T> = Utils.gson.fromJson<Message<T>>(String(this), TypeToken.getParameterized(Message::class.java, T::class.java).type)
+inline fun <reified T> ByteArray.asMessage(): Message<T> = ProtoBuf.decodeFromByteArray(this)

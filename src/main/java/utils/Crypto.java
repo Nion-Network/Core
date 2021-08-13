@@ -17,9 +17,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Crypto {
     private KeyPair keyPair;
-    private String keystorePath;
+    private String  keystorePath;
 
-    public Crypto(String keystorePath){
+    public Crypto(String keystorePath) {
         this.keystorePath = keystorePath;
         //try to read the keypair from local storage
         try {
@@ -48,50 +48,27 @@ public class Crypto {
         }
     }
 
-    public String encrypt(String plainText, PublicKey publicKey) throws Exception {
-        Cipher encryptCipher = Cipher.getInstance("RSA");
-        encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
-
-        byte[] cipherText = encryptCipher.doFinal(plainText.getBytes(UTF_8));
-
-        return Base64.getEncoder().encodeToString(cipherText);
-    }
-
-    public String decrypt(String cipherText, PrivateKey privateKey) throws Exception {
-        byte[] bytes = Base64.getDecoder().decode(cipherText);
-
-        Cipher decriptCipher = Cipher.getInstance("RSA");
-        decriptCipher.init(Cipher.DECRYPT_MODE, privateKey);
-
-        return new String(decriptCipher.doFinal(bytes), UTF_8);
-    }
-
-    public String sign(String plainText) throws Exception {
-        Signature privateSignature = Signature.getInstance
-                ("SHA256withRSA");
+    public byte[] sign(byte[] plainText) throws Exception {
+        Signature privateSignature = Signature.getInstance("SHA256withRSA");
         privateSignature.initSign(this.keyPair.getPrivate());
-        privateSignature.update(plainText.getBytes(UTF_8));
-
-        byte[] signature = privateSignature.sign();
-
-        return Base64.getEncoder().encodeToString(signature);
+        privateSignature.update(plainText);
+        return privateSignature.sign();
     }
 
-    public boolean verify(String plainText, String signature, String publicKey) throws Exception {
-        byte[] byteKey = java.util.Base64.getMimeDecoder().decode(publicKey);
-        Signature publicSignature = Signature.getInstance("SHA256withRSA");
-        X509EncodedKeySpec X509publicKey = new X509EncodedKeySpec(byteKey);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
+    public boolean verify(byte[] data, byte[] signature, String publicKey) throws Exception {
+        byte[]             byteKey         = java.util.Base64.getMimeDecoder().decode(publicKey);
+        Signature          publicSignature = Signature.getInstance("SHA256withRSA");
+        X509EncodedKeySpec X509publicKey   = new X509EncodedKeySpec(byteKey);
+        KeyFactory         kf              = KeyFactory.getInstance("RSA");
         publicSignature.initVerify(kf.generatePublic(X509publicKey));
-        publicSignature.update(plainText.getBytes(UTF_8));
+        publicSignature.update(data);
 
-        byte[] signatureBytes = Base64.getDecoder().decode(signature);
-
-        return publicSignature.verify(signatureBytes);
+        return publicSignature.verify(signature);
     }
+
     public void saveKeyPair(String path, KeyPair keyPair) throws IOException {
         PrivateKey privateKey = keyPair.getPrivate();
-        PublicKey publicKey = keyPair.getPublic();
+        PublicKey  publicKey  = keyPair.getPublic();
 
         // Store Public Key.
         X509EncodedKeySpec x509EncodedKeySpec = new X509EncodedKeySpec(
@@ -109,11 +86,11 @@ public class Crypto {
     }
 
     public KeyPair loadKeyPair(String path) throws IOException, NoSuchAlgorithmException,
-        InvalidKeySpecException {
+            InvalidKeySpecException {
         // Read Public Key.
-        File filePublicKey = new File(path + "/public.key");
-        FileInputStream fis = new FileInputStream(path + "/public.key");
-        byte[] encodedPublicKey = new byte[(int) filePublicKey.length()];
+        File            filePublicKey    = new File(path + "/public.key");
+        FileInputStream fis              = new FileInputStream(path + "/public.key");
+        byte[]          encodedPublicKey = new byte[(int) filePublicKey.length()];
         fis.read(encodedPublicKey);
         fis.close();
 
@@ -141,7 +118,7 @@ public class Crypto {
         return keyPair;
     }
 
-    public String getPublicKey(){
+    public String getPublicKey() {
         Key pubKey = keyPair.getPublic();
         return new String(java.util.Base64.getMimeEncoder().encode(pubKey.getEncoded()));
     }

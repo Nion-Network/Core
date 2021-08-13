@@ -1,7 +1,7 @@
 package data
 
+import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
-import kotlin.random.Random
 
 /**
  * Created by Mihael Valentin Berčič
@@ -14,12 +14,13 @@ import kotlin.random.Random
  *
  * @property containers
  */
+@Serializable
 data class DockerStatistics(
     val publicKey: String,
     val containers: MutableList<ContainerStats>,
     val timestamp: Long = System.currentTimeMillis(),
 ) {
-    val totalCPU: Int get() = containers.sumBy { it.cpuUsage.roundToInt() }
+    val totalCPU: Int get() = containers.sumOf { it.cpuUsage.roundToInt() }
 
     override fun toString() = "Node ... $totalCPU% CPU with ${containers.size} containers"
 }
@@ -33,6 +34,7 @@ data class DockerStatistics(
  * @property memoryUsage Expressed in percentages.
  * @property pids Number of processes the container is running.
  */
+@Serializable
 data class ContainerStats(
     val id: String,
     val name: String,
@@ -41,4 +43,5 @@ data class ContainerStats(
     val pids: Int
 )
 
-data class Migration(val fromNode: String, val toNode: String, val containerName: String)
+@Serializable
+data class Migration(val from: String, val to: String, val containerName: String)
