@@ -170,7 +170,7 @@ class ChainManager(
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
                     // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                    //dashboard.reportStatistics(latestStatistics, blockSlot)
+                    dashboard.reportStatistics(latestStatistics, blockSlot)
                 }
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
@@ -188,9 +188,7 @@ class ChainManager(
                 }
             }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
         }
-        docker.latestStatistics.containers.forEach { container ->
-            container.cpuUsage = Random.nextDouble(10.0, 40.0)
-        }
+        informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }
 
     /**
