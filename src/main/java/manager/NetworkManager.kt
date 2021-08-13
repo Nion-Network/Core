@@ -153,17 +153,14 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         }
     }.start()
 
-    /**
-     * Runs the executor that will clean old messages every X minutes specified in configuration.
-     *
-     */
     private fun startHistoryCleanup() = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
-        networkHistory.toList().forEach { (messageHex, timestamp) ->
+        networkHistory.forEach { (messageHex, timestamp) ->
             val difference = System.currentTimeMillis() - timestamp
-            if (TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance) networkHistory.remove(messageHex)
+            val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+            if (shouldBeRemoved) networkHistory.remove(messageHex)
         }
         //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
-    }, 0, configuration.historyCleaningFrequency.toLong(), TimeUnit.MINUTES)
+    }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
 
     /**
      *  Set networking to respond using given lambda block to provided path on GET request.

@@ -5,8 +5,8 @@ import data.Endpoint
 import data.Node
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import logging.Logger
 import logging.Dashboard
+import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import java.net.DatagramPacket
@@ -14,7 +14,10 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
@@ -30,12 +33,9 @@ class UDPServer(
     private val networkHistory: MutableMap<String, Long>,
     port: Int
 ) {
-
-    var shouldListen = true
-
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
 
-    private val buildingPackets = hashMapOf<String, PacketBuilder>()
+    private val buildingPackets = ConcurrentHashMap<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
     private val sendingSocket = DatagramSocket(port + 1)
     private val broadcastingSocket = DatagramSocket(port + 2)
@@ -45,9 +45,21 @@ class UDPServer(
     }
 
     init {
+        startOutput()
+
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
+            buildingPackets.forEach { (key, builder) ->
+                val difference = System.currentTimeMillis() - builder.createdAt
+                val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+                if (shouldBeRemoved) networkHistory.remove(key)
+            }
+        }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
+    }
+
+    private fun startOutput() {
         Thread {
             val writingBuffer = ByteBuffer.allocate(65535)
-            while (shouldListen) {
+            while (true) {
                 messageQueue.take().apply {
                     try {
                         val dataSize = messageData.size
@@ -105,7 +117,7 @@ class UDPServer(
         val pureArray = ByteArray(65535)
         val packet = DatagramPacket(pureArray, pureArray.size)
         val buffer = ByteBuffer.wrap(pureArray)
-        while (shouldListen) {
+        while (true) {
             try {
                 packet.data = pureArray
                 buffer.clear()
@@ -169,10 +181,10 @@ class UDPServer(
         val configuration: Configuration,
         val messageIdentification: String,
         val endpoint: Endpoint,
-        val arraySize: Int,
-        val createdAt: Long = System.currentTimeMillis()
+        val arraySize: Int
     ) {
 
+        val createdAt: Long = System.currentTimeMillis()
         val isReady get() = data.none { it == null }
 
         val data = arrayOfNulls<ByteArray>(arraySize)
