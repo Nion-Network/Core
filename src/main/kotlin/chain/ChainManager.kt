@@ -170,7 +170,7 @@ class ChainManager(
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
                     sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
                     // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                    dashboard.reportStatistics(latestStatistics, blockSlot)
+                    dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
                 }
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {

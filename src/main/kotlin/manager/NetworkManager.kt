@@ -37,7 +37,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val isTrustedNode: Boolean get() = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
+    val isTrustedNode: Boolean = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
 
     val dht = DHTManager(this)
