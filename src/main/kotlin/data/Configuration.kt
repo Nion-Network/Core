@@ -16,7 +16,6 @@ data class Configuration(
     val slotDuration: Long,
     val broadcastSpreadPercentage: Int,
     val initialDifficulty: Int,
-    val validatorsCount: Int,
     val committeeSize: Int,
     val influxUrl: String,
     val influxUsername: String,

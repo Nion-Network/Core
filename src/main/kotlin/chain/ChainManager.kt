@@ -51,8 +51,6 @@ class ChainManager(
 
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
-    private val minValidatorsCount = configuration.validatorsCount
-
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
 
@@ -200,7 +198,7 @@ class ChainManager(
         val from = chain.lastOrNull()?.slot ?: 0
         val syncRequest = SyncRequest(networkManager.ourNode, from)
         Logger.info("Requesting new blocks from $from")
-        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, networkManager.knownNodes.values.random())
+        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, 1)
     }
 
     /**
@@ -291,7 +289,7 @@ class ChainManager(
         val currentValidatorsSize = blockProducer.currentValidators.size
         val newValidators = blockProducer.inclusionChanges.filter { it.value }.count()
 
-        val isEnoughIncluded = currentValidatorsSize + newValidators >= minValidatorsCount + 1
+        val isEnoughIncluded = currentValidatorsSize + newValidators >= configuration.committeeSize + 1
         val isChainEmpty = isChainEmpty
         if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
             val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
@@ -306,7 +304,7 @@ class ChainManager(
         networkManager.apply {
             val slot = chain.lastOrNull()?.slot ?: 0
             val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
-            dashboard.requestedInclusion(crypto.publicKey.substring(30..50), slot)
+            dashboard.requestedInclusion(ourNode.ip, slot)
             Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
             if (askTrusted) {
                 val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)

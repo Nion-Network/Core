@@ -79,24 +79,29 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         Logger.debug("My IP is $myIP")
 
         udp.startListening { endPoint, data ->
-            when (endPoint) {
-                NodeQuery -> data executeImmediately dht::onQuery
-                NodeFound -> data executeImmediately dht::onFound
-                SyncRequest -> data executeImmediately chainManager::syncRequestReceived
-                Endpoint.VoteRequest -> data executeImmediately committeeManager::voteRequest
+            try {
+                when (endPoint) {
+                    NodeQuery -> data executeImmediately dht::onQuery
+                    NodeFound -> data executeImmediately dht::onFound
+                    SyncRequest -> data executeImmediately chainManager::syncRequestReceived
+                    Endpoint.VoteRequest -> data executeImmediately committeeManager::voteRequest
 
-                Welcome -> data queueMessage dht::onJoin
-                NewBlock -> data queueMessage chainManager::blockReceived
-                SyncReply -> data queueMessage chainManager::syncReplyReceived
-                JoinRequest -> data queueMessage dht::joinRequest
-                VoteReceived -> data queueMessage chainManager::voteReceived
-                NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
-                InclusionRequest -> data queueMessage chainManager::inclusionRequest
-                else -> {
-                    Logger.error("Unexpected $endPoint in packet handler.")
-                    dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                    Welcome -> data queueMessage dht::onJoin
+                    NewBlock -> data queueMessage chainManager::blockReceived
+                    SyncReply -> data queueMessage chainManager::syncReplyReceived
+                    JoinRequest -> data queueMessage dht::joinRequest
+                    VoteReceived -> data queueMessage chainManager::voteReceived
+                    NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
+                    RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
+                    InclusionRequest -> data queueMessage chainManager::inclusionRequest
+                    else -> {
+                        Logger.error("Unexpected $endPoint in packet handler.")
+                        dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                    }
                 }
+            } catch (e: Exception) {
+                dashboard.reportException(e)
+                e.printStackTrace()
             }
         }
 
@@ -214,6 +219,11 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
             val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
             udp.send(endpoint, id, encoded, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
         } else udp.send(endpoint, id, encoded, transmissionType, nodes)
+    }
+
+    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
+        val toSend = knownNodes.values.shuffled().take(nodeCount)
+        sendUDP(endpoint, data, transmissionType, *toSend.toTypedArray())
     }
 
     fun clearMessageQueue() {

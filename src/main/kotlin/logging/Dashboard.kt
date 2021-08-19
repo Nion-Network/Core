@@ -162,9 +162,9 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
-    fun newlyIncluded(ip: String, slot: Int) {
+    fun joinRequest(ip: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("inclusions")
+        val point = Point.measurement("join")
             .addField("ip", ip)
             .addField("slot", slot)
             .build()
