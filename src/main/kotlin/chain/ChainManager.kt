@@ -106,9 +106,8 @@ class ChainManager(
             }
         }
 
-        if (!blockProducer.isIncluded) requestInclusion()
-
         val nextTask = calculateNextTask(block)
+        if (!blockProducer.isIncluded) requestInclusion(block)
 
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
@@ -300,17 +299,12 @@ class ChainManager(
         }
     }
 
-    fun requestInclusion(askTrusted: Boolean = false) {
-        networkManager.apply {
-            val slot = chain.lastOrNull()?.slot ?: 0
-            val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
-            dashboard.requestedInclusion(ourNode.ip, slot)
-            Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
-            if (askTrusted) {
-                val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-                sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast, trustedNode)
-            } else sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast)
-        }
+    fun requestInclusion(block: Block? = null) {
+        val slot = block?.slot ?: 0
+        val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
+        dashboard.requestedInclusion(networkManager.ourNode.ip, slot)
+        Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
+        networkManager.sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast)
     }
 
     /*
