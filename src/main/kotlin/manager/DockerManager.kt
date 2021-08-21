@@ -20,10 +20,9 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
     private val runtime = Runtime.getRuntime()
     private val statsRegex =
         "^(?<id>[a-zA-Z0-9]+)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s((?<memory>[0-9.]+)[a-zA-Z]{3}\\s/\\s(?<maxMemory>[0-9.]+[a-zA-Z]{3}))\\s(?<pids>[0-9]+)$".toRegex(RegexOption.MULTILINE)
+
     private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
-
     val ourContainers: MutableList<String> = mutableListOf()
-
     var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, mutableListOf())
 
     init {
@@ -33,12 +32,14 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         }
     }
 
+    /** Docker image of name "image" from the http query is ran. */
     fun runImage(context: Context) {
         Logger.debug("Requested to run new image!")
         val image = context.queryParam("image") ?: return
         runImage(image)
     }
 
+    /** Docker image of [name] is run. If it does not exist locally, it is pulled from the hub. */
     private fun runImage(name: String) {
         Logger.info("Trying to run: $name")
 
@@ -51,6 +52,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         Logger.debug("Total running containers on our node: ${ourContainers.size}")
     }
 
+    /** After receiving docker statistics, our [latest statistics][latestStatistics] are updated. */
     fun updateStats(context: Context) {
         val containerStats = statsRegex.findAll(context.body()).map {
             val groups = it.groups
@@ -66,6 +68,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         // latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
+    /** Runs a freshly migrated image using either CRIU or not. The image is sent through a HTTP request. */
     fun runMigratedImage(context: Context) {
         Logger.info("Running a migrated image using CRIU: ${configuration.useCriu}")
         val imageName = context.header("name") ?: return
@@ -78,6 +81,7 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
         storedFile.delete()
     }
 
+    /** Saves the image of the container([name]) and is stored as either checkpoint or .tar file. */
     fun saveImage(name: String): File {
         runtime.apply {
             return if (configuration.useCriu) {
