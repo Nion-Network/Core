@@ -21,28 +21,16 @@ data class SyncRequest(val node: Node, val fromBlock: Int)
 data class InclusionRequest(val currentSlot: Int, val nodePublicKey: String)
 
 @Serializable
+class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
+
+@Serializable
 data class QueuedMessage<T>(
     val value: Message<T>,
     @Transient val block: (Message<T>) -> Unit = {},
     @Transient val execute: () -> Unit = { block.invoke(value) }
 )
 
-@Serializable
-class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
-
-/**
- * Message with body of type T.
- *
- * Encapsulation of data that is sent to the client. The data will be verified via the signature and public key upon arrival.
- *
- * @param T Message body class type.
- * @property publicKey public key of the current node.
- * @property signature encryption signature.
- * @property body information message holds.
- * @property timeStamp timestamp when the message was generated.
- * @property encoded returns JSON of the data class.
- * @property encodedBody returns @body as JSON.
- */
+/** Encapsulation of data that is sent to the client. The data will be verified via the signature and public key upon arrival. */
 @Serializable
 class Message<T>(
     val publicKey: String,
