@@ -17,6 +17,8 @@ import kotlin.random.Random
  * Created by Mihael Valentin Berčič
  * on 05/12/2020 at 10:57
  * using IntelliJ IDEA
+ *
+ * Class is used for handling statistics and any networking regarding system statistics.
  */
 class InformationManager(private val networkManager: NetworkManager) {
 
@@ -28,29 +30,7 @@ class InformationManager(private val networkManager: NetworkManager) {
 
     val latestNetworkStatistics = mutableListOf<DockerStatistics>()
 
-    private fun generateClusters(task: ChainTask, k: Int, maxIterations: Int, currentValidators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
-        val random = Random(lastBlock.seed)
-        val validators = currentValidators.minus(task.blockProducer)
-        var centroids = validators.shuffled(random).take(k - 1).plus(task.blockProducer)
-        val clusters = mutableMapOf<String, MutableMap<String, Int>>()
-
-        for (iteration in 0 until maxIterations) {
-            clusters.clear()
-            validators.minus(centroids).shuffled(random).forEach { validator ->
-                val distances = centroids.map { it to random.nextInt() }
-                val chosenCentroid = distances.minByOrNull { it.second }!! // Not possible for validator collection to be empty.
-                val publicKey = chosenCentroid.first
-                val distance = chosenCentroid.second
-                clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-            }
-            centroids = clusters.values.mapNotNull { distances ->
-                val averageDistance = distances.values.average()
-                distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
-            }
-        }
-        return clusters.entries.associate { it.key to it.value.keys.toList() }
-    }
-
+    /** Reports our statistics to either the producer or our cluster representative. */
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
         val clusterCount = max(1, validators.size / configuration.nodesPerCluster)
         val clusters = generateClusters(task, clusterCount, configuration.maxIterations, validators, lastBlock)
@@ -72,21 +52,48 @@ class InformationManager(private val networkManager: NetworkManager) {
         }
     }
 
+    /** Adds docker statistics sent by other nodes to [latestNetworkStatistics]. */
     fun dockerStatisticsReceived(message: Message<DockerStatistics>) {
         latestNetworkStatistics.add(message.body)
         Logger.info("Docker stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
+    /** Adds multiple statistics received by a cluster representative to [latestNetworkStatistics]. */
     fun representativeStatisticsReceived(message: Message<Array<DockerStatistics>>) {
         latestNetworkStatistics.addAll(message.body)
         Logger.info("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
+    /** Sends our docker statistics to the [node][destinationKey]. */
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
         val latestStatistics = dockerManager.latestStatistics
         Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
         networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
+    }
+
+    /** Generates clusters based on k-means algorithm. */
+    private fun generateClusters(task: ChainTask, k: Int, maxIterations: Int, currentValidators: Collection<String>, lastBlock: Block): Map<String, List<String>> {
+        val random = Random(lastBlock.seed)
+        val validators = currentValidators.minus(task.blockProducer)
+        var centroids = validators.shuffled(random).take(k - 1).plus(task.blockProducer)
+        val clusters = mutableMapOf<String, MutableMap<String, Int>>()
+
+        for (iteration in 0 until maxIterations) {
+            clusters.clear()
+            validators.minus(centroids).shuffled(random).forEach { validator ->
+                val distances = centroids.map { it to random.nextInt() }
+                val chosenCentroid = distances.minByOrNull { it.second }!! // Not possible for validator collection to be empty.
+                val publicKey = chosenCentroid.first
+                val distance = chosenCentroid.second
+                clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
+            }
+            centroids = clusters.values.mapNotNull { distances ->
+                val averageDistance = distances.values.average()
+                distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
+            }
+        }
+        return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
 }
