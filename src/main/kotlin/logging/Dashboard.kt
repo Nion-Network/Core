@@ -81,6 +81,7 @@ class Dashboard(private val configuration: Configuration) {
         }
     }
 
+    /** Sends the newly created block information to the dashboard. */
     fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
@@ -99,6 +100,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Reports to the dashboard that a new vote arrived. */
     fun newVote(vote: BlockVote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         // Logger.debug("Sending attestation: ${DigestUtils.sha256Hex(vote.signature)} to Influx")
@@ -111,6 +113,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    // TODO: remove
     fun logQueue(queueSize: Int, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("queueSize").apply {
@@ -120,6 +123,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Reports that a migration has been executed. */
     fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
@@ -132,6 +136,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Reports that an exception was caught */
     fun reportException(e: Exception) {
         val point = Point.measurement("exceptions")
             .addField("cause", e.toString())
@@ -141,6 +146,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Reports that the node has requested inclusion into the validator set. */
     fun requestedInclusion(from: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
@@ -149,6 +155,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Reports that a message with [id] has been sent. */
     fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
@@ -162,6 +169,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    // TODO: remove
     fun joinRequest(ip: String, slot: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("join")
@@ -171,6 +179,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
+    /** Sends message sizes computed by ProtoBuf and Json which is used for comparison. */
     fun logMessageSize(protoBuf: Int, json: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message_size")
@@ -180,7 +189,7 @@ class Dashboard(private val configuration: Configuration) {
         queue.add(point)
     }
 
-
+    /** Reports clusters and their representatives. */
     fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
         if (!configuration.dashboardEnabled) return
         var index = 0
@@ -193,6 +202,7 @@ class Dashboard(private val configuration: Configuration) {
         }
     }
 
+    /** Computes [Point] which is used in [logCluster]. */
     private fun clusterNodePoint(block: Block, task: ChainTask, representative: String, node: String, index: Int): Point {
         val slotDuty = when {
             task.blockProducer == node -> SlotDuty.PRODUCER
