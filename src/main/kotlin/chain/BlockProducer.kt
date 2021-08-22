@@ -5,7 +5,6 @@ import data.Configuration
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -15,63 +14,56 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class BlockProducer(private val crypto: Crypto, private val configuration: Configuration, isTrustedNode: Boolean) {
 
-    private val currentTime: Long get() = System.currentTimeMillis()
+    val currentValidators = mutableSetOf<String>()
+    var isIncluded = isTrustedNode
+        private set
 
     val inclusionChanges: MutableMap<String, Boolean> = ConcurrentHashMap<String, Boolean>().apply {
         if (isTrustedNode) this[crypto.publicKey] = true
     }
 
-    val currentValidators = mutableSetOf<String>()
+    /** Computes genesis (first, initial) block using the specified vdf proof. */
+    fun genesisBlock(vdfProof: String): Block {
+        return Block(
+            slot = 1,
+            difficulty = configuration.initialDifficulty,
+            timestamp = System.currentTimeMillis(),
+            committeeIndex = 0,
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = inclusionChanges.toMap(),
+            vdfProof = vdfProof
+        )
+    }
 
-    var isIncluded = isTrustedNode
-        private set
+    /** Computes the next block in chain using previous block information, newly computed vdf proof and the next slot. */
+    fun createBlock(previousBlock: Block, vdfProof: String, slot: Int, committeeIndex: Int = 0): Block {
+        return Block(
+            slot,
+            difficulty = configuration.initialDifficulty,
+            timestamp = System.currentTimeMillis(),
+            committeeIndex = committeeIndex,
+            vdfProof = vdfProof,
+            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            validatorChanges = inclusionChanges.toMap(),
+            precedentHash = previousBlock.hash
+        )
+    }
 
-    /**
-     * Computes genesis (first, initial) block for the blockchain.
-     *
-     * @param vdfProof Initial difficulty VDF proof of "FFFF".
-     * @return Genesis block that is used to start the chain.
-     */
-    fun genesisBlock(vdfProof: String): Block = Block(
-        slot = 1,
-        difficulty = configuration.initialDifficulty,
-        timestamp = currentTime,
-        committeeIndex = 0,
-        blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-        validatorChanges = inclusionChanges.toMap(),
-        vdfProof = vdfProof
-    )
+    /** Computes a special skip block, which has a unique hash and the block producer as all members of the committee make the same block. */
+    fun createSkipBlock(previousBlock: Block): Block {
+        return Block(
+            slot = previousBlock.slot + 1,
+            difficulty = configuration.initialDifficulty,
+            timestamp = previousBlock.timestamp + configuration.slotDuration,
+            committeeIndex = previousBlock.committeeIndex,
+            blockProducer = "SKIP_BLOCK",
+            validatorChanges = inclusionChanges.toMap(),
+            precedentHash = previousBlock.hash,
+            hash = DigestUtils.sha256Hex("${previousBlock.slot}-SKIP-${previousBlock.precedentHash}")
+        )
+    }
 
-    /**
-     * Computes the next block in chain.
-     *
-     * @param previousBlock Last chain block that is used for the next block computation [ => chain].
-     * @param vdfProof VDF Proof computed from the previous block.
-     * @param votes Votes that have been sourced for the given block.
-     * @return Newly computed block.
-     */
-    fun createBlock(previousBlock: Block, vdfProof: String = "", slot: Int, committeeIndex: Int = 0): Block = Block(
-        slot,
-        difficulty = configuration.initialDifficulty,
-        timestamp = currentTime,
-        committeeIndex = committeeIndex,
-        vdfProof = vdfProof,
-        blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
-        validatorChanges = inclusionChanges.toMap(),
-        precedentHash = previousBlock.hash
-    )
-
-    fun createSkipBlock(previousBlock: Block): Block = Block(
-        slot = previousBlock.slot + 1,
-        difficulty = configuration.initialDifficulty,
-        timestamp = previousBlock.timestamp + configuration.slotDuration,
-        committeeIndex = previousBlock.committeeIndex,
-        blockProducer = "SKIP_BLOCK",
-        validatorChanges = inclusionChanges.toMap(),
-        precedentHash = previousBlock.hash,
-        hash = DigestUtils.sha256Hex("${previousBlock.slot}-SKIP-${previousBlock.precedentHash}")
-    )
-
+    /** Performs modifications to the current set of validators as well as inclusion changes map based on [isAdded] flag for the [publicKey] */
     fun validatorChange(publicKey: String, isAdded: Boolean) {
         if (publicKey == crypto.publicKey) isIncluded = isAdded
         if (isAdded) currentValidators.add(publicKey) else currentValidators.remove(publicKey)
@@ -79,6 +71,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
         Logger.info("${publicKey.subSequence(120, 140)} has been ${if (isAdded) "added" else "removed"}. Total: ${currentValidators.size}")
     }
 
+    /** Computes the vdf computation difficulty based on the time of the previous block computation. */
     fun adjustDifficulty(previousBlock: Block): Int {
         return 10000
 
@@ -105,4 +98,5 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             }
         }
     }
+
 }

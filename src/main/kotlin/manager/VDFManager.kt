@@ -10,6 +10,7 @@ import java.util.*
  */
 class VDFManager {
 
+    // TODO remove...
     private fun getSaltString(): String {
         val SALTCHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
         val salt = StringBuilder()
@@ -23,8 +24,12 @@ class VDFManager {
 
     private val runtime: Runtime by lazy { Runtime.getRuntime() }
 
-    private fun killAll() = Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
+    /** Kills all active vdf processes. */
+    private fun killAll() {
+        Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
+    }
 
+    /** Runs a vdf-cli command and returns the output of vdf computation. */
     fun findProof(difficulty: Int, hash: String): String {
         return hash
         killAll()
@@ -37,6 +42,7 @@ class VDFManager {
             .readText()
     }
 
+    /** Verifies the calculated vdf proof. */
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
         return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")

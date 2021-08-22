@@ -2,7 +2,10 @@ package manager
 
 import communication.Message
 import communication.TransmissionType
-import data.*
+import data.BlockVote
+import data.Endpoint
+import data.VoteRequest
+import data.VoteType
 import logging.Dashboard
 import logging.Logger
 import org.apache.commons.codec.digest.DigestUtils
@@ -12,6 +15,8 @@ import utils.Crypto
  * Created by Mihael Valentin Berčič
  * on 04/10/2020 at 17:17
  * using IntelliJ IDEA
+ *
+ * Vote requests are being handled by this class.
  */
 class CommitteeManager(
     private val networkManager: NetworkManager,
@@ -20,6 +25,7 @@ class CommitteeManager(
     private val dashboard: Dashboard
 ) {
 
+    /** On vote request received, the block is verified and if correct, a positive vote is sent back. */
     fun voteRequest(message: Message<VoteRequest>) {
         val voteRequest = message.body
         val block = voteRequest.block

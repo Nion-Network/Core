@@ -16,40 +16,31 @@ class DHTManager(private val networkManager: NetworkManager) {
 
     private val queue = ConcurrentHashMap<String, (Node) -> Unit>()
 
+    /** On found node for the [publicKey], if a lambda block for the current node exists, it is executed. */
     private fun executeOnFound(publicKey: String) {
         networkManager.knownNodes[publicKey]?.let { node ->
             queue.remove(publicKey)?.invoke(node)
         }
     }
 
-
+    /** Send out a search for [public key][forPublicKey] and add a callback block to be executed after the node is found. */
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
-        networkManager.apply {
-            if (onFound != null) queue[forPublicKey] = onFound
-            if (knownNodes.containsKey(forPublicKey)) {
-                executeOnFound(forPublicKey)
-                return
-            }
-            sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
+        if (onFound != null) queue[forPublicKey] = onFound
+        if (networkManager.knownNodes.containsKey(forPublicKey)) {
+            executeOnFound(forPublicKey)
+            return
         }
+        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
     }
 
-    /**
-     * When we get a http request on /found, this method triggers...
-     *
-     * @param context Http request context
-     */
+    /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][NetworkManager.knownNodes]. */
     fun onFound(message: Message<Node>) {
         val node = message.body
         networkManager.knownNodes.computeIfAbsent(node.publicKey) { node }
         executeOnFound(node.publicKey)
     }
 
-    /**
-     * On query request checks if we have the node cached. If we do, we send back [Node]...
-     *
-     * @param context HTTP Context
-     */
+    /** When a query endpoint receives a message we check if we know who the public key belongs to.. If we do, we send back the known [Node]...*/
     fun onQuery(message: Message<QueryMessage>) {
         val body = message.body
         val lookingFor: String = body.searchingPublicKey
@@ -63,11 +54,7 @@ class DHTManager(private val networkManager: NetworkManager) {
         }
     }
 
-    /**
-     * On join request, check if we can store the new node joining. If we can't, we send it's message to 5 random neighbours...
-     *
-     * @param context HTTP Context
-     */
+    /** On join request, check if we can store the new node joining. If we can't, we send its message to some random neighbours...*/
     fun joinRequest(message: Message<Node>) {
         networkManager.apply {
             val node = message.body
@@ -78,7 +65,7 @@ class DHTManager(private val networkManager: NetworkManager) {
                 val joinedMessage = JoinedMessage(ourNode, nodesToShare)
                 knownNodes.computeIfAbsent(publicKey) { this }
                 sendUDP(Endpoint.Welcome, joinedMessage, TransmissionType.Unicast, this)
-            } else sendUDP(Endpoint.JoinRequest, node, TransmissionType.Broadcast)
+            }
         }
 
     }

@@ -142,30 +142,32 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         }
     }
 
-    /**
-     * Runs the thread that is in charge of queue processing.
-     *
-     */
-    private fun startQueueThread() = Thread {
-        while (true) {
-            try {
-                messageQueue.take().execute.invoke()
-            } catch (e: java.lang.Exception) {
-                Logger.error("Exception caught!")
-                e.printStackTrace()
-                dashboard.reportException(e)
+    /** Runs the thread that is in charge of [message queue][messageQueue] processing. */
+    private fun startQueueThread() {
+        Thread {
+            while (true) {
+                try {
+                    messageQueue.take().execute.invoke()
+                } catch (e: java.lang.Exception) {
+                    Logger.error("Exception caught!")
+                    e.printStackTrace()
+                    dashboard.reportException(e)
+                }
             }
-        }
-    }.start()
+        }.start()
+    }
 
-    private fun startHistoryCleanup() = Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
-        networkHistory.forEach { (messageHex, timestamp) ->
-            val difference = System.currentTimeMillis() - timestamp
-            val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
-            if (shouldBeRemoved) networkHistory.remove(messageHex)
-        }
-        //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
-    }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
+    /** Schedules message history cleanup service that runs at fixed rate. */
+    private fun startHistoryCleanup() {
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
+            networkHistory.forEach { (messageHex, timestamp) ->
+                val difference = System.currentTimeMillis() - timestamp
+                val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+                if (shouldBeRemoved) networkHistory.remove(messageHex)
+            }
+            //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
+        }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
+    }
 
     /**
      *  Set networking to respond using given lambda block to provided path on GET request.
@@ -221,11 +223,13 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         } else udp.send(endpoint, id, encoded, transmissionType, nodes)
     }
 
+    /** Sends the data to the [specific amount][nodeCount] of nodes using [transmissionType]. */
     inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
         val toSend = knownNodes.values.shuffled().take(nodeCount)
         sendUDP(endpoint, data, transmissionType, *toSend.toTypedArray())
     }
 
+    /** Clears the [messageQueue]. */
     fun clearMessageQueue() {
         messageQueue.clear()
     }
@@ -237,12 +241,15 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
      * @param data Body of type T to be serialized into JSON.
      * @return Message with the signed body type of T, current publicKey and the body itself.
      */
-    inline fun <reified T> generateMessage(data: T): Message<T> = Message(
-        crypto.publicKey,
-        crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)),
-        data
-    )
+    inline fun <reified T> generateMessage(data: T): Message<T> {
+        return Message(
+            crypto.publicKey,
+            crypto.sign(ProtoBuf { encodeDefaults = true }.encodeToByteArray(data)),
+            data
+        )
+    }
 
+    /** Immediately executes the callback with the message received. */
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
         block.invoke(asMessage())
     }

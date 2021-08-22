@@ -1,30 +1,33 @@
 package utils
 
-import logging.Logger.info
 import logging.Logger.error
+import logging.Logger.info
 import java.io.File
-import kotlin.Throws
-import java.security.spec.X509EncodedKeySpec
-import java.io.IOException
-import java.io.FileOutputStream
-import java.security.spec.PKCS8EncodedKeySpec
-import java.security.spec.InvalidKeySpecException
 import java.io.FileInputStream
-import java.lang.Exception
+import java.io.FileOutputStream
+import java.io.IOException
 import java.security.*
+import java.security.spec.InvalidKeySpecException
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
 import java.util.*
 
 class Crypto(private val keystorePath: String) {
+
+    // TODO make immutable, fix public key property.
+
     var keyPair: KeyPair? = null
 
+    /** Signs data using the keypair from [keystorePath]. */
     @Throws(Exception::class)
-    fun sign(plainText: ByteArray?): ByteArray {
+    fun sign(data: ByteArray?): ByteArray {
         val privateSignature = Signature.getInstance("SHA256withRSA")
         privateSignature.initSign(keyPair!!.private)
-        privateSignature.update(plainText)
+        privateSignature.update(data)
         return privateSignature.sign()
     }
 
+    /** Verifies whether the data signed by the public key equals to the signature. */
     @Throws(Exception::class)
     fun verify(data: ByteArray?, signature: ByteArray?, publicKey: String?): Boolean {
         val byteKey = Base64.getMimeDecoder().decode(publicKey)
@@ -36,6 +39,7 @@ class Crypto(private val keystorePath: String) {
         return publicSignature.verify(signature)
     }
 
+    /** Stores the [keyPair] in [path] */
     @Throws(IOException::class)
     fun saveKeyPair(path: String, keyPair: KeyPair) {
         val privateKey = keyPair.private
@@ -58,6 +62,7 @@ class Crypto(private val keystorePath: String) {
         fos.close()
     }
 
+    /** Loads and returns the keypair stored in [path] or throws an exception if the pair does not exist. */
     @Throws(IOException::class, NoSuchAlgorithmException::class, InvalidKeySpecException::class)
     fun loadKeyPair(path: String): KeyPair {
         // Read Public Key.

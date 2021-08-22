@@ -9,12 +9,9 @@ import java.util.*
  * Created by Mihael Berčič
  * on 26/03/2020 15:35
  * using IntelliJ IDEA
+ *
+ * Used for any type of logging.
  */
-
-val Long.toChunkedTimeStamp get() = toString().drop(4).chunked(3).joinToString(" ")
-val timestamp: String get() = System.currentTimeMillis().toChunkedTimeStamp
-
-
 object Logger {
 
     private var isLoggingEnabled = false
@@ -40,13 +37,7 @@ object Logger {
                 "| a = ALL                                   |\n" +
                 " -------------------------------------------\n"
 
-    /**
-     * Prints the given message with the coloring and debug information provided.
-     *
-     * @param debugType
-     * @param message
-     * @param color Text color
-     */
+    /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
         if (!isLoggingEnabled) return
         if (currentDebug == DebugType.ALL || currentDebug == debugType) {
@@ -55,9 +46,11 @@ object Logger {
         }
     }
 
+    /** Enables or disables software logging.  */
     fun toggleLogging(enable: Boolean) {
         try {
             isLoggingEnabled = enable
+            // TODO: remove logging listener.
             if (enable) {
                 Thread {
                     info(informationString)
@@ -94,6 +87,7 @@ object Logger {
     fun chain(message: Any) = log(DebugType.CHAIN, message, cyan)
     fun consensus(message: Any) = log(DebugType.CONSENSUS, message, magenta)
 
+    /** Pads the string with the default character of ' ' at the end. */
     private fun padRight(string: String) = string.padEnd(12)
 
 }
