@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit
 class Dashboard(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
-    private lateinit var mysql: Connection
     private lateinit var influxDB: InfluxDB
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
@@ -39,16 +38,6 @@ class Dashboard(private val configuration: Configuration) {
                 }
             }.start()
             if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
-
-
-            //mysql
-            mysql = DriverManager.getConnection(
-                "jdbc:mysql://sensors.innorenew.eu:3306/grafana",
-                configuration.mysqlUser,
-                configuration.mysqlPassword
-            )
-            val statement: Statement = mysql.createStatement()
-            statement.executeUpdate("TRUNCATE network")
 
         } else Logger.info("Dashboard disabled")
 
