@@ -23,7 +23,6 @@ class Utils {
 
     companion object {
 
-
         private val digits = charArrayOf(
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
             'E', 'F'
@@ -50,18 +49,24 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
-        fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").let {
-            it.update(data)
-            it.digest()
+        /** Digests [data] using SHA-256 hashing algorithm. */
+        fun sha256(data: ByteArray): ByteArray {
+            return MessageDigest.getInstance("SHA-256").let {
+                it.update(data)
+                it.digest()
+            }
         }
 
-        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
-            urlRequest(type, "$url$path", file) {
+        /** Sends specific [file] to [url].*/
+        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> {
+            return urlRequest(type, "$url$path", file) {
                 addRequestProperty("hex", sha256(file.absolutePath).asHex)
                 addRequestProperty("name", containerName)
                 addRequestProperty("Content-Type", "multipart/form-data;")
             }
+        }
 
+        /** Executes HTTP request to [url] using [method][type]. */
         private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
             try {
@@ -96,13 +101,6 @@ class Utils {
             return 0 to "What?"
         }
 
-        /**
-         * Returns the file's contents specified with path
-         *
-         * @param patḣ
-         * @return File's contents
-         */
-        fun readFile(path: String): String = File(path).readText()
     }
 
 }

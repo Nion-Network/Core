@@ -5,9 +5,7 @@ import logging.Dashboard
 import logging.Logger.info
 import logging.Logger.toggleLogging
 import manager.NetworkManager
-import utils.Utils
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
+import java.io.File
 
 /**
  * Created by Mihael Valentin Berčič
@@ -33,7 +31,7 @@ fun main(args: Array<String>) {
     info("Using $listeningPort port.")
     info("Using $configurationPath configuration file...")
 
-    val configuration: Configuration = Json.decodeFromString(Utils.readFile(configurationPath))
+    val configuration: Configuration = Json.decodeFromString(File(configurationPath).readText())
     val dashboard = Dashboard(configuration)
     try {
         val network = NetworkManager(configuration, dashboard, listeningPort)
