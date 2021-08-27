@@ -60,9 +60,6 @@ class Utils {
                 addRequestProperty("hex", sha256(file.absolutePath).asHex)
                 addRequestProperty("name", containerName)
                 addRequestProperty("Content-Type", "multipart/form-data;")
-
-                println("Request property hex: ${getRequestProperty("hex")}")
-                println("Request property name: ${getRequestProperty("name")}")
             }
 
         private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
