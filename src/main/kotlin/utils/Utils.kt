@@ -57,9 +57,9 @@ class Utils {
 
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", file) {
-                this.addRequestProperty("hex", sha256(file.absolutePath).asHex)
-                this.addRequestProperty("name", containerName)
-                this.addRequestProperty("Content-Type", "multipart/form-data;")
+                addRequestProperty("hex", sha256(file.absolutePath).asHex)
+                addRequestProperty("name", containerName)
+                addRequestProperty("Content-Type", "multipart/form-data;")
 
                 println("Request property hex: ${getRequestProperty("hex")}")
                 println("Request property name: ${getRequestProperty("name")}")
