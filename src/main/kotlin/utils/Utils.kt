@@ -66,6 +66,7 @@ class Utils {
             }
         }
 
+        // TODO replace HttpURLConnection with HttpRequestBuilder.
         /** Executes HTTP request to [url] using [method][type]. */
         private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
@@ -129,13 +130,10 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
     return cost[len0 - 1]
 }
 
-/**
- * Runs the provided timer task after a specific amount of milliseconds ran.
- *
- * @param delay Time to delay in milliseconds.
- * @param block Lambda to execute after the delay.
- */
-fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.invoke() }
+/** Executes [block] after [delay in milliseconds][delay]. */
+fun runAfter(delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) { block.invoke() }
+}
 
 /**
  * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
