@@ -143,4 +143,6 @@ fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.i
  * @param T What data does the Message contain.
  * @return Message with data of type T.
  */
-inline fun <reified T> ByteArray.asMessage(): Message<T> = ProtoBuf.decodeFromByteArray(this)
+inline fun <reified T> ByteArray.asMessage(): Message<T> {
+    return ProtoBuf.decodeFromByteArray(this)
+}
