@@ -8,9 +8,10 @@ import data.*
 import logging.Dashboard
 import logging.Logger
 import manager.*
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
 import utils.Utils
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import utils.runAfter
 import java.util.concurrent.*
 import kotlin.math.abs
@@ -93,7 +94,7 @@ class ChainManager(
                 val startOfMigration = System.currentTimeMillis();
                 Utils.sendFileTo("http://${receiver.ip}:5005", "/run/migration/image", savedImage, toSend)
                 val migrationDuration = System.currentTimeMillis() - startOfMigration;
-                dashboard.newMigration(DigestUtils.sha256Hex(receiver.publicKey), DigestUtils.sha256Hex(crypto.publicKey), toSend, migrationDuration, blockSlot)
+                dashboard.newMigration(sha256(receiver.publicKey).asHex, sha256(crypto.publicKey).asHex, toSend, migrationDuration, blockSlot)
                 savedImage.delete()
                 docker.ourContainers.remove(toSend)
             }

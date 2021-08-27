@@ -1,8 +1,8 @@
 package data
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-import org.apache.commons.codec.digest.DigestUtils
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import java.math.BigInteger
 
 /**
@@ -30,12 +30,12 @@ data class Block(
     val committeeIndex: Int,
     val blockProducer: String,
     val precedentHash: String = "",
-    val hash: String = DigestUtils.sha256Hex("$slot$difficulty$timestamp$committeeIndex$precedentHash"),
+    val hash: String = sha256("$slot$difficulty$timestamp$committeeIndex$precedentHash").asHex,
     var votes: Int = 0,
     val validatorChanges: Map<String, Boolean> = emptyMap(),
     val migrations: MutableMap<String, Migration> = mutableMapOf(),
     var vdfProof: String = ""
 ) {
 
-    val seed get(): Long = BigInteger(DigestUtils.sha256Hex(vdfProof), 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+    val seed get(): Long = BigInteger(sha256(vdfProof).asHex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
 }

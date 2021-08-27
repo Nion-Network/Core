@@ -165,7 +165,6 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                 val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
                 if (shouldBeRemoved) networkHistory.remove(messageHex)
             }
-            //dashboard.logQueue(networkHistory.size, DigestUtils.sha256Hex(crypto.publicKey))
         }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
     }
 

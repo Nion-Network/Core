@@ -6,6 +6,8 @@ import logging.Logger.info
 import logging.Logger.toggleLogging
 import manager.NetworkManager
 import utils.Utils
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 
 /**
  * Created by Mihael Valentin Berčič

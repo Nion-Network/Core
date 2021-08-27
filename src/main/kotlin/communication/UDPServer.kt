@@ -7,8 +7,9 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Dashboard
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -76,7 +77,7 @@ class UDPServer(
                                 val from = slicePosition * packetSize
                                 val to = Integer.min(from + packetSize, dataSize)
                                 val data = messageData.sliceArray(from until to)
-                                val packetId = DigestUtils.sha256Hex(signedTimestamp + data)
+                                val packetId = sha256(signedTimestamp + data).asHex
                                 val broadcastByte: Byte = if (isBroadcast) 1 else 0
 
                                 put(packetId.toByteArray())
@@ -135,8 +136,8 @@ class UDPServer(
                         val endPoint = Endpoint.byId(endPointId) ?: throw Exception("Such ID of $endPointId does not exist.")
                         val messageIdentification = ByteArray(64)
                         buffer[messageIdentification]
+
                         val messageId = String(messageIdentification)
-                        // dashboardManager.receivedMessage(messageId, DigestUtils.sha256Hex(crypto.publicKey))
                         val totalSlices = buffer.get().toInt()
                         val currentSlice = buffer.get().toInt()
                         val dataArray = ByteArray(buffer.int)

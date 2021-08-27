@@ -3,8 +3,9 @@ package chain
 import data.Block
 import data.Configuration
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -29,7 +30,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             difficulty = configuration.initialDifficulty,
             timestamp = System.currentTimeMillis(),
             committeeIndex = 0,
-            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            blockProducer = sha256(crypto.publicKey).asHex,
             validatorChanges = inclusionChanges.toMap(),
             vdfProof = vdfProof
         )
@@ -43,7 +44,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             timestamp = System.currentTimeMillis(),
             committeeIndex = committeeIndex,
             vdfProof = vdfProof,
-            blockProducer = DigestUtils.sha256Hex(crypto.publicKey),
+            blockProducer = sha256(crypto.publicKey).asHex,
             validatorChanges = inclusionChanges.toMap(),
             precedentHash = previousBlock.hash
         )
@@ -59,7 +60,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             blockProducer = "SKIP_BLOCK",
             validatorChanges = inclusionChanges.toMap(),
             precedentHash = previousBlock.hash,
-            hash = DigestUtils.sha256Hex("${previousBlock.slot}-SKIP-${previousBlock.precedentHash}")
+            hash = sha256("${previousBlock.slot}-SKIP-${previousBlock.precedentHash}").asHex
         )
     }
 

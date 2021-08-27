@@ -1,14 +1,12 @@
 package logging
 
 import data.*
-import org.apache.commons.codec.digest.DigestUtils
 import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.Statement
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -51,7 +49,7 @@ class Dashboard(private val configuration: Configuration) {
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Int) {
         try {
             for ((index, measurement) in statistics.iterator().withIndex()) {
-                val publicKey = DigestUtils.sha256Hex(measurement.publicKey)
+                val publicKey = sha256(measurement.publicKey).asHex
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for (container in measurement.containers) {
                     val point = Point.measurement("containers").apply {
@@ -92,10 +90,9 @@ class Dashboard(private val configuration: Configuration) {
     /** Reports to the dashboard that a new vote arrived. */
     fun newVote(vote: BlockVote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
-        // Logger.debug("Sending attestation: ${DigestUtils.sha256Hex(vote.signature)} to Influx")
         val point = Point.measurement("attestations").apply {
             addField("blockHash", vote.blockHash)
-            addField("signature", DigestUtils.sha256Hex(vote.signature))
+            addField("signature", sha256(vote.signature).asHex)
             addField("committeeMember", publicKey)
         }.build()
 
@@ -150,8 +147,8 @@ class Dashboard(private val configuration: Configuration) {
         val point = Point.measurement("message")
             .addField("id", id)
             .addField("endpoint", endpoint.name)
-            .addField("source", DigestUtils.sha256Hex(sender))
-            .addField("target", DigestUtils.sha256Hex(receiver))
+            .addField("source", sha256(sender).asHex)
+            .addField("target", sha256(receiver).asHex)
             .addField("size", messageSize)
             .addField("delay", delay)
             .build()
@@ -202,8 +199,8 @@ class Dashboard(private val configuration: Configuration) {
             .time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
-            .addField("representative", DigestUtils.sha256Hex(representative))
-            .addField("node", DigestUtils.sha256Hex(node))
+            .addField("representative", sha256(representative).asHex)
+            .addField("node", sha256(node).asHex)
             .build()
     }
 }

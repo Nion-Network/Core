@@ -5,7 +5,6 @@ import data.Block
 import data.NetworkRequestType
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.io.FileInputStream
 import java.net.HttpURLConnection
@@ -24,14 +23,41 @@ class Utils {
 
     companion object {
 
-        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA256").let {
+
+        private val digits = charArrayOf(
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+            'E', 'F'
+        )
+
+        /** Taken from DigestUtils dependency.
+         *
+         * Converts an array of bytes into an array of characters representing the hexadecimal values of each byte in order.
+         * The returned array will be double the length of the passed array, as it takes two characters to represent any given byte.
+         * */
+        val ByteArray.asHex
+            get() :String {
+                val l = size
+                val out = CharArray(l shl 1)
+                var i = 0
+                var j = 0
+                while (i < l) {
+                    out[j++] = digits[0xF0 and this[i].toInt() ushr 4]
+                    out[j++] = digits[0x0F and this[i].toInt()]
+                    i++
+                }
+                return out.joinToString("")
+            }
+
+        fun sha256(data: String) = sha256(data.encodeToByteArray())
+
+        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA-256").let {
             it.update(data)
             it.digest()
         }
 
         fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
             urlRequest(type, "$url$path", file) {
-                this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
+                this.addRequestProperty("hex", sha256(file.absolutePath).asHex)
                 this.addRequestProperty("name", containerName)
                 this.addRequestProperty("Content-Type", "multipart/form-data;")
 
