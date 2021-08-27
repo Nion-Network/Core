@@ -50,7 +50,7 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
-        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA-256").let {
+        fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").let {
             it.update(data)
             it.digest()
         }
