@@ -31,8 +31,10 @@ fun main(args: Array<String>) {
     info("Using $listeningPort port.")
     info("Using $configurationPath configuration file...")
 
-    val configuration: Configuration = Json.decodeFromString(File(configurationPath).readText())
+    val configurationJson = File(configurationPath).readText()
+    val configuration: Configuration = Json.decodeFromString(configurationJson)
     val dashboard = Dashboard(configuration)
+
     try {
         val network = NetworkManager(configuration, dashboard, listeningPort)
         network.start()

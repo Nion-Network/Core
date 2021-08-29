@@ -1,7 +1,6 @@
 package logging
 
 import data.*
-import org.influxdb.InfluxDB
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
@@ -13,7 +12,7 @@ import java.util.concurrent.TimeUnit
 class Dashboard(private val configuration: Configuration) {
 
     private val queue = LinkedBlockingQueue<Point>()
-    private lateinit var influxDB: InfluxDB
+
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
         val h = timeDifference / (3600)
@@ -25,18 +24,15 @@ class Dashboard(private val configuration: Configuration) {
 
     init {
         if (configuration.dashboardEnabled) {
-            influxDB = InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword)
-            influxDB.query(Query("CREATE DATABASE PROD"))
-            influxDB.setDatabase("PROD")
-            //influxDB.setLogLevel(InfluxDB.LogLevel.FULL)
-            influxDB.enableBatch(2000, 500, TimeUnit.MILLISECONDS)
-            Thread {
-                while (true) queue.take().apply {
-                    influxDB.write(this)
-                }
-            }.start()
-            if (influxDB.ping().isGood) Logger.info("InfluxDB connection successful")
+            InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword).apply {
+                query(Query("CREATE DATABASE PROD"))
+                setDatabase("PROD")
+                //setLogLevel(InfluxDB.LogLevel.FULL)
+                enableBatch(2000, 500, TimeUnit.MILLISECONDS)
 
+                Thread { while (true) write(queue.take()) }.start()
+                if (ping().isGood) Logger.info("InfluxDB connection successful")
+            }
         } else Logger.info("Dashboard disabled")
 
     }
