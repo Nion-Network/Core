@@ -39,3 +39,4 @@ setup.sh
 testnet.sh
 .dockerignore.txt
 git-filter-repo.py
+vdf-cli-old
