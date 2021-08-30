@@ -4,6 +4,7 @@
 *.iws
 config.json
 out/
+gradle
 # Mac
 .DS_Store
 
