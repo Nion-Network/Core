@@ -5,7 +5,6 @@ import data.Block
 import data.NetworkRequestType
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.apache.commons.codec.digest.DigestUtils
 import java.io.File
 import java.io.FileInputStream
 import java.net.HttpURLConnection
@@ -24,21 +23,51 @@ class Utils {
 
     companion object {
 
-        fun sha256(data: ByteArray) = MessageDigest.getInstance("SHA256").let {
-            it.update(data)
-            it.digest()
-        }
+        private val digits = charArrayOf(
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+            'E', 'F'
+        )
 
-        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> =
-            urlRequest(type, "$url$path", file) {
-                this.addRequestProperty("hex", DigestUtils.sha256Hex(file.absolutePath))
-                this.addRequestProperty("name", containerName)
-                this.addRequestProperty("Content-Type", "multipart/form-data;")
-
-                println("Request property hex: ${getRequestProperty("hex")}")
-                println("Request property name: ${getRequestProperty("name")}")
+        /** Taken from DigestUtils dependency.
+         *
+         * Converts an array of bytes into an array of characters representing the hexadecimal values of each byte in order.
+         * The returned array will be double the length of the passed array, as it takes two characters to represent any given byte.
+         * */
+        val ByteArray.asHex
+            get() :String {
+                val l = size
+                val out = CharArray(l shl 1)
+                var i = 0
+                var j = 0
+                while (i < l) {
+                    out[j++] = digits[0xF0 and this[i].toInt() ushr 4]
+                    out[j++] = digits[0x0F and this[i].toInt()]
+                    i++
+                }
+                return out.joinToString("")
             }
 
+        fun sha256(data: String) = sha256(data.encodeToByteArray())
+
+        /** Digests [data] using SHA-256 hashing algorithm. */
+        fun sha256(data: ByteArray): ByteArray {
+            return MessageDigest.getInstance("SHA-256").let {
+                it.update(data)
+                it.digest()
+            }
+        }
+
+        /** Sends specific [file] to [url].*/
+        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> {
+            return urlRequest(type, "$url$path", file) {
+                addRequestProperty("hex", sha256(file.absolutePath).asHex)
+                addRequestProperty("name", containerName)
+                addRequestProperty("Content-Type", "multipart/form-data;")
+            }
+        }
+
+        // TODO replace HttpURLConnection with HttpRequestBuilder.
+        /** Executes HTTP request to [url] using [method][type]. */
         private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
             val connection = (URL(url).openConnection() as HttpURLConnection)
             try {
@@ -73,13 +102,6 @@ class Utils {
             return 0 to "What?"
         }
 
-        /**
-         * Returns the file's contents specified with path
-         *
-         * @param patḣ
-         * @return File's contents
-         */
-        fun readFile(path: String): String = File(path).readText()
     }
 
 }
@@ -108,13 +130,10 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
     return cost[len0 - 1]
 }
 
-/**
- * Runs the provided timer task after a specific amount of milliseconds ran.
- *
- * @param delay Time to delay in milliseconds.
- * @param block Lambda to execute after the delay.
- */
-fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.invoke() }
+/** Executes [block] after [delay in milliseconds][delay]. */
+fun runAfter(delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) { block.invoke() }
+}
 
 /**
  * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
@@ -122,4 +141,6 @@ fun runAfter(delay: Long, block: () -> Unit) = Timer().schedule(delay) { block.i
  * @param T What data does the Message contain.
  * @return Message with data of type T.
  */
-inline fun <reified T> ByteArray.asMessage(): Message<T> = ProtoBuf.decodeFromByteArray(this)
+inline fun <reified T> ByteArray.asMessage(): Message<T> {
+    return ProtoBuf.decodeFromByteArray(this)
+}

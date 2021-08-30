@@ -3,7 +3,8 @@ package communication
 import data.Node
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import org.apache.commons.codec.digest.DigestUtils
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import java.util.*
 
 /**
@@ -37,5 +38,5 @@ class Message<T>(
     val signature: ByteArray,
     val body: T,
     val timestamp: Long = System.currentTimeMillis(),
-    val uid: String = DigestUtils.sha256Hex(UUID.randomUUID().toString())
+    val uid: String = sha256(UUID.randomUUID().toString()).asHex
 )

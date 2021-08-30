@@ -8,8 +8,9 @@ import data.VoteRequest
 import data.VoteType
 import logging.Dashboard
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
 import utils.Crypto
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 
 /**
  * Created by Mihael Valentin Berčič
@@ -33,7 +34,7 @@ class CommitteeManager(
 
         val blockVote = BlockVote(block.hash, crypto.sign(block.hash.encodeToByteArray()).toString(), VoteType.FOR)
 
-        dashboard.newVote(blockVote, DigestUtils.sha256Hex(crypto.publicKey))
+        dashboard.newVote(blockVote, sha256(crypto.publicKey).asHex)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)

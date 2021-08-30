@@ -7,7 +7,8 @@ import data.ChainTask
 import data.DockerStatistics
 import data.Endpoint
 import logging.Logger
-import org.apache.commons.codec.digest.DigestUtils
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import utils.runAfter
 import java.lang.Integer.max
 import kotlin.math.abs
@@ -68,7 +69,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
         val latestStatistics = dockerManager.latestStatistics
-        Logger.info("Reporting statistics to our cluster representative! ${DigestUtils.sha256Hex(destinationKey)}")
+        Logger.info("Reporting statistics to our cluster representative! ${sha256(destinationKey).asHex}")
         networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
     }
 

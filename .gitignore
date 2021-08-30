@@ -30,3 +30,12 @@ gradle-app.setting
 
 # Cache of project
 .gradletasknamecache
+
+attach.sh
+dockerstop.sh
+LoadImage.sh
+runContainers.sh
+setup.sh
+testnet.sh
+.dockerignore.txt
+git-filter-repo.py

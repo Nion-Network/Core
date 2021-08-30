@@ -22,11 +22,8 @@ dependencies {
 
     compile 'io.javalin:javalin:3.8.0'
     compile "org.slf4j:slf4j-nop:1.7.28"
-    compile 'commons-codec:commons-codec:1.14'
 
     compile 'org.influxdb:influxdb-java:2.21'
-    // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-    compile group: 'mysql', name: 'mysql-connector-java', version: '8.0.22'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-native-mt'
 
 }
