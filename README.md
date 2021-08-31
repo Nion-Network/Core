@@ -1,26 +1,26 @@
-<div style="text-align: center">
+<div align="center">
     <h1>
         <img alt="Nion Logo" src="https://nion.network/logo.png" style="vertical-align: middle" width ="100"> Nion Network Core
     </h1>
     <a href="https://medium.com/@nionnetwork">
-        <img alt="Mediumm Badge" src="https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white"/>
+        <img alt="Mediumm Badge" src="https://img.shields.io/badge/Medium-12100E?logo=medium&logoColor=white"/>
     </a>
     <a href="https://t.me/NionNetwork">
-        <img alt="Telegram Badge" src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white"/>
+        <img alt="Telegram Badge" src="https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&logoColor=white"/>
     </a>
     <a href="https://twitter.com/NetworkNion">
-        <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white"/>
+        <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white"/>
     </a>
     <br>
-    <a href="https://github.com/Nion-Network/Core/LICENSE">
-        <img alt="Apache License" src=" https://img.shields.io/badge/license-APACHE2-blue.svg"/>
+    <a href="#">
+        <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"/>
     </a>
 </div>
 
 
-[kotlin-badge]: https://img.shields.io/badge/Kotlin-0095D5?&style=for-the-badge&logo=kotlin&logoColor=white
-[gradle-badge]: https://img.shields.io/badge/gradle-02303A?style=for-the-badge&logo=gradle&logoColor=white
-[docker-badge]: https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white
+[kotlin-badge]: https://img.shields.io/badge/Kotlin-0095D5?logo=kotlin&logoColor=white
+[gradle-badge]: https://img.shields.io/badge/gradle-02303A?logo=gradle&logoColor=white
+[docker-badge]: https://img.shields.io/badge/Docker-2CA5E0?logo=docker&logoColor=white
 
 ## Getting Started
 
