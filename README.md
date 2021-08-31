@@ -1,7 +1,32 @@
-# Nion Network Core
-<img src="https://nion.network/logo.png" width ="150">
+<div style="text-align: center">
+    <h1>
+        <img alt="Nion Logo" src="https://nion.network/logo.png" style="vertical-align: middle" width ="100"> Nion Network Core
+    </h1>
+    <a href="https://medium.com/@nionnetwork">
+        <img alt="Mediumm Badge" src="https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white"/>
+    </a>
+    <a href="https://t.me/NionNetwork">
+        <img alt="Telegram Badge" src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white"/>
+    </a>
+    <a href="https://twitter.com/NetworkNion">
+        <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white"/>
+    </a>
+    <br>
+    <a href="https://github.com/Nion-Network/Core/LICENSE">
+        <img alt="Apache License" src=" https://img.shields.io/badge/license-APACHE2-blue.svg"/>
+    </a>
+</div>
+
+
+[kotlin-badge]: https://img.shields.io/badge/Kotlin-0095D5?&style=for-the-badge&logo=kotlin&logoColor=white
+[gradle-badge]: https://img.shields.io/badge/gradle-02303A?style=for-the-badge&logo=gradle&logoColor=white
+[docker-badge]: https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white
 
 ## Getting Started
+
+![kotlin-badge]
+![gradle-badge]
+![docker-badge]
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
