@@ -17,8 +17,15 @@
     </a>
     <br>
     <a href="#">
+        <img alt="MIT License" src="https://img.shields.io/tokei/lines/github/nion-network/core"/>
+    </a>
+    <br>
+    <a href="#">
         <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"/>
-    </a>  
+    </a><br>
+    <a href="#">
+        <img alt="Website" src="https://img.shields.io/website?url=https%3A%2F%2Fnion.network"/>
+    </a>
 </div>
 
 
@@ -43,33 +50,29 @@ These instructions will get you a copy of the project up and running on your loc
 ### Configuration
 The build jar requiers a config.json in the working dir.
 The following is an example config used for running test-nets on a local machine. 
-```diff
+```json
 {
-  "trustedNodeIP": "172.17.0.2", 
+  "trustedNodeIP": "172.17.0.2",
   "trustedNodePort": 5000,
   "keystorePath": ".",
   "maxNodes": 10000,
-  "slotDuration": 20000, //slot time in seconds
-  "maxCommitteeMembers": 32, 
-  "initialDifficulty": 1000, //VDF-difficulty
-  "broadcastSpreadPercentage": 10, //fannout factor
-  "validatorsCount": 32, //minimum number of validating nodes before starting block production
-  "committeeSize": 32,
-  "slotCount": 8, 
-  "dashboardEnabled": true, //for testnets
-  "influxUrl": "", 
-  "influxUsername": "",
-  "influxPassword": "",
-  "loggingEnabled": false, //command line loggging for all nodes
-  "trustedLoggingEnabled": false, //command line logging for trusted node
-  "historyMinuteClearance": 10, //message cache cleanup
+  "slotDuration": 10000,
+  "initialDifficulty": 1000,
+  "broadcastSpreadPercentage": 5,
+  "committeeSize": 256,
+  "influxUrl": "REDACTED",
+  "influxUsername": "REDACTED",
+  "influxPassword": "REDACTED",
+  "dashboardEnabled": true,
+  "loggingEnabled": false,
+  "trustedLoggingEnabled": false,
+  "historyMinuteClearance": 10,
   "historyCleaningFrequency": 5,
-  "clusterCount": 5,
-  "maxIterations": 1,
-  "packetSplitSize": 60000, //UDP packet size
-  "useCriu": false //experimental
+  "nodesPerCluster": 30,
+  "maxIterations": 5,
+  "packetSplitSize": 60000,
+  "useCriu": false
 }
-
 ```
 
 ### Building
