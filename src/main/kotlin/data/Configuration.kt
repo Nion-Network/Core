@@ -25,8 +25,6 @@ data class Configuration(
     val trustedLoggingEnabled: Boolean,
     val historyMinuteClearance: Int,
     val historyCleaningFrequency: Long,
-    val mysqlUser: String,
-    val mysqlPassword: String,
     val nodesPerCluster: Int,
     val maxIterations: Int,
     val packetSplitSize: Int,
