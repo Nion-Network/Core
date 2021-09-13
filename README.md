@@ -10,11 +10,15 @@
     </a>
     <a href="https://twitter.com/NetworkNion">
         <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white"/>
+    </a> 
+    <br>
+    <a href="#">
+        <img alt="MIT License" src="https://img.shields.io/github/commit-activity/m/Nion-Network/Core?color=e"/>
     </a>
     <br>
     <a href="#">
         <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"/>
-    </a>
+    </a>  
 </div>
 
 
