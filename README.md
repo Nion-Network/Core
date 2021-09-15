@@ -95,7 +95,6 @@ Note: depending on the operating system, and docker version you might need to pa
 ## Dependencies
 
 * [Kotlinx Serialization (json + protobuf)](https://github.com/Kotlin/kotlinx.serialization) - Kotlin multiplatform / multi-format reflectionless serialization
-* [Docker](https://www.docker.com/) - Container framework
 * [slf4j](http://www.slf4j.org/index.html) - The Simple Logging Facade for Java (SLF4J)
 * [InfluxDb](https://www.influxdata.com/) - InfluxDB
 
