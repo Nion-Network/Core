@@ -2,6 +2,7 @@ package manager
 
 import logging.Logger.info
 import java.util.*
+import kotlin.jvm.Throws
 
 /**
  * Created by Mihael Valentin Berčič
@@ -26,12 +27,12 @@ class VDFManager {
 
     /** Kills all active vdf processes. */
     private fun killAll() {
-        Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
+        Runtime.getRuntime().exec("pkill -f vdf-cli ").waitFor()
     }
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
-    fun findProof(difficulty: Int, hash: String): String {
-        return hash
+    @Throws(Exception::class) fun findProof(difficulty: Int, hash: String): String {
+        // return hash
         killAll()
         return ProcessBuilder()
             .command("vdf-cli", hash, "$difficulty")

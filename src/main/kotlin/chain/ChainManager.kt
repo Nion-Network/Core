@@ -107,8 +107,6 @@ class ChainManager(
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
         if (nextTask.myTask == SlotDuty.PRODUCER) {
-            // if (blockSlot % 10 == 0) return // TODO Remove. It is for demonstration purposes only.
-
             val vdfProof = vdf.findProof(block.difficulty, block.hash)
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
