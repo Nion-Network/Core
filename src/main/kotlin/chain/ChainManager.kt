@@ -111,7 +111,6 @@ class ChainManager(
                 val vdfProof = vdf.findProof(block.difficulty, block.hash)
                 val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-                dashboard.joinRequest(vdfProof, blockSlot + 1)
 
                 runAfter(configuration.slotDuration * 1 / 3) {
                     networkManager.apply {

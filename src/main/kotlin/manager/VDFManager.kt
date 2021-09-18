@@ -1,5 +1,6 @@
 package manager
 
+import logging.Dashboard
 import logging.Logger.info
 import java.util.*
 
@@ -30,17 +31,23 @@ class VDFManager {
     }
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
-    fun findProof(difficulty: Int, hash: String): String {
-        return ProcessBuilder()
-            .command("vdf-cli", hash, "$difficulty")
+    fun findProof(difficulty: Int, hash: String, dashboard: Dashboard): String {
+        val needed = hash.length % 2
+        val processBuilder = ProcessBuilder()
+            .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
             .redirectErrorStream(true)
-            .start()
-            .inputStream.use { it.reader().readText() }
+
+        val process = processBuilder.start()
+        val output = process.inputStream.use { it.reader().readText() }
+        val exitCode = process.waitFor()
+        dashboard.vdfInformation(output, exitCode)
+        return output
     }
 
     /** Verifies the calculated vdf proof. */
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
+        // TODO watch out, padding needed! [L36]
         return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
         val processOutput = proofProcess.inputStream.reader().readText().trim()

@@ -152,11 +152,11 @@ class Dashboard(private val configuration: Configuration) {
     }
 
     // TODO: remove
-    fun joinRequest(ip: String, slot: Int) {
+    fun vdfInformation(computation: String, exitCode: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("join")
-            .addField("ip", ip)
-            .addField("slot", slot)
+            .addField("computation", computation)
+            .addField("code", exitCode)
             .build()
         queue.add(point)
     }
