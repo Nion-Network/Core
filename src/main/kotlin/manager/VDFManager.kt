@@ -3,6 +3,7 @@ package manager
 import logging.Dashboard
 import logging.Logger.info
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 /**
  * Created by Mihael Valentin Berčič
@@ -32,16 +33,21 @@ class VDFManager {
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
     fun findProof(difficulty: Int, hash: String, dashboard: Dashboard): String {
-        val needed = hash.length % 2
-        val processBuilder = ProcessBuilder()
-            .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectErrorStream(true)
+        var output = "ERROR"
+        try {
+            val needed = hash.length % 2
+            val processBuilder = ProcessBuilder()
+                .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
+                .redirectErrorStream(true)
 
-        val process = processBuilder.start()
-        val output = process.inputStream.use { it.reader().readText() }
-        val exitCode = process.waitFor()
-        dashboard.vdfInformation(output, exitCode)
+            dashboard.vdfInformation("STARTED")
+            val process = processBuilder.start()
+            output = process.inputStream.use { it.reader().use { it.readText() } }
+            val exitCode = process.waitFor(3, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            dashboard.reportException(e)
+        }
+        dashboard.vdfInformation(output)
         return output
     }
 

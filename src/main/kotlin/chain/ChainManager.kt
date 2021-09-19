@@ -108,7 +108,7 @@ class ChainManager(
 
         try {
             if (nextTask.myTask == SlotDuty.PRODUCER) {
-                val vdfProof = vdf.findProof(block.difficulty, block.hash)
+                val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
                 val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
@@ -282,7 +282,7 @@ class ChainManager(
         val isEnoughIncluded = currentValidatorsSize + newValidators >= configuration.committeeSize + 1
         val isChainEmpty = isChainEmpty
         if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
-            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
+            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF", dashboard)
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
