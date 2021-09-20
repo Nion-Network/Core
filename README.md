@@ -3,7 +3,7 @@
         <img alt="Nion Logo" src="https://nion.network/logo.png" style="vertical-align: middle" width ="100"> Nion Network Core
     </h1>
     <a href="https://medium.com/@nionnetwork">
-        <img alt="Mediumm Badge" src="https://img.shields.io/badge/Medium-12100E?logo=medium&logoColor=white"/>
+        <img alt="Medium Badge" src="https://img.shields.io/badge/Medium-12100E?logo=medium&logoColor=white"/>
     </a>
     <a href="https://t.me/NionNetwork">
         <img alt="Telegram Badge" src="https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&logoColor=white"/>
@@ -13,11 +13,11 @@
     </a> 
     <br>
     <a href="#">
-        <img alt="MIT License" src="https://img.shields.io/github/commit-activity/m/Nion-Network/Core?color=e"/>
+        <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Nion-Network/Core?color=e"/>
     </a>
     <br>
     <a href="#">
-        <img alt="MIT License" src="https://img.shields.io/tokei/lines/github/nion-network/core"/>
+        <img alt="LOC" src="https://img.shields.io/tokei/lines/github/nion-network/core"/>
     </a>
     <br>
     <a href="#">
