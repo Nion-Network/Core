@@ -13,6 +13,7 @@ import utils.Utils
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import utils.runAfter
+import java.lang.Long.max
 import java.util.concurrent.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -108,11 +109,16 @@ class ChainManager(
 
         try {
             if (nextTask.myTask == SlotDuty.PRODUCER) {
+                val vdfStart = System.currentTimeMillis()
                 val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
+                val vdfComputationTime = System.currentTimeMillis() - vdfStart
                 val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
                 val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
-                runAfter(configuration.slotDuration * 1 / 3) {
+                val delayThird = configuration.slotDuration / 3
+                val firstDelay = max(0, delayThird - vdfComputationTime)
+                val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
+                runAfter(firstDelay) {
                     networkManager.apply {
                         Logger.trace("Requesting votes!")
                         val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
@@ -120,7 +126,7 @@ class ChainManager(
                     }
                 }
 
-                runAfter(configuration.slotDuration * 2 / 3) {
+                runAfter(secondDelay) {
                     val votesAmount = votes[newBlock.hash]?.size ?: 0
                     newBlock.votes = votesAmount
                     networkManager.apply {
