@@ -105,7 +105,7 @@ Note: depending on the operating system, and docker version you might need to pa
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 We would like to acknowledge the collegue dr. Jernej Vičič from the University of Primorska
