@@ -1,5 +1,6 @@
 package manager
 
+import logging.Dashboard
 import logging.Logger.info
 import java.util.*
 
@@ -26,24 +27,26 @@ class VDFManager {
 
     /** Kills all active vdf processes. */
     private fun killAll() {
-        Runtime.getRuntime().exec("ps -ef | grep vdf-cli | grep -v \"grep\" | awk '{print $2}' | xargs kill; ").waitFor()
+        Runtime.getRuntime().exec("pkill -f vdf-cli").waitFor()
     }
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
-    fun findProof(difficulty: Int, hash: String): String {
-        return hash
-        killAll()
-        return ProcessBuilder()
-            .command("vdf-cli", hash, "$difficulty")
+    fun findProof(difficulty: Int, hash: String, dashboard: Dashboard): String {
+        val needed = hash.length % 2
+        val processBuilder = ProcessBuilder()
+            .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
             .redirectErrorStream(true)
-            .start()
-            .inputStream
-            .reader()
-            .readText()
+
+        dashboard.vdfInformation("STARTED")
+        val process = processBuilder.start()
+        val output = process.inputStream.reader().use { it.readText() }
+        dashboard.vdfInformation(output)
+        return output
     }
 
     /** Verifies the calculated vdf proof. */
     fun verifyProof(difficulty: Int, hash: String, proof: String): Boolean {
+        // TODO watch out, padding needed! [L36]
         return true
         val proofProcess = runtime.exec("vdf-cli $hash $difficulty $proof")
         val processOutput = proofProcess.inputStream.reader().readText().trim()

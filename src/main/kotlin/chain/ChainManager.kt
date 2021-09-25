@@ -13,6 +13,7 @@ import utils.Utils
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import utils.runAfter
+import java.lang.Long.max
 import java.util.concurrent.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -106,78 +107,85 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
-        if (nextTask.myTask == SlotDuty.PRODUCER) {
-            // if (blockSlot % 10 == 0) return // TODO Remove. It is for demonstration purposes only.
+        try {
+            if (nextTask.myTask == SlotDuty.PRODUCER) {
+                val vdfStart = System.currentTimeMillis()
+                val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
+                val vdfComputationTime = System.currentTimeMillis() - vdfStart
+                val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
+                val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
-            val vdfProof = vdf.findProof(block.difficulty, block.hash)
-            val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
-            val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-
-            runAfter(configuration.slotDuration * 1 / 3) {
-                networkManager.apply {
-                    Logger.trace("Requesting votes!")
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+                val delayThird = configuration.slotDuration / 3
+                val firstDelay = max(0, delayThird - vdfComputationTime)
+                val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
+                runAfter(firstDelay) {
+                    networkManager.apply {
+                        Logger.trace("Requesting votes!")
+                        val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                        sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+                    }
                 }
-            }
 
-            runAfter(configuration.slotDuration * 2 / 3) {
-                val votesAmount = votes[newBlock.hash]?.size ?: 0
-                newBlock.votes = votesAmount
-                networkManager.apply {
-                    val latestStatistics = informationManager.latestNetworkStatistics
-                    Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
-                    val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
-                    val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minByOrNull { it.totalCPU }
+                runAfter(secondDelay) {
+                    val votesAmount = votes[newBlock.hash]?.size ?: 0
+                    newBlock.votes = votesAmount
+                    networkManager.apply {
+                        val latestStatistics = informationManager.latestNetworkStatistics
+                        Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
+                        val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
+                        val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minByOrNull { it.totalCPU }
 
-                    Logger.info("\t\tMost used node: $mostUsedNode")
-                    Logger.info("\t\tLeast used node: $leastUsedNode")
+                        Logger.info("\t\tMost used node: $mostUsedNode")
+                        Logger.info("\t\tLeast used node: $leastUsedNode")
 
-                    if (leastUsedNode != null && mostUsedNode != null) {
-                        val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
-                        Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
-                        if (leastConsumingApp != null) {
-                            val senderBefore = mostUsedNode.totalCPU
-                            val receiverBefore = leastUsedNode.totalCPU
-                            val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
+                        if (leastUsedNode != null && mostUsedNode != null) {
+                            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
+                            Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
+                            if (leastConsumingApp != null) {
+                                val senderBefore = mostUsedNode.totalCPU
+                                val receiverBefore = leastUsedNode.totalCPU
+                                val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
 
-                            val senderAfter = senderBefore - cpuChange
-                            val receiverAfter = receiverBefore + cpuChange
+                                val senderAfter = senderBefore - cpuChange
+                                val receiverAfter = receiverBefore + cpuChange
 
-                            val differenceBefore = abs(senderBefore - receiverBefore)
-                            val differenceAfter = abs(senderAfter - receiverAfter)
-                            val migrationDifference = abs(differenceBefore - differenceAfter)
+                                val differenceBefore = abs(senderBefore - receiverBefore)
+                                val differenceAfter = abs(senderAfter - receiverAfter)
+                                val migrationDifference = abs(differenceBefore - differenceAfter)
 
-                            // TODO add to configuration
-                            val minimumDifference = 5
-                            Logger.debug("Percentage difference of before and after: $migrationDifference %")
-                            if (migrationDifference >= minimumDifference) {
-                                val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
-                                newBlock.migrations[mostUsedNode.publicKey] = newMigration
+                                // TODO add to configuration
+                                val minimumDifference = 5
+                                Logger.debug("Percentage difference of before and after: $migrationDifference %")
+                                if (migrationDifference >= minimumDifference) {
+                                    val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                                    newBlock.migrations[mostUsedNode.publicKey] = newMigration
+                                }
                             }
                         }
+
+                        val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                        sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
+                        // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
+                        dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
                     }
-
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
-                    // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                    dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
                 }
-            }
-        } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
-            val nextProducer = nextTask.blockProducer
-            dht.searchFor(nextProducer) {
-                networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, it)
-            }
-
-            scheduledCommitteeFuture = committeeExecutor.schedule({
-                networkManager.apply {
-                    val skipBlock = blockProducer.createSkipBlock(block)
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    // sendUDP(Endpoint.NewBlock, skipBlock, TransmissionType.Broadcast, *committeeNodes)
-                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+            } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+                val nextProducer = nextTask.blockProducer
+                dht.searchFor(nextProducer) {
+                    networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, it)
                 }
-            }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
+
+                scheduledCommitteeFuture = committeeExecutor.schedule({
+                    networkManager.apply {
+                        val skipBlock = blockProducer.createSkipBlock(block)
+                        val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                        // sendUDP(Endpoint.NewBlock, skipBlock, TransmissionType.Broadcast, *committeeNodes)
+                        // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
+                    }
+                }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
+            }
+        } catch (e: Exception) {
+            dashboard.reportException(e)
         }
         informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }
@@ -280,7 +288,7 @@ class ChainManager(
         val isEnoughIncluded = currentValidatorsSize + newValidators >= configuration.committeeSize + 1
         val isChainEmpty = isChainEmpty
         if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
-            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
+            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF", dashboard)
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }

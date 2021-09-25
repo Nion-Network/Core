@@ -6,6 +6,9 @@ import logging.Logger.info
 import logging.Logger.toggleLogging
 import manager.NetworkManager
 import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
+import kotlin.system.exitProcess
 
 /**
  * Created by Mihael Valentin Berčič
@@ -14,7 +17,6 @@ import java.io.File
  */
 fun main(args: Array<String>) {
     System.setProperty("kotlinx.coroutines.scheduler", "off")
-
     val pathArgumentIndex = args.indexOf("-c")
     val portArgumentIndex = args.indexOf("-p")
     val loggingArgumentIndex = args.indexOf("-l")
