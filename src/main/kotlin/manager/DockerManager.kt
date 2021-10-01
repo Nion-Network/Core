@@ -8,7 +8,7 @@ import logging.Logger
 import utils.Crypto
 import java.io.BufferedReader
 import java.io.File
-import kotlin.random.Random
+import java.nio.ByteBuffer
 
 /**
  * Created by Mihael Valentin Berčič
@@ -19,16 +19,47 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
 
     private val runtime = Runtime.getRuntime()
     private val statsRegex =
-        "^(?<id>[a-zA-Z0-9]+)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s((?<memory>[0-9.]+)[a-zA-Z]{3}\\s/\\s(?<maxMemory>[0-9.]+[a-zA-Z]{3}))\\s(?<pids>[0-9]+)$".toRegex(RegexOption.MULTILINE)
+        "^(?<id>[a-zA-Z0-9]+)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s((?<memory>[0-9.]+)[a-zA-Z]{3}\\s/\\s(?<maxMemory>[0-9.]+[a-zA-Z]{3}))\\s(?<pids>[0-9]+)$".toRegex()
 
     private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
-    val ourContainers: MutableList<String> = mutableListOf()
-    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, mutableListOf())
+    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, mutableMapOf())
 
     init {
         runtime.apply {
-            // exec("pkill -f dockerStats")
-            // exec("bash dockerStats.sh &")
+            Thread {
+                Runtime.getRuntime().apply {
+                    val process = ProcessBuilder()
+                        .command("docker", "stats", "--format", "{{.ID}} {{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.PIDs}}")
+                        .redirectErrorStream(true)
+                        .start()
+
+                    val buffer = ByteBuffer.allocate(5000)
+                    val escapeSequence = byteArrayOf(0xA, 0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48)
+                    var escapeIndex = 1
+                    while (true) {
+                        val byte = process.inputStream.read().toByte()
+                        if (byte < 0) break
+                        buffer.put(byte)
+                        if (byte == escapeSequence[escapeIndex]) escapeIndex++ else escapeIndex = 0
+                        if (escapeIndex == escapeSequence.size) {
+                            val length = buffer.position() - escapeSequence.size
+                            if (length > 0) {
+                                val line = String(buffer.array(), 0, length).split(" ")
+                                val containerId = line[0]
+                                val containerName = line[1]
+                                val cpuPercentage = line[2].trim('%').toDouble()
+                                val memoryPercentage = line[3].trim('%').toDouble()
+                                val processes = line[4].toInt()
+                                val container = ContainerStats(containerId, containerName, cpuPercentage, memoryPercentage, processes)
+                                latestStatistics.containers[containerId] = container
+                                println(container)
+                            }
+                            buffer.clear()
+                            escapeIndex = 0
+                        }
+                    }
+                }
+            }.start()
         }
     }
 
@@ -45,11 +76,9 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
 
         val toRun = name.replace(gibberishRegex, "")
         val containerId = runtime.exec("docker run -d $toRun").inputStream.bufferedReader().use(BufferedReader::readLine)
-        ourContainers.add(containerId.take(12))
-        latestStatistics.containers.add(ContainerStats(containerId, containerId, 20.0, 20.0, Random.nextInt(100)))
 
         Logger.debug("Started a new container: $containerId")
-        Logger.debug("Total running containers on our node: ${ourContainers.size}")
+        Logger.debug("Total running containers on our node: ${latestStatistics.containers.size}")
     }
 
     /** After receiving docker statistics, our [latest statistics][latestStatistics] are updated. */
@@ -64,7 +93,6 @@ class DockerManager(private val crypto: Crypto, private val configuration: Confi
             val memoryUsage = "memory" doubleFrom groups
             ContainerStats(containerId, containerName, cpuUsage, memoryUsage, numberOfProcesses)
         }
-        val filteredContainers = containerStats.filter { ourContainers.contains(it.id) }.toList()
         // latestStatistics = DockerStatistics(crypto.publicKey, filteredContainers)
     }
 
