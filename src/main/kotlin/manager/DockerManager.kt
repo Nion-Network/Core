@@ -4,60 +4,65 @@ import data.Configuration
 import data.ContainerStats
 import data.DockerStatistics
 import io.javalin.http.Context
+import logging.Dashboard
 import logging.Logger
 import utils.Crypto
 import java.io.BufferedReader
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
  * on 27/11/2020 at 17:11
  * using IntelliJ IDEA
  */
-class DockerManager(private val crypto: Crypto, private val configuration: Configuration) {
+class DockerManager(private val crypto: Crypto, private val dashboard: Dashboard, private val configuration: Configuration) {
 
     private val runtime = Runtime.getRuntime()
     private val statsRegex =
         "^(?<id>[a-zA-Z0-9]+)\\s(?<name>.*?)\\s(?<cpu>[0-9.]+?)%\\s((?<memory>[0-9.]+)[a-zA-Z]{3}\\s/\\s(?<maxMemory>[0-9.]+[a-zA-Z]{3}))\\s(?<pids>[0-9]+)$".toRegex()
 
     private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
-    var latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, mutableMapOf())
+    val latestStatistics: DockerStatistics = DockerStatistics(crypto.publicKey, ConcurrentHashMap())
 
     init {
         runtime.apply {
             Thread {
-                Runtime.getRuntime().apply {
-                    val process = ProcessBuilder()
-                        .command("docker", "stats", "--format", "{{.ID}} {{.Name}} {{.CPUPerc}} {{.MemUsage}} {{.PIDs}}")
-                        .redirectErrorStream(true)
-                        .start()
+                try {
+                    Runtime.getRuntime().apply {
+                        val process = ProcessBuilder()
+                            .command("docker", "stats", "--format", "{{.ID}} {{.Name}} {{.CPUPerc}} {{.MemPerc}} {{.PIDs}}")
+                            .redirectErrorStream(true)
+                            .start()
 
-                    val buffer = ByteBuffer.allocate(5000)
-                    val escapeSequence = byteArrayOf(0xA, 0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48)
-                    var escapeIndex = 1
-                    while (true) {
-                        val byte = process.inputStream.read().toByte()
-                        if (byte < 0) break
-                        buffer.put(byte)
-                        if (byte == escapeSequence[escapeIndex]) escapeIndex++ else escapeIndex = 0
-                        if (escapeIndex == escapeSequence.size) {
-                            val length = buffer.position() - escapeSequence.size
-                            if (length > 0) {
-                                val line = String(buffer.array(), 0, length).split(" ")
-                                val containerId = line[0]
-                                val containerName = line[1]
-                                val cpuPercentage = line[2].trim('%').toDouble()
-                                val memoryPercentage = line[3].trim('%').toDouble()
-                                val processes = line[4].toInt()
-                                val container = ContainerStats(containerId, containerName, cpuPercentage, memoryPercentage, processes)
-                                latestStatistics.containers[containerId] = container
-                                println(container)
+                        val buffer = ByteBuffer.allocate(5000)
+                        val escapeSequence = byteArrayOf(0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48)
+                        var escapeIndex = 0
+                        while (true) {
+                            val byte = process.inputStream.read().toByte()
+                            if (byte < 0) break
+                            buffer.put(byte)
+                            if (byte == escapeSequence[escapeIndex]) escapeIndex++ else escapeIndex = 0
+                            if (escapeIndex == escapeSequence.size) {
+                                val length = buffer.position() - escapeSequence.size
+                                if (length > 0) {
+                                    val line = String(buffer.array(), 0, length).trim().split(" ")
+                                    val containerId = line[0]
+                                    val containerName = line[1]
+                                    val cpuPercentage = line[2].trim('%').toDouble()
+                                    val memoryPercentage = line[3].trim('%').toDouble()
+                                    val processes = line[4].toInt()
+                                    val container = ContainerStats(containerId, containerName, cpuPercentage, memoryPercentage, processes)
+                                    latestStatistics.containers[containerId] = container
+                                }
+                                buffer.clear()
+                                escapeIndex = 0
                             }
-                            buffer.clear()
-                            escapeIndex = 0
                         }
                     }
+                } catch (e: Exception) {
+                    dashboard.reportException(e)
                 }
             }.start()
         }

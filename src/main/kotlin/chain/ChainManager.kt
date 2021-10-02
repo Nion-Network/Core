@@ -97,7 +97,7 @@ class ChainManager(
                 val migrationDuration = System.currentTimeMillis() - startOfMigration;
                 dashboard.newMigration(sha256(receiver.publicKey).asHex, sha256(crypto.publicKey).asHex, toSend, migrationDuration, blockSlot)
                 savedImage.delete()
-                docker.ourContainers.remove(toSend)
+                docker.latestStatistics.containers.remove(toSend)
             }
         }
 
@@ -139,7 +139,7 @@ class ChainManager(
                         Logger.info("\t\tLeast used node: $leastUsedNode")
 
                         if (leastUsedNode != null && mostUsedNode != null) {
-                            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
+                            val leastConsumingApp = mostUsedNode.containers.values.minByOrNull { it.cpuUsage }
                             Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
                             if (leastConsumingApp != null) {
                                 val senderBefore = mostUsedNode.totalCPU

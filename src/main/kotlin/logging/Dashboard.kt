@@ -47,13 +47,13 @@ class Dashboard(private val configuration: Configuration) {
             for ((index, measurement) in statistics.iterator().withIndex()) {
                 val publicKey = sha256(measurement.publicKey).asHex
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
-                for (container in measurement.containers) {
+                for ((id, containerStats) in measurement.containers) {
                     val point = Point.measurement("containers").apply {
                         time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
                         addField("nodeId", publicKey)
-                        addField("containerId", container.id)
-                        addField("cpu", container.cpuUsage)
-                        addField("memory", container.memoryUsage)
+                        addField("containerId", id)
+                        addField("cpu", containerStats.cpuUsage)
+                        addField("memory", containerStats.memoryUsage)
                         addField("slot", slot)
                     }.build()
                     queue.add(point)

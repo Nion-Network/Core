@@ -68,7 +68,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     /** Sends our docker statistics to the [node][destinationKey]. */
     private fun reportStatistics(destinationKey: String) {
         val node = knownNodes[destinationKey] ?: return
-        val latestStatistics = dockerManager.latestStatistics
+        val latestStatistics = dockerManager.latestStatistics.copy()
         Logger.info("Reporting statistics to our cluster representative! ${sha256(destinationKey).asHex}")
         networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
     }

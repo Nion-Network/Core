@@ -1,2 +1,7 @@
 #!/bin/bash
-dockerd --experimental & java -jar Node.jar
+while [ ! -f /var/run/docker.pid ]
+do
+echo "Waiting!"
+sleep 5
+done
+java -jar Node.jar

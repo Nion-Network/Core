@@ -42,7 +42,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
 
     val dht = DHTManager(this)
     val vdf = VDFManager()
-    val docker = DockerManager(crypto, configuration)
+    val docker = DockerManager(crypto, dashboard, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 

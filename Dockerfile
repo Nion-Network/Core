@@ -1,18 +1,17 @@
 FROM docker:dind
 # RUN sed 's/http:\/\/fr\./http:\/\//' /etc/apt/sources.list
 
+USER root
+
 RUN apk update
 RUN apk add make \
     bash \
     openjdk11-jre \
     curl \
     openssl-dev \
-    python3-dev \
-    gcc \
+    python3-dev
 
 RUN apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing criu-dev
-
-WORKDIR node
 
 ADD nion-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
@@ -23,8 +22,11 @@ ADD Base Base
 ADD restore.sh restore.sh
 ADD start.sh start.sh
 
+RUN chmod 777 start.sh
+RUN chmod +x start.sh
+
 RUN chmod 777 vdf-cli
 RUN chmod +x vdf-cli
 RUN mv vdf-cli /usr/bin/vdf-cli
 
-CMD bash start.sh
+ENTRYPOINT dockerd --experimental & bash start.sh
