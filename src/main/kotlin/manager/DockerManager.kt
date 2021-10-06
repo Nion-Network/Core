@@ -1,7 +1,6 @@
 package manager
 
 import data.*
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -30,7 +29,7 @@ class DockerManager(
     private val configuration: Configuration
 ) {
 
-    val latestStatistics = mutableMapOf<String, ContainerStats>()
+    val latestStatistics = mutableMapOf<String, ContainerStatistics>()
 
     init {
         listenForDockerStatistics()
@@ -88,7 +87,7 @@ class DockerManager(
                                     val cpuPercentage = fields[2].trim('%').toDouble()
                                     val memoryPercentage = fields[3].trim('%').toDouble()
                                     val processes = fields[4].toInt()
-                                    val container = ContainerStats(containerId, containerName, cpuPercentage, memoryPercentage, processes)
+                                    val container = ContainerStatistics(containerId, containerName, cpuPercentage, memoryPercentage, processes)
                                     latestStatistics[containerId] = container
                                 }
                             }
@@ -103,10 +102,10 @@ class DockerManager(
         }.start()
     }
 
-    fun migrateContainer(migration: Migration, block: Block) {
-        dht.searchFor(migration.to) { receiver ->
+    fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
+        dht.searchFor(migrationPlan.to) { receiver ->
             try {
-                val containerName = migration.containerName
+                val containerName = migrationPlan.containerName
                 Logger.info("We have to send container $containerName to ${receiver.ip}")
                 val file = saveContainer(containerName)
                 val startOfMigration = System.currentTimeMillis()
@@ -148,8 +147,6 @@ class DockerManager(
         }
     }
 
-    @Serializable
-    class ContainerMigration(val container: String, val slot: Long, val file: ByteArray, val image: String = "dormage/alpinestress")
 
     private fun sendContainer(node: Node, container: String, file: File, block: Block) {
         val containerMigration = ContainerMigration(container, block.slot, file.readBytes())

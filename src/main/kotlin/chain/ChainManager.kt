@@ -142,8 +142,8 @@ class ChainManager(
                                 val minimumDifference = 5
                                 Logger.debug("Percentage difference of before and after: $migrationDifference %")
                                 if (migrationDifference >= minimumDifference) {
-                                    val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                                    newBlock.migrations[mostUsedNode.publicKey] = newMigration
+                                    val newMigrationPlan = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                                    newBlock.migrations[mostUsedNode.publicKey] = newMigrationPlan
                                 }
                             }
                         }

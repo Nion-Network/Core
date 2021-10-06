@@ -33,7 +33,7 @@ data class Block(
     val hash: String = sha256("$slot$difficulty$timestamp$committeeIndex$precedentHash").asHex,
     var votes: Int = 0,
     val validatorChanges: Map<String, Boolean> = emptyMap(),
-    val migrations: MutableMap<String, Migration> = mutableMapOf(),
+    val migrations: MutableMap<String, MigrationPlan> = mutableMapOf(),
     var vdfProof: String = ""
 ) {
 

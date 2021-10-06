@@ -6,9 +6,6 @@ import logging.Logger.info
 import logging.Logger.toggleLogging
 import manager.NetworkManager
 import java.io.File
-import java.io.FileInputStream
-import java.io.InputStream
-import kotlin.system.exitProcess
 
 /**
  * Created by Mihael Valentin Berčič
