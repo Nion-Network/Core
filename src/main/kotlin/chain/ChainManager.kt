@@ -77,7 +77,10 @@ class ChainManager(
         chain.add(block)
         votes.remove(block.hash)
         informationManager.latestNetworkStatistics.clear()
-
+        docker.apply {
+            val outdated = latestStatistics.filter { (_, stats) -> System.currentTimeMillis() - stats.updated >= 1000 }
+            outdated.keys.forEach { latestStatistics.remove(it) }
+        }
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
         if (isFromSync) return
 
@@ -139,7 +142,7 @@ class ChainManager(
                                 val minimumDifference = 5
                                 Logger.debug("Percentage difference of before and after: $migrationDifference %")
                                 if (migrationDifference >= minimumDifference) {
-                                    val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.name)
+                                    val newMigration = Migration(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
                                     newBlock.migrations[mostUsedNode.publicKey] = newMigration
                                 }
                             }

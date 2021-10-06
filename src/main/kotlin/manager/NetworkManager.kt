@@ -11,6 +11,8 @@ import data.Endpoint.*
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,6 +23,7 @@ import utils.Crypto
 import utils.asMessage
 import java.lang.Integer.max
 import java.net.InetAddress
+import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
@@ -31,7 +34,7 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, private val listeningPort: Int) {
+class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, val listeningPort: Int) {
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
 
@@ -45,19 +48,19 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
 
     private val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
-    val docker = DockerManager(dht, crypto, dashboard, configuration)
+    val docker = DockerManager(dht, crypto, this, dashboard, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
     val informationManager = InformationManager(this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
-
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
-
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
     private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
 
     val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
+
+    private val migrationSocket = ServerSocket(listeningPort + 1)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
 
@@ -78,6 +81,19 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     fun start() {
         Logger.debug("My IP is $myIP")
 
+
+        startListeningUDP()
+        startListeningForMigrations()
+        startQueueThread()
+        startHistoryCleanup()
+
+        if (!isTrustedNode) joinTheNetwork()
+        else Logger.debug("We're the trusted node!")
+
+        Logger.debug("Listening on port: $listeningPort")
+    }
+
+    private fun startListeningUDP() {
         udp.startListening { endPoint, data ->
             try {
                 when (endPoint) {
@@ -104,20 +120,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                 e.printStackTrace()
             }
         }
-
-        httpServer.apply {
-            get("/ping") { Logger.info("Pinged me!") }
-        }
-
-        startQueueThread()
-        startHistoryCleanup()
-
-        if (!isTrustedNode) joinTheNetwork()
-        else Logger.debug("We're the trusted node!")
-
-        Logger.debug("Listening on port: $listeningPort")
     }
-
 
     /**
      * Sends the Join request to the trusted node and waits to be accepted into the network.
@@ -228,6 +231,15 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     /** Clears the [messageQueue]. */
     fun clearMessageQueue() {
         messageQueue.clear()
+    }
+
+    private fun startListeningForMigrations() {
+        Thread {
+            while (true) {
+                val socket = migrationSocket.accept()
+                GlobalScope.launch { socket.use { docker.executeMigration(socket) } }
+            }
+        }.start()
     }
 
     /**

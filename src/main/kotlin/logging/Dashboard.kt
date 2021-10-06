@@ -49,12 +49,12 @@ class Dashboard(private val configuration: Configuration) {
                 Logger.info("$publicKey has ${measurement.containers.size} containers running...")
                 for ((id, containerStats) in measurement.containers) {
                     val point = Point.measurement("containers").apply {
-                        time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
                         addField("nodeId", publicKey)
                         addField("containerId", id)
                         addField("cpu", containerStats.cpuUsage)
                         addField("memory", containerStats.memoryUsage)
                         addField("slot", slot)
+                        Thread.sleep(5)
                     }.build()
                     queue.add(point)
                 }
