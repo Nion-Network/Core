@@ -81,10 +81,7 @@ class ChainManager(
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
         if (isFromSync) return
 
-        val myMigration = block.migrations[crypto.publicKey]
-        if (!isFromSync && myMigration != null) {
-            docker.migrateContainer(myMigration)
-        }
+        block.migrations[crypto.publicKey]?.apply { docker.migrateContainer(this, block) }
 
         val nextTask = calculateNextTask(block)
         if (!blockProducer.isIncluded) requestInclusion(block)
