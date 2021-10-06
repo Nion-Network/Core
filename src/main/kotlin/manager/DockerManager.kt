@@ -29,7 +29,7 @@ class DockerManager(
     private val dashboard: Dashboard,
     private val configuration: Configuration
 ) {
-    
+
     val latestStatistics = mutableMapOf<String, ContainerStats>()
 
     init {
@@ -43,7 +43,7 @@ class DockerManager(
 
             ProcessBuilder("docker", "checkpoint", "create", "--checkpoint-dir=/tmp", container, checkpointName).start().waitFor()
             ProcessBuilder("tar", "-C", "/tmp", "-cf", "/tmp/$checkpointName.tar", checkpointName).start().waitFor()
-            // File("/tmp/$checkpointName").deleteRecursively()
+            File("/tmp/$checkpointName").deleteRecursively()
             return File("/tmp/$checkpointName.tar")
         } else {
             ProcessBuilder("docker", "stop", container).start().waitFor()
@@ -113,7 +113,7 @@ class DockerManager(
                 sendContainer(receiver, containerName, file, block)
                 val migrationDuration = System.currentTimeMillis() - startOfMigration
                 dashboard.newMigration(Utils.sha256(receiver.publicKey).asHex, Utils.sha256(crypto.publicKey).asHex, containerName, migrationDuration, block.slot)
-                // file.deleteRecursively()
+                file.deleteRecursively()
                 latestStatistics.remove(containerName)
             } catch (e: Exception) {
                 e.printStackTrace()
