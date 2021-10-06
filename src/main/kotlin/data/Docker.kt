@@ -40,7 +40,8 @@ data class ContainerStats(
     val name: String,
     var cpuUsage: Double,
     val memoryUsage: Double,
-    val pids: Int
+    val pids: Int,
+    val updated: Long = System.currentTimeMillis()
 )
 
 @Serializable

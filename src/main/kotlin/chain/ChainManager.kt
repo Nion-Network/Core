@@ -9,9 +9,6 @@ import logging.Dashboard
 import logging.Logger
 import manager.*
 import utils.Crypto
-import utils.Utils
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
 import utils.runAfter
 import java.lang.Long.max
 import java.util.concurrent.*
@@ -29,8 +26,8 @@ class ChainManager(
     private val networkManager: NetworkManager,
     private val crypto: Crypto,
     private val configuration: Configuration,
-    private val vdf: VDFManager,
-    private val dht: DHTManager,
+    private val vdf: VerifiableDelayFunctionManager,
+    private val dht: DistributedHashTable,
     private val docker: DockerManager,
     private val dashboard: Dashboard,
     private val informationManager: InformationManager,
@@ -86,19 +83,7 @@ class ChainManager(
 
         val myMigration = block.migrations[crypto.publicKey]
         if (!isFromSync && myMigration != null) {
-            val toSend = myMigration.containerName
-            dht.searchFor(myMigration.to) {
-                val savedImage = docker.saveImage(toSend)
-                val receiver = networkManager.knownNodes[myMigration.to] ?: throw Exception("Not able to find ${myMigration.to}")
-
-                Logger.info("We have to send container $toSend to ${receiver.ip}")
-                val startOfMigration = System.currentTimeMillis();
-                Utils.sendFileTo("http://${receiver.ip}:5005", "/run/migration/image", savedImage, toSend)
-                val migrationDuration = System.currentTimeMillis() - startOfMigration;
-                dashboard.newMigration(sha256(receiver.publicKey).asHex, sha256(crypto.publicKey).asHex, toSend, migrationDuration, blockSlot)
-                savedImage.delete()
-                docker.latestStatistics.containers.remove(toSend)
-            }
+            docker.migrateContainer(myMigration)
         }
 
         val nextTask = calculateNextTask(block)

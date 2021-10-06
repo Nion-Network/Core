@@ -33,16 +33,19 @@ import java.util.concurrent.TimeUnit
  */
 class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, private val listeningPort: Int) {
 
+    private val myIP: String = InetAddress.getLocalHost().hostAddress
+
     var isInNetwork = false
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
     val isTrustedNode: Boolean = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
     val crypto = Crypto(".")
+    val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
-    val dht = DHTManager(this)
-    val vdf = VDFManager()
-    val docker = DockerManager(crypto, dashboard, configuration)
+    private val dht = DistributedHashTable(this)
+    private val vdf = VerifiableDelayFunctionManager()
+    val docker = DockerManager(dht, crypto, dashboard, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
@@ -57,9 +60,6 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
-    private val myIP: String = InetAddress.getLocalHost().hostAddress
-
-    val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     init {
         Logger.toggleLogging(configuration.loggingEnabled || (isTrustedNode && configuration.trustedLoggingEnabled))
@@ -106,10 +106,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         }
 
         httpServer.apply {
-            post("/dockerStats", docker::updateStats)
             get("/ping") { Logger.info("Pinged me!") }
-            get("/run/image", docker::runImage)
-            post("/run/migration/image", docker::runMigratedImage)
         }
 
         startQueueThread()

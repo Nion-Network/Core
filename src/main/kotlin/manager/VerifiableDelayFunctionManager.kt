@@ -9,7 +9,7 @@ import java.util.*
  * on 02/10/2020 at 16:59
  * using IntelliJ IDEA
  */
-class VDFManager {
+class VerifiableDelayFunctionManager {
 
     // TODO remove...
     private fun getSaltString(): String {

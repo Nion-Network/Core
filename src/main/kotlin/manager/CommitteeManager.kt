@@ -22,7 +22,7 @@ import utils.Utils.Companion.sha256
 class CommitteeManager(
     private val networkManager: NetworkManager,
     private val crypto: Crypto,
-    private val vdfManager: VDFManager,
+    private val vdfManager: VerifiableDelayFunctionManager,
     private val dashboard: Dashboard
 ) {
 

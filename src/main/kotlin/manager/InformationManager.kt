@@ -42,14 +42,16 @@ class InformationManager(private val networkManager: NetworkManager) {
 
         if (task.blockProducer == crypto.publicKey) return
 
+        val ourStatistics = DockerStatistics(crypto.publicKey, dockerManager.latestStatistics)
+
         if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
-            latestNetworkStatistics.add(dockerManager.latestStatistics)
+            latestNetworkStatistics.add(ourStatistics)
             val node = knownNodes[task.blockProducer] ?: return@runAfter
             networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, node)
             Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
-            if (myRepresentative != null) reportStatistics(myRepresentative)
+            if (myRepresentative != null) reportStatistics(myRepresentative, ourStatistics)
         }
     }
 
@@ -66,11 +68,10 @@ class InformationManager(private val networkManager: NetworkManager) {
     }
 
     /** Sends our docker statistics to the [node][destinationKey]. */
-    private fun reportStatistics(destinationKey: String) {
+    private fun reportStatistics(destinationKey: String, ourStatistics: DockerStatistics) {
         val node = knownNodes[destinationKey] ?: return
-        val latestStatistics = dockerManager.latestStatistics.copy()
         Logger.info("Reporting statistics to our cluster representative! ${sha256(destinationKey).asHex}")
-        networkManager.sendUDP(Endpoint.NodeStatistics, latestStatistics, TransmissionType.Unicast, node)
+        networkManager.sendUDP(Endpoint.NodeStatistics, ourStatistics, TransmissionType.Unicast, node)
     }
 
     /** Generates clusters based on k-means algorithm. */
