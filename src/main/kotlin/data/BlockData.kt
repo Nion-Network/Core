@@ -24,7 +24,7 @@ data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val commit
 
 @Serializable
 data class Block(
-    val slot: Int,
+    val slot: Long,
     val difficulty: Int,
     val timestamp: Long,
     val committeeIndex: Int,

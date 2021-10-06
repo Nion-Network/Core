@@ -1,9 +1,6 @@
 package manager
 
-import data.Block
-import data.Configuration
-import data.ContainerStats
-import data.Migration
+import data.*
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
@@ -35,7 +32,8 @@ class DockerManager(private val dht: DistributedHashTable, private val crypto: C
             val checkpointName = "$container-checkpoint"
 
             ProcessBuilder("docker", "checkpoint", "create", "--checkpoint-dir=/tmp", container, checkpointName).start().waitFor()
-            ProcessBuilder("tar", "-cf", "$checkpointName.tar", "/tmp/$checkpointName").start().waitFor()
+            ProcessBuilder("tar", "-cf", "/tmp/$checkpointName.tar", "/tmp/$checkpointName").start().waitFor()
+            File("/tmp/$checkpointName").deleteRecursively()
             return File("/tmp/$checkpointName.tar")
         } else {
             ProcessBuilder("docker", "stop", container).start().waitFor()
@@ -100,10 +98,18 @@ class DockerManager(private val dht: DistributedHashTable, private val crypto: C
             val startOfMigration = System.currentTimeMillis();
             // send migrated file
             val migrationDuration = System.currentTimeMillis() - startOfMigration;
-
+            savedContainer.deleteOnExit()
             dashboard.newMigration(Utils.sha256(receiver.publicKey).asHex, Utils.sha256(crypto.publicKey).asHex, containerName, migrationDuration, block.slot)
             savedContainer.delete()
             latestStatistics.remove(containerName)
+        }
+    }
+
+    private fun sendContainer(node: Node, file: File, block: Block) {
+        val fileSize = file.length().toInt()
+        val bytesRequired = fileSize + 8
+        val byteBuffer = ByteBuffer.allocate(bytesRequired).apply {
+            putLong(block.slot)
         }
     }
 

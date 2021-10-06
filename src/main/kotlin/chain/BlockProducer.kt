@@ -37,7 +37,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
     }
 
     /** Computes the next block in chain using previous block information, newly computed vdf proof and the next slot. */
-    fun createBlock(previousBlock: Block, vdfProof: String, slot: Int, committeeIndex: Int = 0): Block {
+    fun createBlock(previousBlock: Block, vdfProof: String, slot: Long, committeeIndex: Int = 0): Block {
         return Block(
             slot,
             difficulty = configuration.initialDifficulty,

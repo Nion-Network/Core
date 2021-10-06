@@ -42,7 +42,7 @@ class Dashboard(private val configuration: Configuration) {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Int) {
+    fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
         try {
             for ((index, measurement) in statistics.iterator().withIndex()) {
                 val publicKey = sha256(measurement.publicKey).asHex
@@ -106,7 +106,7 @@ class Dashboard(private val configuration: Configuration) {
     }
 
     /** Reports that a migration has been executed. */
-    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Int) {
+    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
             addField("from", publicKey)
@@ -129,7 +129,7 @@ class Dashboard(private val configuration: Configuration) {
     }
 
     /** Reports that the node has requested inclusion into the validator set. */
-    fun requestedInclusion(from: String, slot: Int) {
+    fun requestedInclusion(from: String, slot: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
             .addField("from", from)

@@ -16,10 +16,10 @@ import java.util.*
 data class QueryMessage(val seekingNode: Node, val searchingPublicKey: String)
 
 @Serializable
-data class SyncRequest(val node: Node, val fromBlock: Int)
+data class SyncRequest(val node: Node, val fromBlock: Long)
 
 @Serializable
-data class InclusionRequest(val currentSlot: Int, val nodePublicKey: String)
+data class InclusionRequest(val currentSlot: Long, val nodePublicKey: String)
 
 @Serializable
 class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)

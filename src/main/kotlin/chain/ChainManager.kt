@@ -187,7 +187,7 @@ class ChainManager(
         val requestingNode = syncRequest.node
         networkManager.knownNodes.computeIfAbsent(requestingNode.publicKey) { requestingNode }
 
-        val blocks = chain.drop(syncRequest.fromBlock).take(1000)
+        val blocks = chain.drop(syncRequest.fromBlock.toInt()).take(1000) // TODO change after retrieving blocks from database.
         if (blocks.isEmpty()) return
 
         networkManager.sendUDP(Endpoint.SyncReply, blocks, TransmissionType.Unicast, requestingNode)
