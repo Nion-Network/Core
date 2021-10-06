@@ -29,10 +29,7 @@ class DockerManager(
     private val dashboard: Dashboard,
     private val configuration: Configuration
 ) {
-
-    // TODO remove runtime
-    private val runtime = Runtime.getRuntime()
-    private val gibberishRegex = Regex("(Loaded image ID: )|(sha256:)")
+    
     val latestStatistics = mutableMapOf<String, ContainerStats>()
 
     init {
