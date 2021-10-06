@@ -46,7 +46,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     val crypto = Crypto(".")
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
-    private val dht = DistributedHashTable(this)
+    private val dht = DistributedHashTable(dashboard, this)
     private val vdf = VerifiableDelayFunctionManager()
     val docker = DockerManager(dht, crypto, this, dashboard, configuration)
 
@@ -237,7 +237,13 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         Thread {
             while (true) {
                 val socket = migrationSocket.accept()
-                GlobalScope.launch { socket.use { docker.executeMigration(socket) } }
+                GlobalScope.launch {
+                    try {
+                        socket.use { docker.executeMigration(socket) }
+                    } catch (e: Exception) {
+                        dashboard.reportException(e)
+                    }
+                }
             }
         }.start()
     }

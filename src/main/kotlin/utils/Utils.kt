@@ -2,8 +2,11 @@ package utils
 
 import communication.Message
 import data.Block
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import java.security.MessageDigest
 import java.util.*
 import kotlin.concurrent.schedule
@@ -54,6 +57,18 @@ class Utils {
 
     }
 
+}
+
+
+/** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
+fun coroutineAndReport(dashboard: Dashboard, block: () -> Unit) {
+    GlobalScope.launch {
+        try {
+            block()
+        } catch (e: Exception) {
+            dashboard.reportException(e)
+        }
+    }
 }
 
 // TODO Comment

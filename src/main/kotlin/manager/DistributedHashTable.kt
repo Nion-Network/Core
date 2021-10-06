@@ -2,11 +2,11 @@ package manager
 
 import communication.*
 import data.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import logging.Logger
+import utils.coroutineAndReport
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DistributedHashTable(private val networkManager: NetworkManager) {
+class DistributedHashTable(private val dashboard: Dashboard, private val networkManager: NetworkManager) {
 
     private val queue = ConcurrentHashMap<String, (Node) -> Unit>()
 
@@ -29,7 +29,7 @@ class DistributedHashTable(private val networkManager: NetworkManager) {
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (networkManager.knownNodes.containsKey(forPublicKey)) {
-            GlobalScope.launch { executeOnFound(forPublicKey) }
+            coroutineAndReport(dashboard) { executeOnFound(forPublicKey) }
             return
         }
         networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)

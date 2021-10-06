@@ -79,7 +79,7 @@ class DockerManager(
                         if (escapeIndex != escapeSequence.size) continue
                         val length = buffer.position() - escapeSequence.size
                         if (length > 0) {
-                            String(buffer.array(), 0, length).split("\n").mapIndexed { index, line ->
+                            String(buffer.array(), 0, length).split("\n").map { line ->
                                 if (line.isNotEmpty()) {
                                     val fields = line.split(" ")
                                     val containerId = fields[0]
@@ -104,46 +104,36 @@ class DockerManager(
 
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         dht.searchFor(migrationPlan.to) { receiver ->
-            try {
-                val containerName = migrationPlan.containerName
-                Logger.info("We have to send container $containerName to ${receiver.ip}")
-                val file = saveContainer(containerName)
-                val startOfMigration = System.currentTimeMillis()
-                sendContainer(receiver, containerName, file, block)
-                val migrationDuration = System.currentTimeMillis() - startOfMigration
-                dashboard.newMigration(Utils.sha256(receiver.publicKey).asHex, Utils.sha256(crypto.publicKey).asHex, containerName, migrationDuration, block.slot)
-                file.deleteRecursively()
-                latestStatistics.remove(containerName)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                dashboard.reportException(e)
-            }
+            val containerName = migrationPlan.containerName
+            Logger.info("We have to send container $containerName to ${receiver.ip}")
+            val file = saveContainer(containerName)
+            val startOfMigration = System.currentTimeMillis()
+            sendContainer(receiver, containerName, file, block)
+            val migrationDuration = System.currentTimeMillis() - startOfMigration
+            dashboard.newMigration(Utils.sha256(receiver.publicKey).asHex, Utils.sha256(crypto.publicKey).asHex, containerName, migrationDuration, block.slot)
+            file.deleteRecursively()
+            latestStatistics.remove(containerName)
         }
     }
 
     fun executeMigration(socket: Socket) {
-        try {
-            DataInputStream(socket.getInputStream()).apply {
-                val encodedLength = readInt()
-                val data = readNBytes(encodedLength)
-                val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
-                val containerName = containerMigration.container
-                // TODO Perform a check if migration is legitimate
-                if (configuration.useCriu) {
-                    val fileLocation = "/tmp/${containerMigration.container}-checkpoint.tar"
-                    File(fileLocation).writeBytes(containerMigration.file)
-                    val containerId = ProcessBuilder("docker", "create", containerMigration.image).start().let {
-                        it.waitFor()
-                        it.inputStream.bufferedReader().use { reader -> reader.readLines().last() }
-                    }
-                    ProcessBuilder("tar", "-xf", fileLocation, "-C", "/var/lib/docker/containers/$containerId/checkpoints/").start().waitFor()
-                    dashboard.newMigration(containerId, "--checkpoint=$containerName-checkpoint", socket.localSocketAddress.toString(), 22, 22)
-                    ProcessBuilder("docker", "start", "--checkpoint=$containerName-checkpoint", containerId).start().waitFor()
+        DataInputStream(socket.getInputStream()).apply {
+            val encodedLength = readInt()
+            val data = readNBytes(encodedLength)
+            val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
+            val containerName = containerMigration.container
+            // TODO Perform a check if migration is legitimate
+            if (configuration.useCriu) {
+                val fileLocation = "/tmp/${containerMigration.container}-checkpoint.tar"
+                File(fileLocation).writeBytes(containerMigration.file)
+                val containerId = ProcessBuilder("docker", "create", containerMigration.image).start().let {
+                    it.waitFor()
+                    it.inputStream.bufferedReader().use { reader -> reader.readLines().last() }
                 }
+                ProcessBuilder("tar", "-xf", fileLocation, "-C", "/var/lib/docker/containers/$containerId/checkpoints/").start().waitFor()
+                dashboard.newMigration(containerId, "--checkpoint=$containerName-checkpoint", socket.localSocketAddress.toString(), 22, 22)
+                ProcessBuilder("docker", "start", "--checkpoint=$containerName-checkpoint", containerId).start().waitFor()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            dashboard.reportException(e)
         }
     }
 

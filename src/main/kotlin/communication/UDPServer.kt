@@ -3,13 +3,12 @@ package communication
 import data.Configuration
 import data.Endpoint
 import data.Node
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
+import utils.coroutineAndReport
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -151,7 +150,7 @@ class UDPServer(
                         val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
                         Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
                         if (builder.isReady) {
-                            coroutineAndReport { block(endPoint, builder.asOne) }
+                            coroutineAndReport(dashboard) { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
                         }
 
@@ -171,15 +170,5 @@ class UDPServer(
         }.start()
     }
 
-    /** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-    private fun coroutineAndReport(block: () -> Unit) {
-        GlobalScope.launch {
-            try {
-                block()
-            } catch (e: Exception) {
-                dashboard.reportException(e)
-            }
-        }
-    }
 
 }
