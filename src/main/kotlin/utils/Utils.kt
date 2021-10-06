@@ -2,13 +2,8 @@ package utils
 
 import communication.Message
 import data.Block
-import data.NetworkRequestType
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import java.io.File
-import java.io.FileInputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import java.util.*
 import kotlin.concurrent.schedule
@@ -55,51 +50,6 @@ class Utils {
                 it.update(data)
                 it.digest()
             }
-        }
-
-        /** Sends specific [file] to [url].*/
-        fun sendFileTo(url: String, path: String = "/", file: File, containerName: String, type: NetworkRequestType = NetworkRequestType.POST): Pair<Int, String> {
-            return urlRequest(type, "$url$path", file) {
-                addRequestProperty("hex", sha256(file.absolutePath).asHex)
-                addRequestProperty("name", containerName)
-                addRequestProperty("Content-Type", "multipart/form-data;")
-            }
-        }
-
-        // TODO replace HttpURLConnection with HttpRequestBuilder.
-        /** Executes HTTP request to [url] using [method][type]. */
-        private fun urlRequest(type: NetworkRequestType, url: String, body: Any, customBlock: HttpURLConnection.() -> Unit = {}): Pair<Int, String> {
-            val connection = (URL(url).openConnection() as HttpURLConnection)
-            try {
-                connection.requestMethod = type.name
-                connection.apply(customBlock) // Customization
-                connection.doOutput = true
-                connection.doInput = true
-                // connection.connectTimeout = 1000
-                connection.connect()
-                connection.outputStream.use {
-                    when (body) {
-                        is String -> if (body.isNotEmpty()) it.write(body.toByteArray())
-                        is File -> {
-                            FileInputStream(body).apply {
-                                transferTo(it)
-                                close()
-                            }
-                        }
-                        else -> {
-                        }
-                    }
-                    it.flush()
-                    it.close()
-                }
-                connection.disconnect()
-                return connection.responseCode to connection.responseMessage
-            } catch (e: Exception) {
-                // Logger.error("URL error to $url $e")
-            } finally {
-                connection.disconnect()
-            }
-            return 0 to "What?"
         }
 
     }
