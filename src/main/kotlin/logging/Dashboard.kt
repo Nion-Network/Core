@@ -43,24 +43,21 @@ class Dashboard(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
-        try {
-            for ((index, measurement) in statistics.iterator().withIndex()) {
-                val publicKey = sha256(measurement.publicKey).asHex
-                Logger.info("$publicKey has ${measurement.containers.size} containers running...")
-                for ((id, containerStats) in measurement.containers) {
-                    val point = Point.measurement("containers").apply {
-                        time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
-                        addField("nodeId", publicKey)
-                        addField("containerId", id)
-                        addField("cpu", containerStats.cpuUsage)
-                        addField("memory", containerStats.memoryUsage)
-                        addField("slot", slot)
-                    }.build()
-                    queue.add(point)
-                }
+        for ((index, measurement) in statistics.iterator().withIndex()) {
+            val publicKey = sha256(measurement.publicKey).asHex
+            Logger.info("$publicKey has ${measurement.containers.size} containers running...")
+            measurement.containers.onEachIndexed { containerIndex, (id, statistics) ->
+                val point = Point.measurement("containers").apply {
+                    time(System.currentTimeMillis() + index + containerIndex, TimeUnit.MILLISECONDS)
+                    addField("nodeId", publicKey)
+                    addField("containerId", id)
+                    addField("cpu", statistics.cpuUsage)
+                    addField("memory", statistics.memoryUsage)
+                    addField("slot", slot)
+                }.build()
+                queue.add(point)
             }
-        } catch (e: Exception) {
-            reportException(e)
+
         }
     }
 
