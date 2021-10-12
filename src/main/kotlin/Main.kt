@@ -26,9 +26,9 @@ fun main(args: Array<String>) {
     val listeningPort = if (isPortSpecified) args[portArgumentIndex + 1].toInt() else 5000
 
     toggleLogging(isLoggingEnabled)
-    info("Path for config file specified: $isPathSpecified")
+    info("Path for config data specified: $isPathSpecified")
     info("Using $listeningPort port.")
-    info("Using $configurationPath configuration file...")
+    info("Using $configurationPath configuration data...")
 
     val configurationJson = File(configurationPath).readText()
     val configuration: Configuration = Json.decodeFromString(configurationJson)

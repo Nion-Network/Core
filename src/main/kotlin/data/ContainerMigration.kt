@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-class ContainerMigration(val container: String, val slot: Long, val file: ByteArray, val image: String = "dormage/alpinestress")
+class ContainerMigration(val container: String, val slot: Long, val data: ByteArray, val image: String = "dormage/alpinestress", val start: Long = System.currentTimeMillis())

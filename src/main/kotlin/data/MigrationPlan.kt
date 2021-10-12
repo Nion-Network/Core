@@ -10,4 +10,4 @@ import kotlinx.serialization.Serializable
  * Holds information about the future migration plan which gets stored in a block.
  */
 @Serializable
-data class MigrationPlan(val from: String, val to: String, val containerName: String)
+data class MigrationPlan(val from: String, val to: String, val container: String)

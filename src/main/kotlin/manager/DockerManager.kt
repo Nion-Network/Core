@@ -7,9 +7,6 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
-import utils.Utils
-import utils.Utils.Companion.asHex
-import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -35,27 +32,11 @@ class DockerManager(
         listenForDockerStatistics()
     }
 
-    /** Saves the image of the container([container]) and is stored as either checkpoint or .tar file. */
+    /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
-        if (configuration.useCriu) {
-            val checkpointName = "$container-checkpoint"
-
-            ProcessBuilder("docker", "checkpoint", "create", "--checkpoint-dir=/tmp", container, checkpointName).start().waitFor()
-            ProcessBuilder("tar", "-C", "/tmp", "-cf", "/tmp/$checkpointName.tar", checkpointName).start().waitFor()
-            File("/tmp/$checkpointName").deleteRecursively()
-            return File("/tmp/$checkpointName.tar")
-        } else {
-            ProcessBuilder("docker", "stop", container).start().waitFor()
-            val commitOutput = ProcessBuilder("docker", "commit", container).start().inputStream.use { it.bufferedReader().use(BufferedReader::readLine) }
-            val saved = commitOutput.replace("sha256:", "").dropLast(1)
-            val savedFile = File.createTempFile("container-", ".tar")
-            ProcessBuilder("docker", "save", saved).apply {
-                redirectOutput(savedFile)
-                redirectError(File("error.txt"))
-                start().waitFor()
-            }
-            return savedFile
-        }
+        val arguments = if (configuration.useCriu) arrayOf("-c", container) else arrayOf(container)
+        ProcessBuilder("bash", "SaveContainer.sh", *arguments).start().waitFor()
+        return File("/tmp/$container.tar")
     }
 
     /** Starts a process of `docker stats` and keeps the [latestStatistics] up to date. */
@@ -103,50 +84,38 @@ class DockerManager(
     }
 
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
+        Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
         dht.searchFor(migrationPlan.to) { receiver ->
-            val containerName = migrationPlan.containerName
-            Logger.info("We have to send container $containerName to ${receiver.ip}")
-            val file = saveContainer(containerName)
-            val startOfMigration = System.currentTimeMillis()
-            sendContainer(receiver, containerName, file, block)
-            val migrationDuration = System.currentTimeMillis() - startOfMigration
-            dashboard.newMigration(Utils.sha256(receiver.publicKey).asHex, Utils.sha256(crypto.publicKey).asHex, containerName, migrationDuration, block.slot)
+            val container = migrationPlan.container
+            val file = saveContainer(container)
+            val containerMigration = ContainerMigration(container, block.slot, file.readBytes())
+            val encoded = ProtoBuf.encodeToByteArray(containerMigration)
+            Socket(receiver.ip, networkManager.listeningPort + 1).use { socket ->
+                DataOutputStream(socket.getOutputStream()).apply {
+                    writeInt(encoded.size)
+                    write(encoded)
+                }
+            }
             file.deleteRecursively()
-            latestStatistics.remove(containerName)
+            latestStatistics.remove(container)
         }
     }
 
     fun executeMigration(socket: Socket) {
-        DataInputStream(socket.getInputStream()).apply {
-            val encodedLength = readInt()
-            val data = readNBytes(encodedLength)
+        DataInputStream(socket.getInputStream()).use { dataInputStream ->
+            val encodedLength = dataInputStream.readInt()
+            val data = dataInputStream.readNBytes(encodedLength)
             val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
+            val image = containerMigration.image
             val containerName = containerMigration.container
             // TODO Perform a check if migration is legitimate
-            if (configuration.useCriu) {
-                val fileLocation = "/tmp/${containerMigration.container}-checkpoint.tar"
-                File(fileLocation).writeBytes(containerMigration.file)
-                val containerId = ProcessBuilder("docker", "create", containerMigration.image).start().let {
-                    it.waitFor()
-                    it.inputStream.bufferedReader().use { reader -> reader.readLines().last() }
-                }
-                ProcessBuilder("tar", "-xf", fileLocation, "-C", "/var/lib/docker/containers/$containerId/checkpoints/").start().waitFor()
-                dashboard.newMigration(containerId, "--checkpoint=$containerName-checkpoint", socket.localSocketAddress.toString(), 22, 22)
-                ProcessBuilder("docker", "start", "--checkpoint=$containerName-checkpoint", containerId).start().waitFor()
-            }
+
+            File("/tmp/$containerName.tar").writeBytes(containerMigration.data)
+
+            val arguments = if (configuration.useCriu) arrayOf("-c", containerName, image) else arrayOf(containerName, image)
+            ProcessBuilder("bash", "RunContainer.sh", *arguments).start().waitFor()
+            val elapsed = System.currentTimeMillis() - containerMigration.start
+            dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), containerName, elapsed, containerMigration.slot)
         }
     }
-
-
-    private fun sendContainer(node: Node, container: String, file: File, block: Block) {
-        val containerMigration = ContainerMigration(container, block.slot, file.readBytes())
-        val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-        Socket(node.ip, networkManager.listeningPort + 1).use { socket ->
-            DataOutputStream(socket.getOutputStream()).apply {
-                writeInt(encoded.size)
-                write(encoded)
-            }
-        }
-    }
-
 }
