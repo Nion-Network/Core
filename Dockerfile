@@ -18,12 +18,12 @@ RUN apk add tar
 ADD nion-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
 ADD vdf-cli vdf-cli
-ADD start.sh start.sh
+ADD Start.sh Start.sh
 ADD SaveContainer.sh SaveContainer.sh
 ADD RunContainer.sh RunContainer.sh
 
-RUN chmod 777 start.sh
+RUN chmod 777 Start.sh
 RUN chmod 777 vdf-cli
 RUN mv vdf-cli /usr/bin/vdf-cli
 
-ENTRYPOINT dockerd --experimental & bash start.sh
+ENTRYPOINT dockerd --experimental & bash Start.sh
