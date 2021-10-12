@@ -18,7 +18,6 @@ RUN apk add tar
 ADD nion-1.0-SNAPSHOT.jar Node.jar
 ADD config.json config.json
 ADD vdf-cli vdf-cli
-ADD restore.sh restore.sh
 ADD start.sh start.sh
 ADD SaveContainer.sh SaveContainer.sh
 ADD RunContainer.sh RunContainer.sh
