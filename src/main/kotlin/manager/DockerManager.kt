@@ -117,6 +117,8 @@ class DockerManager(
                         buffer.clear()
                         escapeIndex = 0
                     } catch (e: Exception) {
+                        buffer.clear()
+                        escapeIndex = 0
                         dashboard.reportException(e)
                     }
                 }
