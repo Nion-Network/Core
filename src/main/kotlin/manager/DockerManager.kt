@@ -39,6 +39,47 @@ class DockerManager(
         return File("/tmp/$container.tar")
     }
 
+    fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
+        Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
+        dht.searchFor(migrationPlan.to) { receiver ->
+            val container = migrationPlan.container
+            val file = saveContainer(container)
+            val containerMigration = ContainerMigration(container, block.slot)
+            val encoded = ProtoBuf.encodeToByteArray(containerMigration)
+            Socket(receiver.ip, networkManager.listeningPort + 1).use { socket ->
+                DataOutputStream(socket.getOutputStream()).apply {
+                    writeInt(encoded.size)
+                    write(encoded)
+                    file.inputStream().use { it.transferTo(this) }
+                }
+            }
+            file.deleteRecursively()
+            latestStatistics.remove(container)
+        }
+    }
+
+    fun executeMigration(socket: Socket) {
+        try {
+            DataInputStream(socket.getInputStream()).use { dataInputStream ->
+                val encodedLength = dataInputStream.readInt()
+                val data = dataInputStream.readNBytes(encodedLength)
+                val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
+
+                val image = containerMigration.image
+                val containerName = containerMigration.container
+
+                File("/tmp/$containerName.tar").outputStream().use { dataInputStream.transferTo(it) }
+
+                val arguments = if (configuration.useCriu) arrayOf("-c", containerName, image) else arrayOf(containerName)
+                ProcessBuilder("bash", "RunContainer.sh", *arguments).start().waitFor()
+                val elapsed = System.currentTimeMillis() - containerMigration.start
+                dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), containerName, elapsed, containerMigration.slot)
+            }
+        } catch (e: Exception) {
+            dashboard.reportException(e)
+        }
+    }
+
     /** Starts a process of `docker stats` and keeps the [latestStatistics] up to date. */
     private fun listenForDockerStatistics() {
         Thread {
@@ -81,41 +122,5 @@ class DockerManager(
                 }
             }
         }.start()
-    }
-
-    fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
-        Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
-        dht.searchFor(migrationPlan.to) { receiver ->
-            val container = migrationPlan.container
-            val file = saveContainer(container)
-            val containerMigration = ContainerMigration(container, block.slot, file.readBytes())
-            val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, networkManager.listeningPort + 1).use { socket ->
-                DataOutputStream(socket.getOutputStream()).apply {
-                    writeInt(encoded.size)
-                    write(encoded)
-                }
-            }
-            file.deleteRecursively()
-            latestStatistics.remove(container)
-        }
-    }
-
-    fun executeMigration(socket: Socket) {
-        DataInputStream(socket.getInputStream()).use { dataInputStream ->
-            val encodedLength = dataInputStream.readInt()
-            val data = dataInputStream.readNBytes(encodedLength)
-            val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
-            val image = containerMigration.image
-            val containerName = containerMigration.container
-            // TODO Perform a check if migration is legitimate
-
-            File("/tmp/$containerName.tar").writeBytes(containerMigration.data)
-
-            val arguments = if (configuration.useCriu) arrayOf("-c", containerName, image) else arrayOf(containerName, image)
-            ProcessBuilder("bash", "RunContainer.sh", *arguments).start().waitFor()
-            val elapsed = System.currentTimeMillis() - containerMigration.start
-            dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), containerName, elapsed, containerMigration.slot)
-        }
     }
 }

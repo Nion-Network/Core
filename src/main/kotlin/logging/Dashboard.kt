@@ -106,6 +106,7 @@ class Dashboard(private val configuration: Configuration) {
     fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
+            time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
             addField("from", publicKey)
             addField("to", receiver)
             addField("slot", slot)
