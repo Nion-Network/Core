@@ -125,8 +125,12 @@ class ChainManager(
 
                         if (leastUsedNode != null && mostUsedNode != null) {
                             val leastConsumingApp = mostUsedNode.containers.values.minByOrNull { it.cpuUsage }
+                            val lastBlocks = chain.takeLast(10)
+                            val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
                             Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
-                            if (leastConsumingApp != null) {
+
+                            // Note: Extremely naive and useless efficiency algorithm. Proper configurable migration planning coming later.
+                            if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
                                 val senderBefore = mostUsedNode.totalCPU
                                 val receiverBefore = leastUsedNode.totalCPU
                                 val cpuChange = leastConsumingApp.cpuUsage.roundToInt()

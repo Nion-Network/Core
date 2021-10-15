@@ -12,6 +12,7 @@ import java.io.DataOutputStream
 import java.io.File
 import java.net.Socket
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -25,6 +26,8 @@ class DockerManager(
     private val dashboard: Dashboard,
     private val configuration: Configuration
 ) {
+
+    private val containerMappings = ConcurrentHashMap<String, String>()
 
     val latestStatistics = mutableMapOf<String, ContainerStatistics>()
 
@@ -42,7 +45,7 @@ class DockerManager(
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
         dht.searchFor(migrationPlan.to) { receiver ->
-            val container = migrationPlan.container
+            val container = migrationPlan.container.let { containerMappings[it] ?: it }
             val file = saveContainer(container)
             val containerMigration = ContainerMigration(container, block.slot)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
@@ -53,30 +56,33 @@ class DockerManager(
                     file.inputStream().use { it.transferTo(this) }
                 }
             }
+            containerMappings.remove(containerMappings[container])
+            containerMappings.remove(container)
             file.deleteRecursively()
             latestStatistics.remove(container)
         }
     }
 
     fun executeMigration(socket: Socket) {
-        try {
-            DataInputStream(socket.getInputStream()).use { dataInputStream ->
-                val encodedLength = dataInputStream.readInt()
-                val data = dataInputStream.readNBytes(encodedLength)
-                val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
+        DataInputStream(socket.getInputStream()).use { dataInputStream ->
+            val encodedLength = dataInputStream.readInt()
+            val data = dataInputStream.readNBytes(encodedLength)
+            val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
 
-                val image = containerMigration.image
-                val containerName = containerMigration.container
+            val image = containerMigration.image
+            val migratedContainer = containerMigration.container
 
-                File("/tmp/$containerName.tar").outputStream().use { dataInputStream.transferTo(it) }
-
-                val arguments = if (configuration.useCriu) arrayOf("-c", containerName, image) else arrayOf(containerName)
-                ProcessBuilder("bash", "RunContainer.sh", *arguments).start().waitFor()
-                val elapsed = System.currentTimeMillis() - containerMigration.start
-                dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), containerName, elapsed, containerMigration.slot)
+            val outputFile = File("/tmp/$migratedContainer.tar").apply {
+                outputStream().use { dataInputStream.transferTo(it) }
             }
-        } catch (e: Exception) {
-            dashboard.reportException(e)
+
+            val arguments = if (configuration.useCriu) arrayOf("-c", migratedContainer, image) else arrayOf(migratedContainer)
+            val newContainer = ProcessBuilder("bash", "RunContainer.sh", *arguments).start().inputStream.bufferedReader().use { it.readLine() }
+            val elapsed = System.currentTimeMillis() - containerMigration.start
+            containerMappings[newContainer] = migratedContainer
+            containerMappings[migratedContainer] = newContainer
+            dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), migratedContainer, elapsed, containerMigration.slot)
+            outputFile.deleteRecursively()
         }
     }
 
@@ -104,7 +110,7 @@ class DockerManager(
                             String(buffer.array(), 0, length).split("\n").map { line ->
                                 if (line.isNotEmpty()) {
                                     val fields = line.split(" ")
-                                    val containerId = fields[0]
+                                    val containerId = fields[0].let { containerMappings[it] ?: it }
                                     val containerName = fields[1]
                                     val cpuPercentage = fields[2].trim('%').toDouble()
                                     val memoryPercentage = fields[3].trim('%').toDouble()
