@@ -42,16 +42,16 @@ class InformationManager(private val networkManager: NetworkManager) {
 
         if (task.blockProducer == crypto.publicKey) return
 
-        val ourStatistics = DockerStatistics(crypto.publicKey, dockerManager.latestStatistics)
+        val statistics = dockerManager.getLatestStatistics(lastBlock)
 
-        if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
-            latestNetworkStatistics.add(ourStatistics)
+        if (isRepresentative) runAfter((configuration.slotDuration) / 4) {
+            latestNetworkStatistics.add(statistics)
             val node = knownNodes[task.blockProducer] ?: return@runAfter
             networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, node)
             Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
-            if (myRepresentative != null) reportStatistics(myRepresentative, ourStatistics)
+            if (myRepresentative != null) reportStatistics(myRepresentative, statistics)
         }
     }
 

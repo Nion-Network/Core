@@ -76,11 +76,9 @@ class ChainManager(
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
         votes.remove(block.hash)
-        informationManager.latestNetworkStatistics.clear()
-        docker.apply {
-            val outdated = latestStatistics.filter { (_, stats) -> System.currentTimeMillis() - stats.updated >= 1000 }
-            outdated.keys.forEach { latestStatistics.remove(it) }
-        }
+        informationManager.latestNetworkStatistics.removeIf { it.slot != block.slot }
+        docker.cleanup()
+
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
         if (isFromSync) return
 
@@ -124,8 +122,8 @@ class ChainManager(
                         Logger.info("\t\tLeast used node: $leastUsedNode")
 
                         if (leastUsedNode != null && mostUsedNode != null) {
-                            val leastConsumingApp = mostUsedNode.containers.values.minByOrNull { it.cpuUsage }
-                            val lastBlocks = chain.takeLast(10)
+                            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
+                            val lastBlocks = chain.takeLast(20)
                             val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
                             Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
 

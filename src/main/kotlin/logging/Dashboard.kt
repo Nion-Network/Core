@@ -46,13 +46,13 @@ class Dashboard(private val configuration: Configuration) {
         for ((index, measurement) in statistics.iterator().withIndex()) {
             val publicKey = sha256(measurement.publicKey).asHex
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
-            measurement.containers.onEachIndexed { containerIndex, (id, statistics) ->
+            measurement.containers.onEachIndexed { containerIndex, container ->
                 val point = Point.measurement("containers").apply {
                     time(System.currentTimeMillis() + index + containerIndex, TimeUnit.MILLISECONDS)
                     addField("nodeId", publicKey)
-                    addField("containerId", id)
-                    addField("cpu", statistics.cpuUsage)
-                    addField("memory", statistics.memoryUsage)
+                    addField("containerId", container.id)
+                    addField("cpu", container.cpuUsage)
+                    addField("memory", container.memoryUsage)
                     addField("slot", slot)
                 }.build()
                 queue.add(point)
@@ -103,15 +103,29 @@ class Dashboard(private val configuration: Configuration) {
     }
 
     /** Reports that a migration has been executed. */
-    fun newMigration(receiver: String, publicKey: String, containerId: String, duration: Long, slot: Long) {
+    fun newMigration(
+        receiver: String,
+        sender: String,
+        containerId: String,
+        duration: Long,
+        savingDuration: Long,
+        transmitDuration: Long,
+        resumeDuration: Long,
+        totalSize: Long,
+        slot: Long
+    ) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
             time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
-            addField("from", publicKey)
+            addField("from", sender)
             addField("to", receiver)
             addField("slot", slot)
             addField("containerId", containerId)
             addField("duration", duration)
+            addField("saveDuration", savingDuration)
+            addField("transmitDuration", transmitDuration)
+            addField("size", totalSize)
+            addField("resumeDuration", resumeDuration)
         }.build()
         queue.add(point)
     }

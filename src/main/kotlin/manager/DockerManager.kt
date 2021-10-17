@@ -29,10 +29,26 @@ class DockerManager(
 
     private val containerMappings = ConcurrentHashMap<String, String>()
 
-    val latestStatistics = mutableMapOf<String, ContainerStatistics>()
+    private val latestStatistics = mutableMapOf<String, ContainerStatistics>()
 
     init {
         listenForDockerStatistics()
+    }
+
+    fun getLatestStatistics(lastBlock: Block): DockerStatistics {
+        val containers = latestStatistics.values.map { container ->
+            val networkIdentification = containerMappings[container.id] ?: container.id
+            container.copy(id = networkIdentification)
+        }
+        return DockerStatistics(crypto.publicKey, containers, lastBlock.slot)
+    }
+
+    fun cleanup() {
+        val outdated = latestStatistics.filter { (_, stats) ->
+            System.currentTimeMillis() - stats.updated >= 1000
+        }
+
+        outdated.keys.forEach { latestStatistics.remove(it) }
     }
 
     /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
@@ -46,18 +62,19 @@ class DockerManager(
         Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
         dht.searchFor(migrationPlan.to) { receiver ->
             val container = migrationPlan.container.let { containerMappings[it] ?: it }
+            val startedAt = System.currentTimeMillis()
             val file = saveContainer(container)
-            val containerMigration = ContainerMigration(container, block.slot)
+            val savedAt = System.currentTimeMillis()
+            val containerMigration = ContainerMigration(container, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
             Socket(receiver.ip, networkManager.listeningPort + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     write(encoded)
+                    writeLong(file.length())
                     file.inputStream().use { it.transferTo(this) }
                 }
             }
-            containerMappings.remove(containerMappings[container])
-            containerMappings.remove(container)
             file.deleteRecursively()
             latestStatistics.remove(container)
         }
@@ -66,22 +83,29 @@ class DockerManager(
     fun executeMigration(socket: Socket) {
         DataInputStream(socket.getInputStream()).use { dataInputStream ->
             val encodedLength = dataInputStream.readInt()
-            val data = dataInputStream.readNBytes(encodedLength)
-            val containerMigration = ProtoBuf.decodeFromByteArray<ContainerMigration>(data)
+            val migrationData = dataInputStream.readNBytes(encodedLength)
+            val fileLength = dataInputStream.readLong()
+            val migrationInformation = ProtoBuf.decodeFromByteArray<ContainerMigration>(migrationData)
 
-            val image = containerMigration.image
-            val migratedContainer = containerMigration.container
+            val image = migrationInformation.image
+            val migratedContainer = migrationInformation.container
 
             val outputFile = File("/tmp/$migratedContainer.tar").apply {
                 outputStream().use { dataInputStream.transferTo(it) }
             }
 
+            val saveTime = migrationInformation.savedAt - migrationInformation.start
+            val transmitDuration = System.currentTimeMillis() - migrationInformation.transmitAt
+            val resumeStart = System.currentTimeMillis()
             val arguments = if (configuration.useCriu) arrayOf("-c", migratedContainer, image) else arrayOf(migratedContainer)
             val newContainer = ProcessBuilder("bash", "RunContainer.sh", *arguments).start().inputStream.bufferedReader().use { it.readLine() }
-            val elapsed = System.currentTimeMillis() - containerMigration.start
+            val resumeDuration = System.currentTimeMillis() - resumeStart
+            val elapsed = System.currentTimeMillis() - migrationInformation.start
+            val localIp = socket.localSocketAddress.toString()
+            val remoteIp = socket.remoteSocketAddress.toString()
+            val totalSize = encodedLength + fileLength
             containerMappings[newContainer] = migratedContainer
-            containerMappings[migratedContainer] = newContainer
-            dashboard.newMigration(socket.localSocketAddress.toString(), socket.remoteSocketAddress.toString(), migratedContainer, elapsed, containerMigration.slot)
+            dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
             outputFile.deleteRecursively()
         }
     }
@@ -110,13 +134,13 @@ class DockerManager(
                             String(buffer.array(), 0, length).split("\n").map { line ->
                                 if (line.isNotEmpty()) {
                                     val fields = line.split(" ")
-                                    val containerId = fields[0].let { containerMappings[it] ?: it }
+                                    val containerId = fields[0]
                                     val containerName = fields[1]
                                     val cpuPercentage = fields[2].trim('%').toDouble()
                                     val memoryPercentage = fields[3].trim('%').toDouble()
                                     val processes = fields[4].toInt()
                                     val container = ContainerStatistics(containerId, containerName, cpuPercentage, memoryPercentage, processes)
-                                    latestStatistics[containerId] = container
+                                    if (containerId.isNotEmpty()) latestStatistics[containerId] = container
                                 }
                             }
                         }

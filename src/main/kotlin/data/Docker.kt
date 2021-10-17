@@ -17,10 +17,11 @@ import kotlin.math.roundToInt
 @Serializable
 data class DockerStatistics(
     val publicKey: String,
-    val containers: MutableMap<String, ContainerStatistics>,
+    val containers: List<ContainerStatistics>,
+    val slot: Long,
     val timestamp: Long = System.currentTimeMillis(),
 ) {
-    val totalCPU: Int get() = containers.values.sumOf { it.cpuUsage.roundToInt() }
+    val totalCPU: Int get() = containers.sumOf { it.cpuUsage.roundToInt() }
 
     override fun toString() = "Node ... $totalCPU% CPU with ${containers.size} containers"
 }
