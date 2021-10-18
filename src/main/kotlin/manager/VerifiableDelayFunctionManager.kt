@@ -37,7 +37,6 @@ class VerifiableDelayFunctionManager {
             .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
             .redirectErrorStream(true)
 
-        dashboard.vdfInformation("STARTED")
         val process = processBuilder.start()
         val output = process.inputStream.reader().use { it.readText() }
         dashboard.vdfInformation(output)

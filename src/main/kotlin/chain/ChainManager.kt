@@ -90,7 +90,9 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
+
         try {
+            informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
             if (nextTask.myTask == SlotDuty.PRODUCER) {
                 val vdfStart = System.currentTimeMillis()
                 val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
@@ -156,7 +158,8 @@ class ChainManager(
                         dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
                     }
                 }
-            } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+            }
+            else if (nextTask.myTask == SlotDuty.COMMITTEE) {
                 val nextProducer = nextTask.blockProducer
                 dht.searchFor(nextProducer) {
                     networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, it)
@@ -174,7 +177,6 @@ class ChainManager(
         } catch (e: Exception) {
             dashboard.reportException(e)
         }
-        informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
     }
 
     /** Request blocks from a random known node needed for synchronization. */

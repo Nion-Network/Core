@@ -43,12 +43,13 @@ class Dashboard(private val configuration: Configuration) {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
-        for ((index, measurement) in statistics.iterator().withIndex()) {
+        var total = 0
+        for (measurement in statistics.iterator()) {
             val publicKey = sha256(measurement.publicKey).asHex
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
-            measurement.containers.onEachIndexed { containerIndex, container ->
+            measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
-                    time(System.currentTimeMillis() + index + containerIndex, TimeUnit.MILLISECONDS)
+                    time(System.currentTimeMillis() + total++, TimeUnit.MILLISECONDS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
@@ -57,8 +58,8 @@ class Dashboard(private val configuration: Configuration) {
                 }.build()
                 queue.add(point)
             }
-
         }
+        vdfInformation("Count: $total")
     }
 
     /** Sends the newly created block information to the dashboard. */

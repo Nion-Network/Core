@@ -52,7 +52,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
-    val informationManager = InformationManager(this)
+    val informationManager = InformationManager(dht, this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)

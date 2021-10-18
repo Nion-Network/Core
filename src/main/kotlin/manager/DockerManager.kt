@@ -48,7 +48,7 @@ class DockerManager(
             System.currentTimeMillis() - stats.updated >= 1000
         }
 
-        outdated.keys.forEach { latestStatistics.remove(it) }
+        // outdated.keys.forEach { latestStatistics.remove(it) }
     }
 
     /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
@@ -98,7 +98,11 @@ class DockerManager(
             val transmitDuration = System.currentTimeMillis() - migrationInformation.transmitAt
             val resumeStart = System.currentTimeMillis()
             val arguments = if (configuration.useCriu) arrayOf("-c", migratedContainer, image) else arrayOf(migratedContainer)
-            val newContainer = ProcessBuilder("bash", "RunContainer.sh", *arguments).start().inputStream.bufferedReader().use { it.readLine() }
+            val newContainer = ProcessBuilder("bash", "RunContainer.sh", *arguments)
+                .redirectErrorStream(true)
+                .start()
+                .inputStream.bufferedReader().use { it.readLine() }
+            dashboard.vdfInformation("Container: $newContainer")
             val resumeDuration = System.currentTimeMillis() - resumeStart
             val elapsed = System.currentTimeMillis() - migrationInformation.start
             val localIp = socket.localSocketAddress.toString()

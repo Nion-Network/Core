@@ -21,7 +21,7 @@ import kotlin.random.Random
  *
  * Class is used for handling statistics and any networking regarding system statistics.
  */
-class InformationManager(private val networkManager: NetworkManager) {
+class InformationManager(private val dht: DistributedHashTable, private val networkManager: NetworkManager) {
 
     private val crypto = networkManager.crypto
     private val knownNodes = networkManager.knownNodes
@@ -29,7 +29,7 @@ class InformationManager(private val networkManager: NetworkManager) {
     private val dockerManager = networkManager.docker
     private val configuration = networkManager.configuration
 
-    val latestNetworkStatistics = mutableListOf<DockerStatistics>()
+    val latestNetworkStatistics = mutableSetOf<DockerStatistics>()
 
     /** Reports our statistics to either the producer or our cluster representative. */
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
@@ -43,15 +43,21 @@ class InformationManager(private val networkManager: NetworkManager) {
         if (task.blockProducer == crypto.publicKey) return
 
         val statistics = dockerManager.getLatestStatistics(lastBlock)
+        latestNetworkStatistics.add(statistics)
 
+        dashboard.vdfInformation("Stats: $isRepresentative")
         if (isRepresentative) runAfter((configuration.slotDuration) / 4) {
-            latestNetworkStatistics.add(statistics)
-            val node = knownNodes[task.blockProducer] ?: return@runAfter
-            networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, node)
-            Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
+            dht.searchFor(task.blockProducer) {
+                networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
+                Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
+            }
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
-            if (myRepresentative != null) reportStatistics(myRepresentative, statistics)
+            dashboard.vdfInformation("Not representative: $myRepresentative")
+            if (myRepresentative != null) dht.searchFor(myRepresentative) {
+                Logger.info("Reporting statistics to our cluster representative! ${sha256(myRepresentative).asHex}")
+                networkManager.sendUDP(Endpoint.NodeStatistics, statistics, TransmissionType.Unicast, it)
+            }
         }
     }
 
@@ -65,13 +71,6 @@ class InformationManager(private val networkManager: NetworkManager) {
     fun representativeStatisticsReceived(message: Message<Array<DockerStatistics>>) {
         latestNetworkStatistics.addAll(message.body)
         Logger.info("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
-    }
-
-    /** Sends our docker statistics to the [node][destinationKey]. */
-    private fun reportStatistics(destinationKey: String, ourStatistics: DockerStatistics) {
-        val node = knownNodes[destinationKey] ?: return
-        Logger.info("Reporting statistics to our cluster representative! ${sha256(destinationKey).asHex}")
-        networkManager.sendUDP(Endpoint.NodeStatistics, ourStatistics, TransmissionType.Unicast, node)
     }
 
     /** Generates clusters based on k-means algorithm. */
