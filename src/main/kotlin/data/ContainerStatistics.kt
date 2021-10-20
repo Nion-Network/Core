@@ -18,7 +18,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ContainerStatistics(
     val id: String,
-    val name: String,
     var cpuUsage: Double,
     val memoryUsage: Double,
     val pids: Int,

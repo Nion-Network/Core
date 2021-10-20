@@ -12,8 +12,6 @@ import utils.Crypto
 import utils.runAfter
 import java.lang.Long.max
 import java.util.concurrent.*
-import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 
@@ -77,7 +75,6 @@ class ChainManager(
         chain.add(block)
         votes.remove(block.hash)
         informationManager.latestNetworkStatistics.removeIf { it.slot != block.slot }
-        docker.cleanup()
 
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
         if (isFromSync) return
@@ -103,6 +100,8 @@ class ChainManager(
                 val delayThird = configuration.slotDuration / 3
                 val firstDelay = max(0, delayThird - vdfComputationTime)
                 val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
+
+                val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
                 runAfter(firstDelay) {
                     networkManager.apply {
                         Logger.trace("Requesting votes!")
@@ -112,54 +111,41 @@ class ChainManager(
                 }
 
                 runAfter(secondDelay) {
-                    val votesAmount = votes[newBlock.hash]?.size ?: 0
-                    newBlock.votes = votesAmount
-                    networkManager.apply {
+                    try {
+                        val votesAmount = votes[newBlock.hash]?.size ?: 0
+                        newBlock.votes = votesAmount
                         val latestStatistics = informationManager.latestNetworkStatistics
-                        Logger.info("\t\tWe have ${latestStatistics.size} latest statistics!")
+                        Logger.info(latestStatistics)
+
                         val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
-                        val leastUsedNode = latestStatistics.filter { it.publicKey != mostUsedNode?.publicKey }.minByOrNull { it.totalCPU }
+                        val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
 
-                        Logger.info("\t\tMost used node: $mostUsedNode")
-                        Logger.info("\t\tLeast used node: $leastUsedNode")
+                        Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
 
-                        if (leastUsedNode != null && mostUsedNode != null) {
+                        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
                             val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
                             val lastBlocks = chain.takeLast(20)
                             val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
-                            Logger.debug("\t\tLeast consuming app: $leastConsumingApp")
+                            Logger.trace("\t\tLeast consuming app: $leastConsumingApp")
 
                             // Note: Extremely naive and useless efficiency algorithm. Proper configurable migration planning coming later.
+                            Logger.trace("App: ${leastConsumingApp == null}. Least: ${lastMigrations.none { it.container == leastConsumingApp?.id }}")
+
                             if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
-                                val senderBefore = mostUsedNode.totalCPU
-                                val receiverBefore = leastUsedNode.totalCPU
-                                val cpuChange = leastConsumingApp.cpuUsage.roundToInt()
-
-                                val senderAfter = senderBefore - cpuChange
-                                val receiverAfter = receiverBefore + cpuChange
-
-                                val differenceBefore = abs(senderBefore - receiverBefore)
-                                val differenceAfter = abs(senderAfter - receiverAfter)
-                                val migrationDifference = abs(differenceBefore - differenceAfter)
-
-                                // TODO add to configuration
-                                val minimumDifference = 5
-                                Logger.debug("Percentage difference of before and after: $migrationDifference %")
-                                if (migrationDifference >= minimumDifference) {
-                                    val newMigrationPlan = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                                    newBlock.migrations[mostUsedNode.publicKey] = newMigrationPlan
-                                }
+                                val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                                newBlock.migrations[mostUsedNode.publicKey] = migration
+                                Logger.debug(migration)
                             }
                         }
 
-                        val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                        sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
+                        networkManager.sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
                         // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
                         dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
+                    } catch (e: Exception) {
+                        dashboard.reportException(e)
                     }
                 }
-            }
-            else if (nextTask.myTask == SlotDuty.COMMITTEE) {
+            } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
                 val nextProducer = nextTask.blockProducer
                 dht.searchFor(nextProducer) {
                     networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, it)

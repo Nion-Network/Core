@@ -40,12 +40,11 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
         if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock, task, clusters)
 
-        if (task.blockProducer == crypto.publicKey) return
-
         val statistics = dockerManager.getLatestStatistics(lastBlock)
         latestNetworkStatistics.add(statistics)
 
-        dashboard.vdfInformation("Stats: $isRepresentative")
+        if (task.blockProducer == crypto.publicKey) return
+
         if (isRepresentative) runAfter((configuration.slotDuration) / 4) {
             dht.searchFor(task.blockProducer) {
                 networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
@@ -53,7 +52,6 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
             }
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
-            dashboard.vdfInformation("Not representative: $myRepresentative")
             if (myRepresentative != null) dht.searchFor(myRepresentative) {
                 Logger.info("Reporting statistics to our cluster representative! ${sha256(myRepresentative).asHex}")
                 networkManager.sendUDP(Endpoint.NodeStatistics, statistics, TransmissionType.Unicast, it)
