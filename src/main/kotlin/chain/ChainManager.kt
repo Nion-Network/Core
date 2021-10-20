@@ -87,7 +87,6 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
-
         informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfStart = System.currentTimeMillis()
@@ -124,6 +123,7 @@ class ChainManager(
                     val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
                     val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
                     networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+
                     runAfter(delayThird) {
                         val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
                         networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
