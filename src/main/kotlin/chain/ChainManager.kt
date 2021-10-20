@@ -98,7 +98,7 @@ class ChainManager(
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
             val futureMigrations = hashMapOf<String, MigrationPlan>()
 
-            runAfter(firstDelay) {
+            runAfter(dashboard, firstDelay) {
                 val latestStatistics = informationManager.latestNetworkStatistics
                 val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
                 val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
@@ -119,12 +119,12 @@ class ChainManager(
                     }
                 }
 
-                runAfter(delayThird) {
+                runAfter(dashboard, delayThird) {
                     val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
                     val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
                     networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
 
-                    runAfter(delayThird) {
+                    runAfter(dashboard, delayThird) {
                         val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
                         networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
                         dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
