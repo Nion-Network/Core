@@ -93,32 +93,16 @@ class ChainManager(
             val vdfStart = System.currentTimeMillis()
             val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
             val vdfComputationTime = System.currentTimeMillis() - vdfStart
-            val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
-            val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
             val delayThird = configuration.slotDuration / 3
             val firstDelay = max(0, delayThird - vdfComputationTime)
-            val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
-
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
+            val futureMigrations = hashMapOf<String, MigrationPlan>()
+
             runAfter(firstDelay) {
-                networkManager.apply {
-                    Logger.trace("Requesting votes!")
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
-                }
-            }
-
-            runAfter(secondDelay) {
-                val votesAmount = votes[newBlock.hash]?.size ?: 0
-                newBlock.votes = votesAmount
                 val latestStatistics = informationManager.latestNetworkStatistics
-                Logger.info(latestStatistics)
-
                 val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
                 val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
-
-                Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
 
                 if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
                     val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
@@ -131,15 +115,24 @@ class ChainManager(
 
                     if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
                         val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                        newBlock.migrations[mostUsedNode.publicKey] = migration
+                        futureMigrations[mostUsedNode.publicKey] = migration
                         Logger.debug(migration)
                     }
                 }
 
-                networkManager.sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
-                // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
+                runAfter(delayThird) {
+                    val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
+                    val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
+                    networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+                    runAfter(delayThird) {
+                        val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
+                        networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
+                        dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
+                    }
+                }
+
             }
+
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val nextProducer = nextTask.blockProducer
             dht.searchFor(nextProducer) {

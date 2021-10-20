@@ -31,10 +31,10 @@ data class Block(
     val blockProducer: String,
     val precedentHash: String = "",
     val hash: String = sha256("$slot$difficulty$timestamp$committeeIndex$precedentHash").asHex,
-    var votes: Int = 0,
+    val votes: Int = 0,
     val validatorChanges: Map<String, Boolean> = emptyMap(),
-    val migrations: MutableMap<String, MigrationPlan> = mutableMapOf(),
-    var vdfProof: String = ""
+    val migrations: Map<String, MigrationPlan> = mapOf(),
+    val vdfProof: String = ""
 ) {
 
     val seed by lazy {

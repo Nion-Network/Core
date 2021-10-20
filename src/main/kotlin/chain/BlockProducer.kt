@@ -2,6 +2,7 @@ package chain
 
 import data.Block
 import data.Configuration
+import data.MigrationPlan
 import logging.Logger
 import utils.Crypto
 import utils.Utils.Companion.asHex
@@ -37,7 +38,7 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
     }
 
     /** Computes the next block in chain using previous block information, newly computed vdf proof and the next slot. */
-    fun createBlock(previousBlock: Block, vdfProof: String, slot: Long, committeeIndex: Int = 0): Block {
+    fun createBlock(previousBlock: Block, vdfProof: String, slot: Long, migrations: Map<String, MigrationPlan>, committeeIndex: Int = 0): Block {
         return Block(
             slot,
             difficulty = configuration.initialDifficulty,
@@ -46,7 +47,8 @@ class BlockProducer(private val crypto: Crypto, private val configuration: Confi
             vdfProof = vdfProof,
             blockProducer = sha256(crypto.publicKey).asHex,
             validatorChanges = inclusionChanges.toMap(),
-            precedentHash = previousBlock.hash
+            precedentHash = previousBlock.hash,
+            migrations = migrations
         )
     }
 
