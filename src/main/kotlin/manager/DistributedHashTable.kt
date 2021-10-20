@@ -6,7 +6,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import utils.coroutineAndReport
+import utils.runCoroutine
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -29,7 +29,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (networkManager.knownNodes.containsKey(forPublicKey)) {
-            coroutineAndReport(dashboard) { executeOnFound(forPublicKey) }
+            runCoroutine(dashboard) { executeOnFound(forPublicKey) }
             return
         }
         networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)

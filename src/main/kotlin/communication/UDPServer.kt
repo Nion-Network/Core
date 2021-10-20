@@ -8,7 +8,7 @@ import logging.Logger
 import utils.Crypto
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
-import utils.coroutineAndReport
+import utils.runCoroutine
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -147,10 +147,10 @@ class UDPServer(
                         }
                         builder.addData(currentSlice, dataArray)
                         val neededMore = builder.data.count { it == null }
-                        val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
+                        // val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
                         // Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
                         if (builder.isReady) {
-                            coroutineAndReport(dashboard) { block(endPoint, builder.asOne) }
+                            runCoroutine(dashboard) { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
                         }
 

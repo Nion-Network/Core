@@ -9,7 +9,7 @@ import logging.Dashboard
 import logging.Logger
 import manager.*
 import utils.Crypto
-import utils.runAfter
+import utils.runCoroutine
 import java.lang.Long.max
 import java.util.concurrent.*
 import kotlin.random.Random
@@ -98,7 +98,7 @@ class ChainManager(
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
             val futureMigrations = hashMapOf<String, MigrationPlan>()
 
-            runAfter(dashboard, firstDelay) {
+            runCoroutine(dashboard, firstDelay) {
                 val latestStatistics = informationManager.latestNetworkStatistics
                 val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
                 val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
@@ -119,12 +119,12 @@ class ChainManager(
                     }
                 }
 
-                runAfter(dashboard, delayThird) {
+                runCoroutine(dashboard, delayThird) {
                     val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
                     val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
                     networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
 
-                    runAfter(dashboard, delayThird) {
+                    runCoroutine(dashboard, delayThird) {
                         val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
                         networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
                         dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
