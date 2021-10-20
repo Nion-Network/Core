@@ -96,7 +96,7 @@ class ChainManager(
             val delayThird = configuration.slotDuration / 3
             val firstDelay = max(0, delayThird - vdfComputationTime)
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
-            val futureMigrations = hashMapOf<String, MigrationPlan>()
+            val futureMigrations = ConcurrentHashMap<String, MigrationPlan>()
 
             runCoroutine(dashboard, firstDelay) {
                 val latestStatistics = informationManager.latestNetworkStatistics

@@ -44,6 +44,7 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
         latestNetworkStatistics.add(statistics)
 
         if (task.blockProducer == crypto.publicKey) return
+        dht.searchFor(task.blockProducer)
 
         if (isRepresentative) runCoroutine(dashboard, configuration.slotDuration / 3) {
             dht.searchFor(task.blockProducer) {
