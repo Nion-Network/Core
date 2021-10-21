@@ -9,11 +9,9 @@ import logging.Dashboard
 import logging.Logger
 import manager.*
 import utils.Crypto
-import utils.runDelayed
+import utils.runAfter
 import java.lang.Long.max
 import java.util.concurrent.*
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.random.Random
 
 
@@ -37,7 +35,6 @@ class ChainManager(
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
     private val blockQueue = LinkedBlockingQueue<BlockToAdd>()
-    private val lock = ReentrantLock()
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
     private val committeeExecutor = Executors.newSingleThreadScheduledExecutor()
@@ -76,7 +73,7 @@ class ChainManager(
         block.validatorChanges.forEach(blockProducer::validatorChange)
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
-        // votes.remove(block.hash)
+        votes.remove(block.hash)
         informationManager.latestNetworkStatistics.removeIf { it.slot != block.slot }
 
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
@@ -90,21 +87,38 @@ class ChainManager(
         if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
+
         informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfStart = System.currentTimeMillis()
             val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
             val vdfComputationTime = System.currentTimeMillis() - vdfStart
+            val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
+            val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
             val delayThird = configuration.slotDuration / 3
             val firstDelay = max(0, delayThird - vdfComputationTime)
-            val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
-            val futureMigrations = ConcurrentHashMap<String, MigrationPlan>()
+            val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
 
-            runDelayed(dashboard, firstDelay) {
+            val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
+            runAfter(firstDelay) {
+                networkManager.apply {
+                    Logger.trace("Requesting votes!")
+                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
+                    sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+                }
+            }
+
+            runAfter(secondDelay) {
+                val votesAmount = votes[newBlock.hash]?.size ?: 0
+                newBlock.votes = votesAmount
                 val latestStatistics = informationManager.latestNetworkStatistics
+                Logger.info(latestStatistics)
+
                 val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
                 val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
+
+                Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
 
                 if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
                     val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
@@ -117,25 +131,15 @@ class ChainManager(
 
                     if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
                         val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                        futureMigrations[mostUsedNode.publicKey] = migration
+                        newBlock.migrations[mostUsedNode.publicKey] = migration
                         Logger.debug(migration)
                     }
                 }
 
-                runDelayed(dashboard, delayThird) {
-                    val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
-                    val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
-                    networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
-
-                    runDelayed(dashboard, delayThird) {
-                        val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
-                        networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
-                        dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
-                    }
-                }
-
+                networkManager.sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
+                // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
+                dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
             }
-
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val nextProducer = nextTask.blockProducer
             dht.searchFor(nextProducer) {
@@ -195,7 +199,7 @@ class ChainManager(
         val blockVote = message.body
         val voteInformation = VoteInformation(message.publicKey)
         Logger.trace("Vote received!")
-        lock.withLock { votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation) }
+        votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation)
     }
 
     /** Computes the task for the next block creation using current block information. */

@@ -9,7 +9,7 @@ import data.Endpoint
 import logging.Logger
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
-import utils.runDelayed
+import utils.runAfter
 import java.lang.Integer.max
 import kotlin.math.abs
 import kotlin.random.Random
@@ -44,9 +44,8 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
         latestNetworkStatistics.add(statistics)
 
         if (task.blockProducer == crypto.publicKey) return
-        dht.searchFor(task.blockProducer)
 
-        if (isRepresentative) runDelayed(dashboard, configuration.slotDuration / 3) {
+        if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
             dht.searchFor(task.blockProducer) {
                 networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
                 Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")

@@ -3,7 +3,6 @@ package utils
 import communication.Message
 import data.Block
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -62,19 +61,8 @@ class Utils {
 
 
 /** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-fun runCoroutine(dashboard: Dashboard, delay: Long = 0, block: () -> Unit) {
+fun coroutineAndReport(dashboard: Dashboard, block: () -> Unit) {
     GlobalScope.launch {
-        try {
-            if (delay > 0) delay(delay)
-            block()
-        } catch (e: Exception) {
-            dashboard.reportException(e)
-        }
-    }
-}
-
-fun runDelayed(dashboard: Dashboard, delay: Long, block: () -> Unit) {
-    Timer().schedule(delay) {
         try {
             block()
         } catch (e: Exception) {
@@ -105,6 +93,11 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
         newCost = swap
     }
     return cost[len0 - 1]
+}
+
+/** Executes [block] after [delay in milliseconds][delay]. */
+fun runAfter(delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) { block.invoke() }
 }
 
 /**

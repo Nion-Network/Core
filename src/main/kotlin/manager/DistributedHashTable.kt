@@ -6,6 +6,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import utils.coroutineAndReport
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -19,12 +20,8 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
 
     /** On found node for the [publicKey], if a lambda block for the current node exists, it is executed. */
     private fun executeOnFound(publicKey: String) {
-        try {
-            networkManager.knownNodes[publicKey]?.let { node ->
-                queue.remove(publicKey)?.invoke(node)
-            }
-        } catch (e: Exception) {
-            dashboard.reportException(e)
+        networkManager.knownNodes[publicKey]?.let { node ->
+            queue.remove(publicKey)?.invoke(node)
         }
     }
 
@@ -32,10 +29,10 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (networkManager.knownNodes.containsKey(forPublicKey)) {
-            executeOnFound(forPublicKey)
+            coroutineAndReport(dashboard) { executeOnFound(forPublicKey) }
             return
         }
-        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Broadcast)
+        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
     }
 
     /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][NetworkManager.knownNodes]. */
@@ -55,7 +52,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
-            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Broadcast)
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast, knownNodes.values.random())
         }
     }
 
