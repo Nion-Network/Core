@@ -96,8 +96,14 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
 }
 
 /** Executes [block] after [delay in milliseconds][delay]. */
-fun runAfter(delay: Long, block: () -> Unit) {
-    Timer().schedule(delay) { block.invoke() }
+fun runAfter(dashboard: Dashboard, delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) {
+        try {
+            block.invoke()
+        } catch (e:Exception){
+            dashboard.reportException(e)
+        }
+    }
 }
 
 /**

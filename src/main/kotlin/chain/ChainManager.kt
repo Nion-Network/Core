@@ -88,7 +88,7 @@ class ChainManager(
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
 
-        informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
+        // informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfStart = System.currentTimeMillis()
             val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
@@ -101,7 +101,7 @@ class ChainManager(
             val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
 
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
-            runAfter(firstDelay) {
+            runAfter(dashboard, firstDelay) {
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
@@ -109,9 +109,10 @@ class ChainManager(
                 }
             }
 
-            runAfter(secondDelay) {
+            runAfter(dashboard, secondDelay) {
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
+                /*
                 val latestStatistics = informationManager.latestNetworkStatistics
                 Logger.info(latestStatistics)
 
@@ -135,10 +136,10 @@ class ChainManager(
                         Logger.debug(migration)
                     }
                 }
-
+                */
                 networkManager.sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
                 // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
+                // dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val nextProducer = nextTask.blockProducer

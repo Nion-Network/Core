@@ -45,7 +45,7 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
         if (task.blockProducer == crypto.publicKey) return
 
-        if (isRepresentative) runAfter((configuration.slotDuration) / 3) {
+        if (isRepresentative) runAfter(dashboard, configuration.slotDuration / 3) {
             dht.searchFor(task.blockProducer) {
                 networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
                 Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
