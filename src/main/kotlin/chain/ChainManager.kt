@@ -9,9 +9,11 @@ import logging.Dashboard
 import logging.Logger
 import manager.*
 import utils.Crypto
-import utils.runCoroutine
+import utils.runDelayed
 import java.lang.Long.max
 import java.util.concurrent.*
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.random.Random
 
 
@@ -35,6 +37,7 @@ class ChainManager(
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
     private val blockQueue = LinkedBlockingQueue<BlockToAdd>()
+    private val lock = ReentrantLock()
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
     private val committeeExecutor = Executors.newSingleThreadScheduledExecutor()
@@ -73,7 +76,7 @@ class ChainManager(
         block.validatorChanges.forEach(blockProducer::validatorChange)
         scheduledCommitteeFuture?.cancel(true)
         chain.add(block)
-        votes.remove(block.hash)
+        // votes.remove(block.hash)
         informationManager.latestNetworkStatistics.removeIf { it.slot != block.slot }
 
         Logger.chain("Added block [${block.slot}][${Logger.green}${block.votes}]${Logger.reset}")
@@ -98,7 +101,7 @@ class ChainManager(
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
             val futureMigrations = ConcurrentHashMap<String, MigrationPlan>()
 
-            runCoroutine(dashboard, firstDelay) {
+            runDelayed(dashboard, firstDelay) {
                 val latestStatistics = informationManager.latestNetworkStatistics
                 val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
                 val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
@@ -119,12 +122,12 @@ class ChainManager(
                     }
                 }
 
-                runCoroutine(dashboard, delayThird) {
+                runDelayed(dashboard, delayThird) {
                     val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1, futureMigrations)
                     val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
                     networkManager.sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
 
-                    runCoroutine(dashboard, delayThird) {
+                    runDelayed(dashboard, delayThird) {
                         val toSend = newBlock.copy(votes = votes[newBlock.hash]?.size ?: 0)
                         networkManager.sendUDP(Endpoint.NewBlock, toSend, TransmissionType.Broadcast, *committeeNodes)
                         dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
@@ -192,7 +195,7 @@ class ChainManager(
         val blockVote = message.body
         val voteInformation = VoteInformation(message.publicKey)
         Logger.trace("Vote received!")
-        votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation)
+        lock.withLock { votes.computeIfAbsent(blockVote.blockHash) { mutableListOf() }.add(voteInformation) }
     }
 
     /** Computes the task for the next block creation using current block information. */

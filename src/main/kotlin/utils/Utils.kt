@@ -2,7 +2,6 @@ package utils
 
 import communication.Message
 import data.Block
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,7 +65,17 @@ class Utils {
 fun runCoroutine(dashboard: Dashboard, delay: Long = 0, block: () -> Unit) {
     GlobalScope.launch {
         try {
-            delay(delay)
+            if (delay > 0) delay(delay)
+            block()
+        } catch (e: Exception) {
+            dashboard.reportException(e)
+        }
+    }
+}
+
+fun runDelayed(dashboard: Dashboard, delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) {
+        try {
             block()
         } catch (e: Exception) {
             dashboard.reportException(e)

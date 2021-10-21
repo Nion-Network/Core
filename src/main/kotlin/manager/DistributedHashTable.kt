@@ -6,7 +6,6 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import utils.runCoroutine
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -20,8 +19,12 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
 
     /** On found node for the [publicKey], if a lambda block for the current node exists, it is executed. */
     private fun executeOnFound(publicKey: String) {
-        networkManager.knownNodes[publicKey]?.let { node ->
-            queue.remove(publicKey)?.invoke(node)
+        try {
+            networkManager.knownNodes[publicKey]?.let { node ->
+                queue.remove(publicKey)?.invoke(node)
+            }
+        } catch (e: Exception) {
+            dashboard.reportException(e)
         }
     }
 
@@ -29,7 +32,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (networkManager.knownNodes.containsKey(forPublicKey)) {
-            runCoroutine(dashboard) { executeOnFound(forPublicKey) }
+            executeOnFound(forPublicKey)
             return
         }
         networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
@@ -52,7 +55,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
-            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast, knownNodes.values.random())
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast)
         }
     }
 
