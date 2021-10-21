@@ -3,13 +3,12 @@ package communication
 import data.Configuration
 import data.Endpoint
 import data.Node
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import logging.Dashboard
+import logging.Logger
 import utils.Crypto
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
+import utils.runCoroutine
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -171,16 +170,5 @@ class UDPServer(
         }.start()
     }
 
-    /** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-    private fun runCoroutine(dashboard: Dashboard, delay: Long = 0, block: () -> Unit) {
-        GlobalScope.launch {
-            try {
-                if (delay > 0) delay(delay)
-                block()
-            } catch (e: Exception) {
-                dashboard.reportException(e)
-            }
-        }
-    }
 
 }

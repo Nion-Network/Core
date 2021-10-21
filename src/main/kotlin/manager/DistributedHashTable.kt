@@ -35,7 +35,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
             executeOnFound(forPublicKey)
             return
         }
-        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
+        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Broadcast)
     }
 
     /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][NetworkManager.knownNodes]. */
@@ -55,7 +55,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
-            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast)
+            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Broadcast)
         }
     }
 
