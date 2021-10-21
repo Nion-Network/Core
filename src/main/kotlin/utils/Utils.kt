@@ -60,19 +60,6 @@ class Utils {
 
 }
 
-
-/** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-fun runCoroutine(dashboard: Dashboard, delay: Long = 0, block: () -> Unit) {
-    GlobalScope.launch {
-        try {
-            if (delay > 0) delay(delay)
-            block()
-        } catch (e: Exception) {
-            dashboard.reportException(e)
-        }
-    }
-}
-
 fun runDelayed(dashboard: Dashboard, delay: Long, block: () -> Unit) {
     Timer().schedule(delay) {
         try {
