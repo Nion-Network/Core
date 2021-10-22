@@ -43,6 +43,7 @@ class DockerMigrationPlanner(
         return File("/tmp/$container.tar")
     }
 
+    /** Sends the requested container from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
         dht.searchFor(migrationPlan.to) { receiver ->
