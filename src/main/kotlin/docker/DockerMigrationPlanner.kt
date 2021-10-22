@@ -1,18 +1,21 @@
-package manager
+package docker
 
 import data.Block
 import data.Configuration
 import data.ContainerMigration
 import data.MigrationPlan
-import docker.DockerDataProxy
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import manager.DistributedHashTable
+import manager.NetworkManager
+import utils.coroutineAndReport
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.net.ServerSocket
 import java.net.Socket
 
 /**
@@ -20,12 +23,18 @@ import java.net.Socket
  * on 27/11/2020 at 17:11
  * using IntelliJ IDEA
  */
-class DockerManager(
+class DockerMigrationPlanner(
     private val dht: DistributedHashTable,
     private val dockerDataProxy: DockerDataProxy,
     private val networkManager: NetworkManager,
     private val configuration: Configuration
 ) {
+
+    private val migrationSocket = ServerSocket(networkManager.listeningPort + 1)
+
+    init {
+        startListeningForMigrations()
+    }
 
     /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
@@ -57,7 +66,8 @@ class DockerManager(
         }
     }
 
-    fun executeMigration(socket: Socket) {
+    /** Reads and executes migration from [socket] sent by another node. */
+    private fun executeMigration(socket: Socket) {
         DataInputStream(socket.getInputStream()).use { dataInputStream ->
             val encodedLength = dataInputStream.readInt()
             val migrationData = dataInputStream.readNBytes(encodedLength)
@@ -88,6 +98,18 @@ class DockerManager(
             Dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
             outputFile.delete()
         }
+    }
+
+    /** Starts the thread listening on socket for receiving migrations. */
+    private fun startListeningForMigrations() {
+        Thread {
+            while (true) {
+                val socket = migrationSocket.accept()
+                coroutineAndReport {
+                    socket.use { executeMigration(it) }
+                }
+            }
+        }.start()
     }
 
 }

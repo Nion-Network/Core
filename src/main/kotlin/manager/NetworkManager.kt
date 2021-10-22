@@ -9,11 +9,10 @@ import communication.UDPServer
 import data.*
 import data.Endpoint.*
 import docker.DockerDataProxy
+import docker.DockerMigrationPlanner
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -22,6 +21,7 @@ import logging.Dashboard
 import logging.Logger
 import utils.Crypto
 import utils.asMessage
+import utils.coroutineAndReport
 import java.lang.Integer.max
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -50,7 +50,7 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     private val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
     private val dockerDataProxy = DockerDataProxy(crypto)
-    val docker = DockerManager(dht, dockerDataProxy, this, configuration)
+    val docker = DockerMigrationPlanner(dht, dockerDataProxy, this, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
@@ -62,7 +62,6 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     val udp = UDPServer(configuration, crypto, knownNodes, networkHistory, listeningPort)
 
-    private val migrationSocket = ServerSocket(listeningPort + 1)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
 
 
@@ -85,7 +84,6 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
 
         startListeningUDP()
-        startListeningForMigrations()
         startQueueThread()
         startHistoryCleanup()
 
@@ -233,21 +231,6 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     /** Clears the [messageQueue]. */
     fun clearMessageQueue() {
         messageQueue.clear()
-    }
-
-    private fun startListeningForMigrations() {
-        Thread {
-            while (true) {
-                val socket = migrationSocket.accept()
-                GlobalScope.launch {
-                    try {
-                        socket.use { docker.executeMigration(socket) }
-                    } catch (e: Exception) {
-                        Dashboard.reportException(e)
-                    }
-                }
-            }
-        }.start()
     }
 
     /**
