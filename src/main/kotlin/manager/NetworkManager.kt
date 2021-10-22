@@ -8,6 +8,7 @@ import communication.TransmissionType
 import communication.UDPServer
 import data.*
 import data.Endpoint.*
+import docker.DockerDataProxy
 import io.javalin.Javalin
 import io.javalin.http.Context
 import io.javalin.http.ForbiddenResponse
@@ -48,7 +49,8 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     private val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
-    val docker = DockerManager(dht, crypto, this, configuration)
+    private val dockerDataProxy = DockerDataProxy(crypto)
+    val docker = DockerManager(dht, dockerDataProxy, this, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 

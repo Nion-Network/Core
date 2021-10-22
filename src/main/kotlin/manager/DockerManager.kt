@@ -1,18 +1,19 @@
 package manager
 
-import data.*
+import data.Block
+import data.Configuration
+import data.ContainerMigration
+import data.MigrationPlan
+import docker.DockerDataProxy
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import utils.Crypto
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.net.Socket
-import java.nio.ByteBuffer
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
@@ -21,24 +22,10 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DockerManager(
     private val dht: DistributedHashTable,
-    private val crypto: Crypto,
+    private val dockerDataProxy: DockerDataProxy,
     private val networkManager: NetworkManager,
     private val configuration: Configuration
 ) {
-
-    private val containerMappings = ConcurrentHashMap<String, String>()
-
-    private val latestStatistics = mutableMapOf<String, ContainerStatistics>()
-
-    fun getLatestStatistics(lastBlock: Block): DockerStatistics {
-        val containers = latestStatistics.values.filter { System.currentTimeMillis() - it.updated <= 1000 }
-            .map { container ->
-                val networkIdentification = containerMappings[container.id] ?: container.id
-                container.copy(id = networkIdentification)
-            }
-
-        return DockerStatistics(crypto.publicKey, containers, lastBlock.slot)
-    }
 
     /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
@@ -52,7 +39,8 @@ class DockerManager(
         dht.searchFor(migrationPlan.to) { receiver ->
             val container = migrationPlan.container
             val startedAt = System.currentTimeMillis()
-            val file = saveContainer(containerMappings[container] ?: container)
+            val containerMapping = dockerDataProxy.getMapping(container)
+            val file = saveContainer(containerMapping)
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(container, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
@@ -65,7 +53,7 @@ class DockerManager(
                 }
             }
             file.delete()
-            latestStatistics.remove(container)
+            dockerDataProxy.removeContainer(container)
         }
     }
 
@@ -96,8 +84,7 @@ class DockerManager(
             val localIp = socket.localSocketAddress.toString()
             val remoteIp = socket.remoteSocketAddress.toString()
             val totalSize = encodedLength + fileLength
-            containerMappings[newContainer] = migratedContainer
-            containerMappings[migratedContainer] = newContainer
+            dockerDataProxy.addContainerMapping(migratedContainer, newContainer)
             Dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
             outputFile.delete()
         }

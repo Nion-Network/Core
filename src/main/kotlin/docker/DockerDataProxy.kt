@@ -1,25 +1,49 @@
 package docker
 
+import data.Block
 import data.ContainerStatistics
+import data.DockerStatistics
 import logging.Dashboard
+import utils.Crypto
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
 
 /**
  * Created by Mihael Valentin Berčič
  * on 22/10/2021 at 10:22
  * using IntelliJ IDEA
  */
-class DockerDataProxy {
+class DockerDataProxy(private val crypto: Crypto) {
 
-    private val reentrantLock = ReentrantLock(false)
     private val containers = ConcurrentHashMap<String, ContainerStatistics>()
-
-
+    private val containerMappings = ConcurrentHashMap<String, String>()
 
     init {
         listenForDockerStatistics()
+    }
+
+    fun getMapping(identifier: String) = containerMappings[identifier] ?: identifier
+
+    fun addContainerMapping(networkIdentifier:String, localIdentifier:String){
+        containerMappings[networkIdentifier] = localIdentifier
+        containerMappings[localIdentifier] = networkIdentifier
+    }
+
+    fun removeContainer(identifier: String) {
+        containers.remove(identifier)
+        containerMappings[identifier]?.let { containerMappings.remove(it) }
+        containerMappings.remove(identifier)
+    }
+
+    fun getLatestStatistics(lastBlock: Block): DockerStatistics {
+        val containers = containers.values
+            .filter { System.currentTimeMillis() - it.updated <= 1000 }
+            .map { container ->
+                val networkIdentification = containerMappings[container.id] ?: container.id
+                container.copy(id = networkIdentification)
+            }
+
+        return DockerStatistics(crypto.publicKey, containers, lastBlock.slot)
     }
 
 
