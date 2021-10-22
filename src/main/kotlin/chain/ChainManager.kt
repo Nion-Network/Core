@@ -27,7 +27,6 @@ class ChainManager(
     private val vdf: VerifiableDelayFunctionManager,
     private val dht: DistributedHashTable,
     private val docker: DockerManager,
-    private val dashboard: Dashboard,
     private val informationManager: InformationManager,
     private val blockProducer: BlockProducer
 ) {
@@ -66,7 +65,7 @@ class ChainManager(
         if (blockSlot > currentSlot + 1 && !isFromSync) {
             requestSync()
             blockQueue.clear()
-            dashboard.requestedInclusion("SYNCREQUEST", 0)
+            Dashboard.requestedInclusion("SYNCREQUEST", 0)
             return
         }
 
@@ -84,14 +83,14 @@ class ChainManager(
         val nextTask = calculateNextTask(block)
         if (!blockProducer.isIncluded) requestInclusion(block)
 
-        if (networkManager.isTrustedNode) dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
+        if (networkManager.isTrustedNode) Dashboard.newBlockProduced(block, networkManager.knownNodes.size, blockProducer.currentValidators.size)
         Logger.info("Next task: ${Logger.red}${nextTask.myTask}${Logger.reset}")
 
 
         // informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
         if (nextTask.myTask == SlotDuty.PRODUCER) {
             val vdfStart = System.currentTimeMillis()
-            val vdfProof = vdf.findProof(block.difficulty, block.hash, dashboard)
+            val vdfProof = vdf.findProof(block.difficulty, block.hash)
             val vdfComputationTime = System.currentTimeMillis() - vdfStart
             val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
             val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
@@ -101,7 +100,7 @@ class ChainManager(
             val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
 
             val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
-            runAfter(dashboard, firstDelay) {
+            runAfter(firstDelay) {
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
@@ -109,7 +108,7 @@ class ChainManager(
                 }
             }
 
-            runAfter(dashboard, secondDelay) {
+            runAfter(secondDelay) {
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
                 /*
@@ -256,7 +255,7 @@ class ChainManager(
         val isEnoughIncluded = currentValidatorsSize + newValidators >= configuration.committeeSize + 1
         val isChainEmpty = isChainEmpty
         if (networkManager.isTrustedNode && isChainEmpty && isEnoughIncluded) {
-            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF", dashboard)
+            val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
             networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
@@ -268,7 +267,7 @@ class ChainManager(
     fun requestInclusion(block: Block? = null) {
         val slot = block?.slot ?: 0
         val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
-        dashboard.requestedInclusion(networkManager.ourNode.ip, slot)
+        Dashboard.requestedInclusion(networkManager.ourNode.ip, slot)
         Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
         networkManager.sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast)
     }

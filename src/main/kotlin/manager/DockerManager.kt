@@ -23,17 +23,12 @@ class DockerManager(
     private val dht: DistributedHashTable,
     private val crypto: Crypto,
     private val networkManager: NetworkManager,
-    private val dashboard: Dashboard,
     private val configuration: Configuration
 ) {
 
     private val containerMappings = ConcurrentHashMap<String, String>()
 
     private val latestStatistics = mutableMapOf<String, ContainerStatistics>()
-
-    init {
-        listenForDockerStatistics()
-    }
 
     fun getLatestStatistics(lastBlock: Block): DockerStatistics {
         val containers = latestStatistics.values.filter { System.currentTimeMillis() - it.updated <= 1000 }
@@ -103,53 +98,9 @@ class DockerManager(
             val totalSize = encodedLength + fileLength
             containerMappings[newContainer] = migratedContainer
             containerMappings[migratedContainer] = newContainer
-            dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
+            Dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
             outputFile.delete()
         }
     }
 
-    /** Starts a process of `docker stats` and keeps the [latestStatistics] up to date. */
-    private fun listenForDockerStatistics() {
-        Thread {
-            val process = ProcessBuilder()
-                .command("docker", "stats", "--no-trunc", "--format", "{{.ID}} {{.CPUPerc}} {{.MemPerc}} {{.PIDs}}")
-                .redirectErrorStream(true)
-                .start()
-
-            val buffer = ByteBuffer.allocate(100_000)
-            val escapeSequence = byteArrayOf(0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48)
-            var escapeIndex = 0
-            process.inputStream.use { inputStream ->
-                while (true) {
-                    try {
-                        val byte = inputStream.read().toByte()
-                        if (byte < 0) break
-                        buffer.put(byte)
-                        if (byte == escapeSequence[escapeIndex]) escapeIndex++ else escapeIndex = 0
-                        if (escapeIndex != escapeSequence.size) continue
-                        val length = buffer.position() - escapeSequence.size
-                        if (length > 0) String(buffer.array(), 0, length).split("\n").map { line ->
-                            if (line.isNotEmpty()) {
-                                val fields = line.split(" ")
-                                if (fields.none { it == "--" || it.isEmpty() }) {
-                                    val containerId = fields[0]
-                                    val cpuPercentage = fields[1].trim('%').toDouble()
-                                    val memoryPercentage = fields[2].trim('%').toDouble()
-                                    val processes = fields[3].toInt()
-                                    val container = ContainerStatistics(containerId, cpuPercentage, memoryPercentage, processes)
-                                    latestStatistics[containerId] = container
-                                }
-                            }
-                        }
-                        buffer.clear()
-                        escapeIndex = 0
-                    } catch (e: Exception) {
-                        buffer.clear()
-                        escapeIndex = 0
-                        dashboard.reportException(e)
-                    }
-                }
-            }
-        }.start()
-    }
 }

@@ -22,9 +22,7 @@ import utils.Utils.Companion.sha256
 class CommitteeManager(
     private val networkManager: NetworkManager,
     private val crypto: Crypto,
-    private val vdfManager: VerifiableDelayFunctionManager,
-    private val dashboard: Dashboard
-) {
+    private val vdfManager: VerifiableDelayFunctionManager) {
 
     /** On vote request received, the block is verified and if correct, a positive vote is sent back. */
     fun voteRequest(message: Message<VoteRequest>) {
@@ -34,7 +32,7 @@ class CommitteeManager(
 
         val blockVote = BlockVote(block.hash, crypto.sign(block.hash.encodeToByteArray()).toString(), VoteType.FOR)
 
-        dashboard.newVote(blockVote, sha256(crypto.publicKey).asHex)
+        Dashboard.newVote(blockVote, sha256(crypto.publicKey).asHex)
 
         val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
         if (!isValidProof) Logger.error(block)

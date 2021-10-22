@@ -31,7 +31,7 @@ class VerifiableDelayFunctionManager {
     }
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
-    fun findProof(difficulty: Int, hash: String, dashboard: Dashboard): String {
+    fun findProof(difficulty: Int, hash: String): String {
         val needed = hash.length % 2
         val processBuilder = ProcessBuilder()
             .command("vdf-cli", hash.padStart(hash.length + needed, '0'), "$difficulty")
@@ -39,7 +39,7 @@ class VerifiableDelayFunctionManager {
 
         val process = processBuilder.start()
         val output = process.inputStream.reader().use { it.readText() }
-        dashboard.vdfInformation(output)
+        Dashboard.vdfInformation(output)
         return output
     }
 

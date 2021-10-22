@@ -28,7 +28,6 @@ import kotlin.random.Random
 class UDPServer(
     private val configuration: Configuration,
     private val crypto: Crypto,
-    private val dashboard: Dashboard,
     private val knownNodes: Map<String, Node>,
     private val networkHistory: MutableMap<String, Long>,
     port: Int
@@ -102,12 +101,12 @@ class UDPServer(
                                 totalDelay += System.currentTimeMillis() - started
                             }
                             recipients.forEach {
-                                dashboard.sentMessage(messageId, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
+                                Dashboard.sentMessage(messageId, endpoint, crypto.publicKey, it.publicKey, dataSize, totalDelay)
                             }
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        dashboard.reportException(e)
+                        Dashboard.reportException(e)
                     }
                 }
             }
@@ -150,7 +149,7 @@ class UDPServer(
                         val text = if (neededMore == 0) "${Logger.green}DONE${Logger.reset}" else "$neededMore pieces."
                         // Logger.trace("Received $endPoint ${currentSlice + 1} of $totalSlices [${dataArray.size}]\tfor ${messageId.subSequence(20, 30)}\tNeed $text")
                         if (builder.isReady) {
-                            coroutineAndReport(dashboard) { block(endPoint, builder.asOne) }
+                            coroutineAndReport { block(endPoint, builder.asOne) }
                             buildingPackets.remove(messageId)
                         }
 
@@ -164,7 +163,7 @@ class UDPServer(
                     }
                 } catch (e: java.lang.Exception) {
                     e.printStackTrace()
-                    dashboard.reportException(e)
+                    Dashboard.reportException(e)
                 }
             }
         }.start()

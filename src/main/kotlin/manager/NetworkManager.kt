@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(val configuration: Configuration, val dashboard: Dashboard, val listeningPort: Int) {
+class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
 
@@ -46,19 +46,19 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
     val crypto = Crypto(".")
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
-    private val dht = DistributedHashTable(dashboard, this)
+    private val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
-    val docker = DockerManager(dht, crypto, this, dashboard, configuration)
+    val docker = DockerManager(dht, crypto, this, configuration)
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
 
     val informationManager = InformationManager(dht, this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
-    private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, dashboard, informationManager, blockProducer)
-    private val committeeManager = CommitteeManager(this, crypto, vdf, dashboard)
+    private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, informationManager, blockProducer)
+    private val committeeManager = CommitteeManager(this, crypto, vdf)
 
-    val udp = UDPServer(configuration, crypto, dashboard, knownNodes, networkHistory, listeningPort)
+    val udp = UDPServer(configuration, crypto, knownNodes, networkHistory, listeningPort)
 
     private val migrationSocket = ServerSocket(listeningPort + 1)
     private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
@@ -74,7 +74,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         }
         httpServer.exception(Exception::class.java) { exception, _ ->
             exception.printStackTrace()
-            dashboard.reportException(exception)
+            Dashboard.reportException(exception)
         }
     }
 
@@ -112,11 +112,11 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                     InclusionRequest -> data queueMessage chainManager::inclusionRequest
                     else -> {
                         Logger.error("Unexpected $endPoint in packet handler.")
-                        dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                        Dashboard.reportException(Exception("No fucking endpoint $endPoint."))
                     }
                 }
             } catch (e: Exception) {
-                dashboard.reportException(e)
+                Dashboard.reportException(e)
                 e.printStackTrace()
             }
         }
@@ -151,7 +151,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                 } catch (e: java.lang.Exception) {
                     Logger.error("Exception caught!")
                     e.printStackTrace()
-                    dashboard.reportException(e)
+                    Dashboard.reportException(e)
                 }
             }
         }.start()
@@ -211,7 +211,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
         val message = generateMessage(data)
         val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
         val encodedJson = Json.encodeToString(message).encodeToByteArray()
-        dashboard.logMessageSize(encoded.size, encodedJson.size)
+        Dashboard.logMessageSize(encoded.size, encodedJson.size)
 
         val id = message.uid
         if (nodes.isEmpty()) {
@@ -241,7 +241,7 @@ class NetworkManager(val configuration: Configuration, val dashboard: Dashboard,
                     try {
                         socket.use { docker.executeMigration(socket) }
                     } catch (e: Exception) {
-                        dashboard.reportException(e)
+                        Dashboard.reportException(e)
                     }
                 }
             }

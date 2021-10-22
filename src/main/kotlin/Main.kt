@@ -32,13 +32,12 @@ fun main(args: Array<String>) {
 
     val configurationJson = File(configurationPath).readText()
     val configuration: Configuration = Json.decodeFromString(configurationJson)
-    val dashboard = Dashboard(configuration)
 
     try {
-        val network = NetworkManager(configuration, dashboard, listeningPort)
+        val network = NetworkManager(configuration, listeningPort)
         network.start()
     } catch (e: Exception) {
         e.printStackTrace()
-        dashboard.reportException(e)
+        Dashboard.reportException(e)
     }
 }

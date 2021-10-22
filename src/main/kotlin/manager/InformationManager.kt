@@ -6,6 +6,7 @@ import data.Block
 import data.ChainTask
 import data.DockerStatistics
 import data.Endpoint
+import logging.Dashboard
 import logging.Logger
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
@@ -25,7 +26,6 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
     private val crypto = networkManager.crypto
     private val knownNodes = networkManager.knownNodes
-    private val dashboard = networkManager.dashboard
     private val dockerManager = networkManager.docker
     private val configuration = networkManager.configuration
 
@@ -38,14 +38,14 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
         val myPublicKey = crypto.publicKey
         val isRepresentative = clusters.keys.contains(myPublicKey)
 
-        if (networkManager.isTrustedNode) dashboard.logCluster(lastBlock, task, clusters)
+        if (networkManager.isTrustedNode) Dashboard.logCluster(lastBlock, task, clusters)
 
         val statistics = dockerManager.getLatestStatistics(lastBlock)
         latestNetworkStatistics.add(statistics)
 
         if (task.blockProducer == crypto.publicKey) return
 
-        if (isRepresentative) runAfter(dashboard, configuration.slotDuration / 3) {
+        if (isRepresentative) runAfter(configuration.slotDuration / 3) {
             dht.searchFor(task.blockProducer) {
                 networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
                 Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")

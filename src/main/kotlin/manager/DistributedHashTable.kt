@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * on 18/04/2020 at 15:33
  * using IntelliJ IDEA
  */
-class DistributedHashTable(private val dashboard: Dashboard, private val networkManager: NetworkManager) {
+class DistributedHashTable(private val networkManager: NetworkManager) {
 
     private val queue = ConcurrentHashMap<String, (Node) -> Unit>()
 
@@ -29,7 +29,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (networkManager.knownNodes.containsKey(forPublicKey)) {
-            coroutineAndReport(dashboard) { executeOnFound(forPublicKey) }
+            coroutineAndReport { executeOnFound(forPublicKey) }
             return
         }
         networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
@@ -93,7 +93,7 @@ class DistributedHashTable(private val dashboard: Dashboard, private val network
                 joinedMessage.knownNodes.forEach { newNode -> knownNodes.computeIfAbsent(newNode.publicKey) { newNode } }
             } else {
                 Logger.error("Verification failed.")
-                dashboard.reportException(Exception("Verification failed!"))
+                Dashboard.reportException(Exception("Verification failed!"))
             }
         }
     }

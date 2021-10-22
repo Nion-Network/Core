@@ -61,12 +61,12 @@ class Utils {
 
 
 /** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-fun coroutineAndReport(dashboard: Dashboard, block: () -> Unit) {
+fun coroutineAndReport(block: () -> Unit) {
     GlobalScope.launch {
         try {
             block()
         } catch (e: Exception) {
-            dashboard.reportException(e)
+            Dashboard.reportException(e)
         }
     }
 }
@@ -96,12 +96,12 @@ fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
 }
 
 /** Executes [block] after [delay in milliseconds][delay]. */
-fun runAfter(dashboard: Dashboard, delay: Long, block: () -> Unit) {
+fun runAfter(delay: Long, block: () -> Unit) {
     Timer().schedule(delay) {
         try {
             block.invoke()
         } catch (e:Exception){
-            dashboard.reportException(e)
+            Dashboard.reportException(e)
         }
     }
 }

@@ -1,16 +1,21 @@
 package logging
 
 import data.*
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
+import java.io.File
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class Dashboard(private val configuration: Configuration) {
+object Dashboard {
 
+    private val configurationJson = File("./config.json").readText()
+    private val configuration: Configuration = Json.decodeFromString(configurationJson)
     private val queue = LinkedBlockingQueue<Point>()
 
     private fun formatTime(millis: Long): String {
