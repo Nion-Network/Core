@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DockerDataProxy(private val crypto: Crypto) {
 
-    private val containers = ConcurrentHashMap<String, ContainerStatistics>()
+    private val localStatistics = ConcurrentHashMap<String, ContainerStatistics>()
     private val containerMappings = ConcurrentHashMap<String, String>()
 
     init {
@@ -24,25 +24,24 @@ class DockerDataProxy(private val crypto: Crypto) {
 
     fun getMapping(identifier: String) = containerMappings[identifier] ?: identifier
 
-    fun addContainerMapping(networkIdentifier:String, localIdentifier:String){
+    /** Adds the [container][identifier] to mappings. */
+    fun addContainerMapping(networkIdentifier: String, localIdentifier: String) {
         containerMappings[networkIdentifier] = localIdentifier
         containerMappings[localIdentifier] = networkIdentifier
     }
 
+    /** Removes the [container][identifier] from mappings and statistics history. */
     fun removeContainer(identifier: String) {
-        containers.remove(identifier)
+        localStatistics.remove(identifier)
         containerMappings[identifier]?.let { containerMappings.remove(it) }
         containerMappings.remove(identifier)
     }
 
-    fun getLatestStatistics(lastBlock: Block): DockerStatistics {
-        val containers = containers.values
-            .filter { System.currentTimeMillis() - it.updated <= 1000 }
-            .map { container ->
-                val networkIdentification = containerMappings[container.id] ?: container.id
-                container.copy(id = networkIdentification)
-            }
-
+    /** Returns latest [DockerStatistics] of local localStatistics. */
+    fun getLatestLocalStatistics(lastBlock: Block): DockerStatistics {
+        val containers = localStatistics
+            .filterValues { System.currentTimeMillis() - it.updated <= 1000 }
+            .map { (id, container) -> container.copy(id = containerMappings[id] ?: id) }
         return DockerStatistics(crypto.publicKey, containers, lastBlock.slot)
     }
 
@@ -75,7 +74,7 @@ class DockerDataProxy(private val crypto: Crypto) {
                                     val cpuPercentage = fields[1].trim('%').toDouble()
                                     val memoryPercentage = fields[2].trim('%').toDouble()
                                     val processes = fields[3].toInt()
-                                    containers[containerId] = ContainerStatistics(containerId, cpuPercentage, memoryPercentage, processes)
+                                    localStatistics[containerId] = ContainerStatistics(containerId, cpuPercentage, memoryPercentage, processes)
                                 }
                             }
                         }
