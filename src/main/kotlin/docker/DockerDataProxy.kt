@@ -37,7 +37,7 @@ class DockerDataProxy(private val crypto: Crypto) {
         containerMappings.remove(identifier)
     }
 
-    /** Returns latest [DockerStatistics] of local localStatistics. */
+    /** Returns latest [DockerStatistics] of [localStatistics]. */
     fun getLatestLocalStatistics(lastBlock: Block): DockerStatistics {
         val containers = localStatistics
             .filterValues { System.currentTimeMillis() - it.updated <= 1000 }
@@ -46,7 +46,7 @@ class DockerDataProxy(private val crypto: Crypto) {
     }
 
 
-    /** Starts a process of `docker stats` and keeps the [latestStatistics] up to date. */
+    /** Starts a process of `docker stats` and keeps the [localStatistics] up to date. */
     private fun listenForDockerStatistics() {
         Thread {
             val process = ProcessBuilder()
