@@ -1,10 +1,12 @@
 package chain
 
-import communication.InclusionRequest
-import communication.Message
-import communication.SyncRequest
-import communication.TransmissionType
+import data.communication.InclusionRequest
+import data.communication.Message
+import data.communication.SyncRequest
+import data.communication.TransmissionType
 import data.*
+import data.chain.*
+import data.network.Endpoint
 import docker.DockerMigrationStrategy
 import logging.Dashboard
 import logging.Logger

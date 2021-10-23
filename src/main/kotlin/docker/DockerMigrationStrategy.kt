@@ -1,9 +1,9 @@
 package docker
 
-import data.Block
+import data.chain.Block
 import data.Configuration
-import data.ContainerMigration
-import data.MigrationPlan
+import data.docker.ContainerMigration
+import data.docker.MigrationPlan
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf

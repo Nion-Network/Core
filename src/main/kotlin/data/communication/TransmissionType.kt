@@ -1,4 +1,4 @@
-package communication
+package data.communication
 
 /**
  * Created by Mihael Valentin Berčič

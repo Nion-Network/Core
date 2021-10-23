@@ -1,6 +1,6 @@
 package chain
 
-import data.Block
+import data.chain.Block
 import data.Configuration
 import logging.Logger
 import utils.Crypto

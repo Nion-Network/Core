@@ -1,11 +1,11 @@
 package consensus
 
-import communication.Message
-import communication.TransmissionType
-import data.BlockVote
-import data.Endpoint
-import data.VoteRequest
-import data.VoteType
+import data.communication.Message
+import data.communication.TransmissionType
+import data.chain.BlockVote
+import data.network.Endpoint
+import data.chain.VoteRequest
+import data.chain.VoteType
 import logging.Dashboard
 import logging.Logger
 import manager.NetworkManager

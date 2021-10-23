@@ -1,4 +1,4 @@
-package data
+package data.docker
 
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt

@@ -2,6 +2,12 @@ package manager
 
 import communication.*
 import data.*
+import data.communication.JoinedMessage
+import data.communication.Message
+import data.communication.QueryMessage
+import data.communication.TransmissionType
+import data.network.Endpoint
+import data.network.Node
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard

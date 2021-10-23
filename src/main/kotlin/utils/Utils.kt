@@ -1,7 +1,7 @@
 package utils
 
-import communication.Message
-import data.Block
+import data.communication.Message
+import data.chain.Block
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray

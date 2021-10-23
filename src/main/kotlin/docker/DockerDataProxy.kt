@@ -1,8 +1,8 @@
 package docker
 
-import data.Block
-import data.ContainerStatistics
-import data.DockerStatistics
+import data.chain.Block
+import data.docker.ContainerStatistics
+import data.docker.DockerStatistics
 import logging.Dashboard
 import utils.Crypto
 import java.nio.ByteBuffer

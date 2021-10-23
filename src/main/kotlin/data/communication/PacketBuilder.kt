@@ -1,8 +1,8 @@
-package communication
+package data.communication
 
 import data.Configuration
-import data.Endpoint
-import data.Node
+import data.network.Endpoint
+import data.network.Node
 
 /**
  * Created by Mihael Valentin Berčič

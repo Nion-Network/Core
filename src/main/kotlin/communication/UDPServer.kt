@@ -1,8 +1,10 @@
 package communication
 
 import data.Configuration
-import data.Endpoint
-import data.Node
+import data.network.Endpoint
+import data.network.Node
+import data.communication.PacketBuilder
+import data.communication.TransmissionType
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto

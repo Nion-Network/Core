@@ -2,13 +2,15 @@ package manager
 
 import chain.BlockProducer
 import chain.ChainManager
-import communication.Message
-import communication.QueuedMessage
-import communication.TransmissionType
+import data.communication.Message
+import data.communication.QueuedMessage
+import data.communication.TransmissionType
 import communication.UDPServer
 import consensus.CommitteeStrategy
 import data.*
-import data.Endpoint.*
+import data.network.Endpoint
+import data.network.Endpoint.*
+import data.network.Node
 import docker.DockerDataProxy
 import docker.DockerMigrationStrategy
 import io.javalin.Javalin

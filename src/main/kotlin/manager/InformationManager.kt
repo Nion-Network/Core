@@ -1,11 +1,11 @@
 package manager
 
-import communication.Message
-import communication.TransmissionType
-import data.Block
-import data.ChainTask
-import data.DockerStatistics
-import data.Endpoint
+import data.communication.Message
+import data.communication.TransmissionType
+import data.chain.Block
+import data.chain.ChainTask
+import data.docker.DockerStatistics
+import data.network.Endpoint
 import logging.Dashboard
 import logging.Logger
 import utils.Utils.Companion.asHex
