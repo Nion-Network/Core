@@ -63,21 +63,8 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     val udp = UDPServer(configuration, crypto, knownNodes, networkHistory, listeningPort)
 
-    private val httpServer = Javalin.create { it.showJavalinBanner = false }.start(listeningPort + 5)
-
-
     init {
         Logger.toggleLogging(configuration.loggingEnabled || (isTrustedNode && configuration.trustedLoggingEnabled))
-        httpServer.before {
-            if (it.ip().startsWith("127")) return@before
-            val hex = it.header("hex") ?: ""
-            if (networkHistory.containsKey(hex)) throw ForbiddenResponse("NO MEANS NO")
-            else networkHistory[hex] = System.currentTimeMillis()
-        }
-        httpServer.exception(Exception::class.java) { exception, _ ->
-            exception.printStackTrace()
-            Dashboard.reportException(exception)
-        }
     }
 
     fun start() {
@@ -168,22 +155,6 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
             }
         }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
     }
-
-    /**
-     *  Set networking to respond using given lambda block to provided path on GET request.
-     *
-     * @param block Response lambda that will execute on GET request.
-     */
-    @Deprecated("HTTP is no longer being used. Replaced with UDP packets.")
-    private infix fun String.get(block: Context.() -> Unit): Javalin = httpServer.get(this, block)
-
-    /**
-     *  Set networking to respond using given lambda block to provided path on POST request.
-     *
-     * @param block Response lambda that will execute on POST request.
-     */
-    @Deprecated("HTTP is no longer being used. Replaced with UDP packets.")
-    private infix fun String.post(block: Context.() -> Unit): Javalin = httpServer.post(this, block)
 
     /**
      * Add the received Message with the body of type T to the message queue.
