@@ -13,9 +13,6 @@ import data.network.Endpoint.*
 import data.network.Node
 import docker.DockerDataProxy
 import docker.DockerMigrationStrategy
-import io.javalin.Javalin
-import io.javalin.http.Context
-import io.javalin.http.ForbiddenResponse
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

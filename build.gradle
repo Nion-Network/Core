@@ -22,9 +22,6 @@ dependencies {
     implementation('org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.2.2')
     implementation('org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.2')
 
-    implementation 'io.javalin:javalin:3.8.0'
-    implementation "org.slf4j:slf4j-nop:1.7.28"
-
     implementation 'org.influxdb:influxdb-java:2.21'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-native-mt'
 
