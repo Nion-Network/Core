@@ -129,7 +129,7 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
         Logger.info("Sending join request to our trusted node...")
 
         val trustedNode = Node("", configuration.trustedNodeIP, configuration.trustedNodePort)
-        sendUDP(JoinRequest, ourNode, TransmissionType.Broadcast, trustedNode)
+        send(JoinRequest, TransmissionType.Broadcast, ourNode, trustedNode)
 
         Logger.debug("Waiting to be accepted into the network...")
         Thread.sleep(10000)
@@ -205,7 +205,7 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
      * @param transmissionType How should the message be sent.
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
-    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg nodes: Node) {
+    inline fun <reified T : Any> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg nodes: Node) {
         // TODO add "additionalNodes" flag.
         val message = generateMessage(data)
         val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
@@ -221,19 +221,17 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
         } else udp.send(endpoint, id, encoded, transmissionType, nodes)
     }
 
-    /** Sends the data to the [specific amount][nodeCount] of nodes using [transmissionType]. */
-    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
-        val toSend = knownNodes.values.shuffled().take(nodeCount)
-        sendUDP(endpoint, data, transmissionType, *toSend.toTypedArray())
+    /** Sends the message to passed nodes after they've been found by the network. */
+    inline fun <reified T : Any> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, publicKey: String) {
+        dht.searchFor(publicKey) { node ->
+            send(endpoint, transmissionType, data, node)
+        }
     }
 
-    /** Sends the message to passed nodes after they've been found by the network. */
-    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg publicKeys: String) {
-        publicKeys.forEach { publicKey ->
-            dht.searchFor(publicKey) { node ->
-                sendUDP(endpoint, data, transmissionType, node)
-            }
-        }
+    /** Sends the data to the [specific amount][nodeCount] of nodes using [transmissionType]. */
+    inline fun <reified T : Any> send(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
+        val toSend = knownNodes.values.shuffled().take(nodeCount)
+        send(endpoint, transmissionType, data, *toSend.toTypedArray())
     }
 
     /** Clears the [messageQueue]. */

@@ -8,7 +8,10 @@ import data.*
 import docker.DockerMigrationStrategy
 import logging.Dashboard
 import logging.Logger
-import manager.*
+import manager.DistributedHashTable
+import manager.InformationManager
+import manager.NetworkManager
+import manager.VerifiableDelayFunctionManager
 import utils.Crypto
 import utils.runAfter
 import java.lang.Long.max
@@ -105,7 +108,7 @@ class ChainManager(
                 networkManager.apply {
                     Logger.trace("Requesting votes!")
                     val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    sendUDP(Endpoint.VoteRequest, voteRequest, TransmissionType.Unicast, *committeeNodes)
+                    send(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeNodes)
                 }
             }
 
@@ -137,15 +140,13 @@ class ChainManager(
                     }
                 }
                 */
-                networkManager.sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast, *committeeNodes)
+                networkManager.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeNodes)
                 // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
                 // dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
             }
         } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
             val nextProducer = nextTask.blockProducer
-            dht.searchFor(nextProducer) {
-                networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Unicast, it)
-            }
+            networkManager.send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextProducer)
 
             scheduledCommitteeFuture = committeeExecutor.schedule({
                 networkManager.apply {
@@ -164,7 +165,7 @@ class ChainManager(
         val from = chain.lastOrNull()?.slot ?: 0
         val syncRequest = SyncRequest(networkManager.ourNode, from)
         Logger.info("Requesting new blocks from $from")
-        networkManager.sendUDP(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, 1)
+        networkManager.send(Endpoint.SyncRequest, syncRequest, TransmissionType.Unicast, 1)
     }
 
     /** After synchronization request has been received, we send back blocks node has asked us for. */
@@ -176,7 +177,7 @@ class ChainManager(
         val blocks = chain.drop(syncRequest.fromBlock.toInt()).take(1000) // TODO change after retrieving blocks from database.
         if (blocks.isEmpty()) return
 
-        networkManager.sendUDP(Endpoint.SyncReply, blocks, TransmissionType.Unicast, requestingNode)
+        networkManager.send(Endpoint.SyncReply, TransmissionType.Unicast, blocks, requestingNode)
         Logger.debug("Sent back ${blocks.size} blocks!")
     }
 
@@ -259,8 +260,10 @@ class ChainManager(
             val vdfProof = vdf.findProof(configuration.initialDifficulty, "FFFF")
             val block = blockProducer.genesisBlock(vdfProof)
             Logger.debug("Broadcasting genesis block...")
-            networkManager.knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            networkManager.sendUDP(Endpoint.NewBlock, block, TransmissionType.Broadcast)
+            with(networkManager) {
+                knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
+                send(Endpoint.NewBlock, TransmissionType.Broadcast, block)
+            }
         }
     }
 
@@ -270,7 +273,7 @@ class ChainManager(
         val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
         Dashboard.requestedInclusion(networkManager.ourNode.ip, slot)
         Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
-        networkManager.sendUDP(Endpoint.InclusionRequest, inclusionRequest, TransmissionType.Broadcast)
+        networkManager.send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
     }
 
 }

@@ -32,7 +32,7 @@ class DistributedHashTable(private val networkManager: NetworkManager) {
             coroutineAndReport { executeOnFound(forPublicKey) }
             return
         }
-        networkManager.sendUDP(Endpoint.NodeQuery, QueryMessage(networkManager.ourNode, forPublicKey), TransmissionType.Unicast)
+        networkManager.send(Endpoint.NodeQuery, TransmissionType.Unicast, QueryMessage(networkManager.ourNode, forPublicKey))
     }
 
     /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][NetworkManager.knownNodes]. */
@@ -51,8 +51,8 @@ class DistributedHashTable(private val networkManager: NetworkManager) {
         networkManager.apply {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
-            if (searchedNode != null) sendUDP(Endpoint.NodeFound, searchedNode, TransmissionType.Unicast, body.seekingNode)
-            else sendUDP(Endpoint.NodeQuery, body, TransmissionType.Unicast, knownNodes.values.random())
+            if (searchedNode != null) send(Endpoint.NodeFound, TransmissionType.Unicast, searchedNode, body.seekingNode)
+            else send(Endpoint.NodeQuery, TransmissionType.Unicast, body, knownNodes.values.random())
         }
     }
 
@@ -66,7 +66,7 @@ class DistributedHashTable(private val networkManager: NetworkManager) {
                 val nodesToShare = knownNodes.values.take(toTake).toTypedArray()
                 val joinedMessage = JoinedMessage(ourNode, nodesToShare)
                 knownNodes.computeIfAbsent(publicKey) { this }
-                sendUDP(Endpoint.Welcome, joinedMessage, TransmissionType.Unicast, this)
+                send(Endpoint.Welcome, TransmissionType.Unicast, joinedMessage, this)
             }
         }
 

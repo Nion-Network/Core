@@ -46,14 +46,14 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
         if (isRepresentative) runAfter(configuration.slotDuration / 3) {
             dht.searchFor(task.blockProducer) {
-                networkManager.sendUDP(Endpoint.RepresentativeStatistics, latestNetworkStatistics.toList(), TransmissionType.Unicast, it)
+                networkManager.send(Endpoint.RepresentativeStatistics, TransmissionType.Unicast, latestNetworkStatistics.toList(), it)
                 Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
             }
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
             if (myRepresentative != null) dht.searchFor(myRepresentative) {
                 Logger.info("Reporting statistics to our cluster representative! ${sha256(myRepresentative).asHex}")
-                networkManager.sendUDP(Endpoint.NodeStatistics, TODO(), TransmissionType.Unicast, it)
+                networkManager.send(Endpoint.NodeStatistics, TransmissionType.Unicast, TODO(), it)
             }
         }
     }
