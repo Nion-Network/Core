@@ -26,7 +26,6 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
     private val crypto = networkManager.crypto
     private val knownNodes = networkManager.knownNodes
-    private val dockerManager = networkManager.docker
     private val configuration = networkManager.configuration
 
     val latestNetworkStatistics = mutableSetOf<DockerStatistics>()

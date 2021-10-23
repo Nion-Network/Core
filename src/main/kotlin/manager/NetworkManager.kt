@@ -6,6 +6,7 @@ import communication.Message
 import communication.QueuedMessage
 import communication.TransmissionType
 import communication.UDPServer
+import consensus.CommitteeStrategy
 import data.*
 import data.Endpoint.*
 import docker.DockerDataProxy
@@ -21,10 +22,8 @@ import logging.Dashboard
 import logging.Logger
 import utils.Crypto
 import utils.asMessage
-import utils.coroutineAndReport
 import java.lang.Integer.max
 import java.net.InetAddress
-import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
@@ -47,7 +46,7 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     val crypto = Crypto(".")
     val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
-    private val dht = DistributedHashTable(this)
+    val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
     private val dockerDataProxy = DockerDataProxy(crypto)
     val docker = DockerMigrationStrategy(dht, dockerDataProxy, this, configuration)
@@ -58,7 +57,7 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
     private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
     private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, informationManager, blockProducer)
-    private val committeeManager = CommitteeManager(this, crypto, vdf)
+    private val committeeManager = CommitteeStrategy(this, crypto, vdf)
 
     val udp = UDPServer(configuration, crypto, knownNodes, networkHistory, listeningPort)
 
@@ -226,6 +225,15 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
         val toSend = knownNodes.values.shuffled().take(nodeCount)
         sendUDP(endpoint, data, transmissionType, *toSend.toTypedArray())
+    }
+
+    /** Sends the message to passed nodes after they've been found by the network. */
+    inline fun <reified T : Any> sendUDP(endpoint: Endpoint, data: T, transmissionType: TransmissionType, vararg publicKeys: String) {
+        publicKeys.forEach { publicKey ->
+            dht.searchFor(publicKey) { node ->
+                sendUDP(endpoint, data, transmissionType, node)
+            }
+        }
     }
 
     /** Clears the [messageQueue]. */

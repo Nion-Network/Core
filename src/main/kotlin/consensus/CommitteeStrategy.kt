@@ -1,4 +1,4 @@
-package manager
+package consensus
 
 import communication.Message
 import communication.TransmissionType
@@ -8,6 +8,8 @@ import data.VoteRequest
 import data.VoteType
 import logging.Dashboard
 import logging.Logger
+import manager.NetworkManager
+import manager.VerifiableDelayFunctionManager
 import utils.Crypto
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
@@ -19,10 +21,11 @@ import utils.Utils.Companion.sha256
  *
  * Vote requests are being handled by this class.
  */
-class CommitteeManager(
+class CommitteeStrategy(
     private val networkManager: NetworkManager,
     private val crypto: Crypto,
-    private val vdfManager: VerifiableDelayFunctionManager) {
+    private val vdfManager: VerifiableDelayFunctionManager
+) {
 
     /** On vote request received, the block is verified and if correct, a positive vote is sent back. */
     fun voteRequest(message: Message<VoteRequest>) {
