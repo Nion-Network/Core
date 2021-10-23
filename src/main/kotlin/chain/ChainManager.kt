@@ -1,11 +1,11 @@
 package chain
 
+import data.Configuration
+import data.chain.*
 import data.communication.InclusionRequest
 import data.communication.Message
 import data.communication.SyncRequest
 import data.communication.TransmissionType
-import data.*
-import data.chain.*
 import data.network.Endpoint
 import docker.DockerMigrationStrategy
 import logging.Dashboard
@@ -17,7 +17,10 @@ import manager.VerifiableDelayFunctionManager
 import utils.Crypto
 import utils.runAfter
 import java.lang.Long.max
-import java.util.concurrent.*
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ScheduledFuture
 import kotlin.random.Random
 
 
@@ -39,13 +42,12 @@ class ChainManager(
 
     val isChainEmpty: Boolean get() = chain.isEmpty()
 
-    private val blockQueue = LinkedBlockingQueue<BlockToAdd>()
+    private val blockQueue = LinkedBlockingQueue<NewBlock>()
     private val votes = ConcurrentHashMap<String, MutableList<VoteInformation>>()
     private val chain = mutableListOf<Block>()
     private val committeeExecutor = Executors.newSingleThreadScheduledExecutor()
     private var scheduledCommitteeFuture: ScheduledFuture<*>? = null
 
-    data class BlockToAdd(val isFromSync: Boolean, val block: Block)
 
     init {
         Thread {
@@ -105,60 +107,20 @@ class ChainManager(
             val firstDelay = max(0, delayThird - vdfComputationTime)
             val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
 
-            val committeeNodes = nextTask.committee.mapNotNull { networkManager.knownNodes[it] }.toTypedArray()
+            val committeeNodes = nextTask.committee.toTypedArray()
             runAfter(firstDelay) {
-                networkManager.apply {
-                    Logger.trace("Requesting votes!")
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    send(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeNodes)
-                }
+                networkManager.searchAndSend(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeNodes)
             }
 
             runAfter(secondDelay) {
                 val votesAmount = votes[newBlock.hash]?.size ?: 0
                 newBlock.votes = votesAmount
-                /*
-                val latestStatistics = informationManager.latestNetworkStatistics
-                Logger.info(latestStatistics)
-
-                val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
-                val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
-
-                Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
-
-                if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
-                    val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
-                    val lastBlocks = chain.takeLast(20)
-                    val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
-                    Logger.trace("\t\tLeast consuming app: $leastConsumingApp")
-
-                    // Note: Extremely naive and useless efficiency algorithm. Proper configurable migration planning coming later.
-                    Logger.trace("App: ${leastConsumingApp == null}. Least: ${lastMigrations.none { it.container == leastConsumingApp?.id }}")
-
-                    if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
-                        val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                        newBlock.migrations[mostUsedNode.publicKey] = migration
-                        Logger.debug(migration)
-                    }
-                }
-                */
-                networkManager.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeNodes)
+                networkManager.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeNodes)
                 // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
                 // dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
             }
-        } else if (nextTask.myTask == SlotDuty.COMMITTEE) {
-            val nextProducer = nextTask.blockProducer
-            networkManager.send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextProducer)
-
-            scheduledCommitteeFuture = committeeExecutor.schedule({
-                networkManager.apply {
-                    val skipBlock = blockProducer.createSkipBlock(block)
-                    val committeeNodes = nextTask.committee.mapNotNull { knownNodes[it] }.toTypedArray()
-                    // sendUDP(Endpoint.NewBlock, skipBlock, TransmissionType.Broadcast, *committeeNodes)
-                    // sendUDP(Endpoint.NewBlock, broadcastMessage, TransmissionType.Broadcast)
-                }
-            }, configuration.slotDuration * 2, TimeUnit.MILLISECONDS)
         }
+        // TODO implement skip block.
     }
 
     /** Request blocks from a random known node needed for synchronization. */
@@ -188,14 +150,14 @@ class ChainManager(
         val blocks = message.body
         Logger.info("We have ${blocks.size} blocks to sync...")
         blockQueue.clear()
-        blockQueue.addAll(blocks.map { BlockToAdd(true, it) })
+        blockQueue.addAll(blocks.map { NewBlock(true, it) })
         Logger.info("Syncing finished...")
     }
 
     /** On single block received, we add it to the chain queue. */
     fun blockReceived(message: Message<Block>) {
         val newBlock = message.body
-        blockQueue.offer(BlockToAdd(false, newBlock))
+        blockQueue.offer(NewBlock(false, newBlock))
     }
 
     /** When a vote for the current block is received, we add it to the votes map. */
@@ -279,3 +241,29 @@ class ChainManager(
     }
 
 }
+
+/*
+                val latestStatistics = informationManager.latestNetworkStatistics
+                Logger.info(latestStatistics)
+
+                val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
+                val leastUsedNode = latestStatistics.minByOrNull { it.totalCPU }
+
+                Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
+
+                if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
+                    val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.cpuUsage }
+                    val lastBlocks = chain.takeLast(20)
+                    val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
+                    Logger.trace("\t\tLeast consuming app: $leastConsumingApp")
+
+                    // Note: Extremely naive and useless efficiency algorithm. Proper configurable migration planning coming later.
+                    Logger.trace("App: ${leastConsumingApp == null}. Least: ${lastMigrations.none { it.container == leastConsumingApp?.id }}")
+
+                    if (leastConsumingApp != null && lastMigrations.none { it.container == leastConsumingApp.id }) {
+                        val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                        newBlock.migrations[mostUsedNode.publicKey] = migration
+                        Logger.debug(migration)
+                    }
+                }
+                */

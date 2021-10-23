@@ -2,12 +2,12 @@ package manager
 
 import chain.BlockProducer
 import chain.ChainManager
-import data.communication.Message
-import data.communication.QueuedMessage
-import data.communication.TransmissionType
 import communication.UDPServer
 import consensus.CommitteeStrategy
 import data.*
+import data.communication.Message
+import data.communication.QueuedMessage
+import data.communication.TransmissionType
 import data.network.Endpoint
 import data.network.Endpoint.*
 import data.network.Node
@@ -224,9 +224,11 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
     }
 
     /** Sends the message to passed nodes after they've been found by the network. */
-    inline fun <reified T : Any> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, publicKey: String) {
-        dht.searchFor(publicKey) { node ->
-            send(endpoint, transmissionType, data, node)
+    inline fun <reified T : Any> searchAndSend(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg publicKeys: String) {
+        publicKeys.forEach { publicKey ->
+            dht.searchFor(publicKey) { node ->
+                send(endpoint, transmissionType, data, node)
+            }
         }
     }
 

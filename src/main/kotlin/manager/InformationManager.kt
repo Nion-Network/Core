@@ -1,9 +1,9 @@
 package manager
 
-import data.communication.Message
-import data.communication.TransmissionType
 import data.chain.Block
 import data.chain.ChainTask
+import data.communication.Message
+import data.communication.TransmissionType
 import data.docker.DockerStatistics
 import data.network.Endpoint
 import logging.Dashboard
@@ -45,15 +45,13 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
         if (task.blockProducer == crypto.publicKey) return
 
         if (isRepresentative) runAfter(configuration.slotDuration / 3) {
-            dht.searchFor(task.blockProducer) {
-                networkManager.send(Endpoint.RepresentativeStatistics, TransmissionType.Unicast, latestNetworkStatistics.toList(), it)
-                Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
-            }
+            networkManager.searchAndSend(Endpoint.RepresentativeStatistics, TransmissionType.Unicast, latestNetworkStatistics.toList(), task.blockProducer)
+            Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
-            if (myRepresentative != null) dht.searchFor(myRepresentative) {
+            if (myRepresentative != null) {
                 Logger.info("Reporting statistics to our cluster representative! ${sha256(myRepresentative).asHex}")
-                networkManager.send(Endpoint.NodeStatistics, TransmissionType.Unicast, TODO(), it)
+                networkManager.searchAndSend(Endpoint.NodeStatistics, TransmissionType.Unicast, TODO(), myRepresentative)
             }
         }
     }
