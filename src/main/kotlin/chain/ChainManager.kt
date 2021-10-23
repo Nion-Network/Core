@@ -5,7 +5,7 @@ import communication.Message
 import communication.SyncRequest
 import communication.TransmissionType
 import data.*
-import docker.DockerMigrationPlanner
+import docker.DockerMigrationStrategy
 import logging.Dashboard
 import logging.Logger
 import manager.*
@@ -27,7 +27,7 @@ class ChainManager(
     private val configuration: Configuration,
     private val vdf: VerifiableDelayFunctionManager,
     private val dht: DistributedHashTable,
-    private val docker: DockerMigrationPlanner,
+    private val docker: DockerMigrationStrategy,
     private val informationManager: InformationManager,
     private val blockProducer: BlockProducer
 ) {

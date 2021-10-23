@@ -23,7 +23,7 @@ import java.net.Socket
  * on 27/11/2020 at 17:11
  * using IntelliJ IDEA
  */
-class DockerMigrationPlanner(
+class DockerMigrationStrategy(
     private val dht: DistributedHashTable,
     private val dockerDataProxy: DockerDataProxy,
     private val networkManager: NetworkManager,
