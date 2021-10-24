@@ -96,31 +96,34 @@ class ChainManager(
 
 
         // informationManager.prepareForStatistics(nextTask, blockProducer.currentValidators, block)
-        if (nextTask.myTask == SlotDuty.PRODUCER) {
-            val vdfStart = System.currentTimeMillis()
-            val vdfProof = vdf.findProof(block.difficulty, block.hash)
-            val vdfComputationTime = System.currentTimeMillis() - vdfStart
-            val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
-            val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
+        when (nextTask.myTask) {
+            SlotDuty.PRODUCER -> {
+                val vdfStart = System.currentTimeMillis()
+                val vdfProof = vdf.findProof(block.difficulty, block.hash)
+                val vdfComputationTime = System.currentTimeMillis() - vdfStart
+                val newBlock = blockProducer.createBlock(block, vdfProof, blockSlot + 1)
+                val voteRequest = VoteRequest(newBlock, networkManager.ourNode)
 
-            val delayThird = configuration.slotDuration / 3
-            val firstDelay = max(0, delayThird - vdfComputationTime)
-            val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
+                val delayThird = configuration.slotDuration / 3
+                val firstDelay = max(0, delayThird - vdfComputationTime)
+                val secondDelay = max(delayThird, delayThird * 2 - vdfComputationTime)
 
-            val committeeNodes = nextTask.committee.toTypedArray()
-            runAfter(firstDelay) {
-                networkManager.searchAndSend(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeNodes)
+                val committeeNodes = nextTask.committee.toTypedArray()
+                runAfter(firstDelay) {
+                    networkManager.searchAndSend(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeNodes)
+                }
+
+                runAfter(secondDelay) {
+                    val votesAmount = votes[newBlock.hash]?.size ?: 0
+                    newBlock.votes = votesAmount
+                    networkManager.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeNodes)
+                    // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
+                    // dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
+                }
             }
-
-            runAfter(secondDelay) {
-                val votesAmount = votes[newBlock.hash]?.size ?: 0
-                newBlock.votes = votesAmount
-                networkManager.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeNodes)
-                // sendUDP(Endpoint.NewBlock, newBlock, TransmissionType.Broadcast)
-                // dashboard.reportStatistics(latestStatistics.toList(), blockSlot)
-            }
+            SlotDuty.COMMITTEE -> networkManager.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, block, nextTask.blockProducer)
+            SlotDuty.VALIDATOR -> TODO()
         }
-        // TODO implement skip block.
     }
 
     /** Request blocks from a random known node needed for synchronization. */
