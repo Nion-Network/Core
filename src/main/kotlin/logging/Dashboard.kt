@@ -77,7 +77,6 @@ object Dashboard {
     fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
-            time(blockData.timestamp, TimeUnit.MILLISECONDS)
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
             addField("validatorSet", validatorSize)

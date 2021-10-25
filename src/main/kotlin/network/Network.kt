@@ -77,9 +77,9 @@ class Network(val configuration: Configuration, val listeningPort: Int) {
     private fun startListeningUDP() {
         udp.startListening { endPoint, data ->
             when (endPoint) {
-                NodeQuery -> data executeImmediately dht::onQuery
-                NodeFound -> data executeImmediately dht::onFound
-                SyncRequest -> data executeImmediately chainBuilder::syncRequested
+                NodeQuery -> data queueWith dht::onQuery
+                NodeFound -> data queueWith dht::onFound
+                SyncRequest -> data queueWith chainBuilder::syncRequested
 
                 SyncReply -> data queueWith chainBuilder::syncReplyReceived
                 VoteRequest -> data queueWith committeeStrategy::voteRequested

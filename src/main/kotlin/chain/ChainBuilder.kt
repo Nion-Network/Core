@@ -65,7 +65,7 @@ class ChainBuilder(
                         runAfter(delayThird) {
                             val blockToBroadcast = committeeStrategy.getVotes(newBlock)
                             network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, *committeeNodes)
-                            Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
+                            if (network.isTrustedNode) Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
                         }
                     }
                 }
