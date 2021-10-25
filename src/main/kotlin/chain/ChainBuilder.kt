@@ -67,7 +67,9 @@ class ChainBuilder(
 
                             runAfter(delayThird) {
                                 val blockToBroadcast = committeeStrategy.getVotes(newBlock)
+                                val task = chainHistory.calculateNextTask(blockToBroadcast, configuration.committeeSize)
                                 network.send(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast)
+                                network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, task.blockProducer, *task.committee.toTypedArray())
                                 Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
                                 Dashboard.vdfInformation("Finished being a block producer!")
                             }
@@ -77,7 +79,7 @@ class ChainBuilder(
                 SlotDuty.COMMITTEE -> network.searchAndSend(Endpoint.NewBlock, TransmissionType.Unicast, previousBlock, nextTask.blockProducer)
                 SlotDuty.VALIDATOR -> {}
             }
-        } catch (e:Exception){
+        } catch (e: Exception) {
             Dashboard.reportException(e)
         }
     }

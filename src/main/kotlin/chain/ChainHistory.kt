@@ -94,7 +94,7 @@ class ChainHistory(
     }
 
     /** Computes the task for the next block creation using current block information. */
-    private fun calculateNextTask(block: Block, committeeSize: Int): ChainTask {
+    fun calculateNextTask(block: Block, committeeSize: Int): ChainTask {
         validatorLock.withLock {
             val seed = block.seed
             val random = Random(seed)
