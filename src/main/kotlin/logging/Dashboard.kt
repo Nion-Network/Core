@@ -1,10 +1,10 @@
 package logging
 
-import data.*
+import data.Configuration
 import data.chain.Block
-import data.chain.BlockVote
 import data.chain.ChainTask
 import data.chain.SlotDuty
+import data.chain.Vote
 import data.docker.DockerStatistics
 import data.network.Endpoint
 import kotlinx.serialization.decodeFromString
@@ -77,13 +77,13 @@ object Dashboard {
     fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
+            time(blockData.timestamp, TimeUnit.MILLISECONDS)
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
             addField("validatorSet", validatorSize)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
-            addField("committeeIndex", blockData.committeeIndex)
             addField("blockProducer", blockData.blockProducer)
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
@@ -93,11 +93,10 @@ object Dashboard {
     }
 
     /** Reports to the dashboard that a new vote arrived. */
-    fun newVote(vote: BlockVote, publicKey: String) {
+    fun newVote(vote: Vote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("attestations").apply {
             addField("blockHash", vote.blockHash)
-            addField("signature", sha256(vote.signature).asHex)
             addField("committeeMember", publicKey)
         }.build()
 

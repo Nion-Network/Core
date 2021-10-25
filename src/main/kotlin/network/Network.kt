@@ -1,7 +1,6 @@
-package manager
+package network
 
-import chain.BlockProducer
-import chain.ChainManager
+import chain.ChainBuilder
 import communication.UDPServer
 import consensus.CommitteeStrategy
 import data.*
@@ -19,46 +18,46 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import manager.InformationManager
+import manager.VerifiableDelayFunctionManager
 import utils.Crypto
 import utils.asMessage
 import java.lang.Integer.max
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.TimeUnit
 
 /**
  * Created by Mihael Valentin Berčič
  * on 27/03/2020 at 12:58
  * using IntelliJ IDEA
  */
-class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
+class Network(val configuration: Configuration, val listeningPort: Int) {
 
     private val myIP: String = InetAddress.getLocalHost().hostAddress
+    private val localAddress = InetAddress.getLocalHost()
+
+    val crypto = Crypto(".")
+    val ourNode = Node(crypto.publicKey, myIP, listeningPort)
 
     var isInNetwork = false
     val knownNodes = ConcurrentHashMap<String, Node>()
     val isFull: Boolean get() = knownNodes.size >= configuration.maxNodes
 
-    val isTrustedNode: Boolean = configuration.let { InetAddress.getLocalHost().hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
-    val crypto = Crypto(".")
-    val ourNode = Node(crypto.publicKey, myIP, listeningPort)
+    val isTrustedNode: Boolean = configuration.let { localAddress.hostAddress == it.trustedNodeIP && it.trustedNodePort == listeningPort }
+
 
     val dht = DistributedHashTable(this)
     private val vdf = VerifiableDelayFunctionManager()
     private val dockerDataProxy = DockerDataProxy(crypto)
     val docker = DockerMigrationStrategy(dht, dockerDataProxy, this, configuration)
 
-    private val networkHistory = ConcurrentHashMap<String, Long>()
-
     val informationManager = InformationManager(dht, this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
-    private val blockProducer = BlockProducer(crypto, configuration, isTrustedNode)
-    private val chainManager = ChainManager(this, crypto, configuration, vdf, dht, docker, informationManager, blockProducer)
-    private val committeeManager = CommitteeStrategy(this, crypto, vdf)
+    private val committeeStrategy = CommitteeStrategy(this, crypto, vdf)
+    private val chainBuilder = ChainBuilder(this, crypto, configuration, committeeStrategy, vdf)
 
-    val udp = UDPServer(configuration, crypto, knownNodes, networkHistory, listeningPort)
+    val udp = UDPServer(configuration, crypto, knownNodes, listeningPort)
 
     init {
         Logger.toggleLogging(configuration.loggingEnabled || (isTrustedNode && configuration.trustedLoggingEnabled))
@@ -66,11 +65,8 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     fun start() {
         Logger.debug("My IP is $myIP")
-
-
         startListeningUDP()
         startQueueThread()
-        startHistoryCleanup()
 
         if (!isTrustedNode) joinTheNetwork()
         else Logger.debug("We're the trusted node!")
@@ -80,29 +76,22 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
 
     private fun startListeningUDP() {
         udp.startListening { endPoint, data ->
-            try {
-                when (endPoint) {
-                    NodeQuery -> data executeImmediately dht::onQuery
-                    NodeFound -> data executeImmediately dht::onFound
-                    SyncRequest -> data executeImmediately chainManager::syncRequestReceived
-                    Endpoint.VoteRequest -> data executeImmediately committeeManager::voteRequest
+            when (endPoint) {
+                NodeQuery -> data executeImmediately dht::onQuery
+                NodeFound -> data executeImmediately dht::onFound
+                SyncRequest -> data executeImmediately chainBuilder::syncRequested
 
-                    Welcome -> data queueMessage dht::onJoin
-                    NewBlock -> data queueMessage chainManager::blockReceived
-                    SyncReply -> data queueMessage chainManager::syncReplyReceived
-                    JoinRequest -> data queueMessage dht::joinRequest
-                    VoteReceived -> data queueMessage chainManager::voteReceived
-                    NodeStatistics -> data queueMessage informationManager::dockerStatisticsReceived
-                    RepresentativeStatistics -> data queueMessage informationManager::representativeStatisticsReceived
-                    InclusionRequest -> data queueMessage chainManager::inclusionRequest
-                    else -> {
-                        Logger.error("Unexpected $endPoint in packet handler.")
-                        Dashboard.reportException(Exception("No fucking endpoint $endPoint."))
-                    }
+                SyncReply -> data queueWith chainBuilder::syncReplyReceived
+                VoteRequest -> data queueWith committeeStrategy::voteRequested
+                Vote -> data queueWith committeeStrategy::voteReceived
+                Welcome -> data queueWith dht::onJoin
+                NewBlock -> data queueWith chainBuilder::blockReceived
+                JoinRequest -> data queueWith dht::joinRequest
+                InclusionRequest -> data queueWith chainBuilder::inclusionRequested
+                else -> {
+                    Logger.error("Unexpected $endPoint in packet handler.")
+                    Dashboard.reportException(Exception("No fucking endpoint $endPoint."))
                 }
-            } catch (e: Exception) {
-                Dashboard.reportException(e)
-                e.printStackTrace()
             }
         }
     }
@@ -122,8 +111,8 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
         if (!isInNetwork) joinTheNetwork()
         else {
             Logger.debug("We're in the network. Happy networking!")
-            chainManager.requestInclusion()
-            chainManager.requestSync()
+            chainBuilder.requestInclusion()
+            chainBuilder.requestSync()
         }
     }
 
@@ -142,27 +131,14 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
         }.start()
     }
 
-    /** Schedules message history cleanup service that runs at fixed rate. */
-    private fun startHistoryCleanup() {
-        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
-            networkHistory.forEach { (messageHex, timestamp) ->
-                val difference = System.currentTimeMillis() - timestamp
-                val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
-                if (shouldBeRemoved) networkHistory.remove(messageHex)
-            }
-        }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
-    }
-
     /**
      * Add the received Message with the body of type T to the message queue.
      *
      * @param T Message's body type.
      * @param block Lambda that is executed when message is taken out of queue.
      */
-    private inline infix fun <reified T> ByteArray.queueMessage(noinline block: (Message<T>) -> Unit) {
-        messageQueue.put(QueuedMessage(asMessage(), block).apply {
-            // Logger.info("Put to queue ${T::class.java.toGenericString()}. Current size: ${messageQueue.size + 1}")
-        })
+    private inline infix fun <reified T> ByteArray.queueWith(noinline block: (Message<T>) -> Unit) {
+        messageQueue.add(QueuedMessage(asMessage(), block))
     }
 
 
@@ -176,39 +152,33 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
      * @param nodes If this field is empty, it'll send to random nodes of quantity specified by [Configuration]
      */
     inline fun <reified T : Any> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg nodes: Node) {
-        // TODO add "additionalNodes" flag.
         val message = generateMessage(data)
-        val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
-        val encodedJson = Json.encodeToString(message).encodeToByteArray()
-        Dashboard.logMessageSize(encoded.size, encodedJson.size)
-
+        val encoded = encodeMessage(message)
         val id = message.uid
         if (nodes.isEmpty()) {
             val shuffledNodes = knownNodes.values.shuffled()
             val totalSize = shuffledNodes.size
             val amountToTake = 5 + (configuration.broadcastSpreadPercentage * max(totalSize, 1) / 100)
-            udp.send(endpoint, id, encoded, transmissionType, shuffledNodes.take(amountToTake).toTypedArray())
-        } else udp.send(endpoint, id, encoded, transmissionType, nodes)
+            udp.send(endpoint, transmissionType, id, encoded, *shuffledNodes.take(amountToTake).toTypedArray())
+        } else udp.send(endpoint, transmissionType, id, encoded, *nodes)
     }
 
     /** Sends the message to passed nodes after they've been found by the network. */
     inline fun <reified T : Any> searchAndSend(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg publicKeys: String) {
+        val message = generateMessage(data)
+        val encoded = encodeMessage(message)
+        val id = message.uid
         publicKeys.forEach { publicKey ->
             dht.searchFor(publicKey) { node ->
-                send(endpoint, transmissionType, data, node)
+                udp.send(endpoint, transmissionType, id, encoded, node)
             }
         }
     }
 
     /** Sends the data to the [specific amount][nodeCount] of nodes using [transmissionType]. */
-    inline fun <reified T : Any> send(endpoint: Endpoint, data: T, transmissionType: TransmissionType, nodeCount: Int) {
+    inline fun <reified T : Any> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, nodeCount: Int) {
         val toSend = knownNodes.values.shuffled().take(nodeCount)
         send(endpoint, transmissionType, data, *toSend.toTypedArray())
-    }
-
-    /** Clears the [messageQueue]. */
-    fun clearMessageQueue() {
-        messageQueue.clear()
     }
 
     /**
@@ -226,9 +196,20 @@ class NetworkManager(val configuration: Configuration, val listeningPort: Int) {
         )
     }
 
+    inline fun <reified T> encodeMessage(message: Message<T>): ByteArray {
+        val encoded = ProtoBuf { encodeDefaults = true }.encodeToByteArray(message)
+        val encodedJson = Json.encodeToString(message).encodeToByteArray()
+        Dashboard.logMessageSize(encoded.size, encodedJson.size)
+        return encoded
+    }
+
     /** Immediately executes the callback with the message received. */
     private inline infix fun <reified T> ByteArray.executeImmediately(crossinline block: Message<T>.() -> Unit) {
-        block.invoke(asMessage())
+        try {
+            block.invoke(asMessage())
+        } catch (e: Exception) {
+            Dashboard.reportException(e)
+        }
     }
 
 }

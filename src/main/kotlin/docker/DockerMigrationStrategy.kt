@@ -1,7 +1,7 @@
 package docker
 
-import data.chain.Block
 import data.Configuration
+import data.chain.Block
 import data.docker.ContainerMigration
 import data.docker.MigrationPlan
 import kotlinx.serialization.decodeFromByteArray
@@ -9,8 +9,8 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import manager.DistributedHashTable
-import manager.NetworkManager
+import network.DistributedHashTable
+import network.Network
 import utils.coroutineAndReport
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -26,11 +26,11 @@ import java.net.Socket
 class DockerMigrationStrategy(
     private val dht: DistributedHashTable,
     private val dockerDataProxy: DockerDataProxy,
-    private val networkManager: NetworkManager,
+    private val network: Network,
     private val configuration: Configuration
 ) {
 
-    private val migrationSocket = ServerSocket(networkManager.listeningPort + 1)
+    private val migrationSocket = ServerSocket(network.listeningPort + 1)
 
     init {
         startListeningForMigrations()
@@ -54,7 +54,7 @@ class DockerMigrationStrategy(
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(container, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, networkManager.listeningPort + 1).use { socket ->
+            Socket(receiver.ip, network.listeningPort + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     write(encoded)

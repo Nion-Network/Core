@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-data class BlockVote(val blockHash: String, val signature: String, val voteType: VoteType)
+data class Vote(val blockHash: String, val voteType: VoteType)

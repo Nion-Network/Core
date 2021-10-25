@@ -1,10 +1,10 @@
 package communication
 
 import data.Configuration
-import data.network.Endpoint
-import data.network.Node
 import data.communication.PacketBuilder
 import data.communication.TransmissionType
+import data.network.Endpoint
+import data.network.Node
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
@@ -31,10 +31,10 @@ class UDPServer(
     private val configuration: Configuration,
     private val crypto: Crypto,
     private val knownNodes: Map<String, Node>,
-    private val networkHistory: MutableMap<String, Long>,
     port: Int
 ) {
 
+    private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageQueue = LinkedBlockingQueue<UDPMessage>()
     private val buildingPackets = ConcurrentHashMap<String, PacketBuilder>()
     private val datagramSocket = DatagramSocket(port)
@@ -42,17 +42,30 @@ class UDPServer(
     private val broadcastingSocket = DatagramSocket(port + 2) // TODO remove if not needed.
 
     /** Sends the specific message using [transmission type][TransmissionType] to [nodes] on [endpoint][Endpoint]. */
-    fun send(endpoint: Endpoint, messageId: String, messageData: ByteArray, transmissionType: TransmissionType, nodes: Array<out Node>) {
+    fun send(endpoint: Endpoint, transmissionType: TransmissionType, messageId: String, messageData: ByteArray, vararg nodes: Node) {
         messageQueue.put(UDPMessage(endpoint, messageId, messageData, nodes, transmissionType == TransmissionType.Broadcast))
     }
 
     init {
         startOutput()
+        startHistoryCleanup()
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
             buildingPackets.forEach { (key, builder) ->
                 val difference = System.currentTimeMillis() - builder.createdAt
                 val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
                 if (shouldBeRemoved) networkHistory.remove(key)
+            }
+        }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
+    }
+
+
+    /** Schedules message history cleanup service that runs at fixed rate. */
+    private fun startHistoryCleanup() {
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate({
+            networkHistory.forEach { (messageHex, timestamp) ->
+                val difference = System.currentTimeMillis() - timestamp
+                val shouldBeRemoved = TimeUnit.MILLISECONDS.toMinutes(difference) >= configuration.historyMinuteClearance
+                if (shouldBeRemoved) networkHistory.remove(messageHex)
             }
         }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
     }

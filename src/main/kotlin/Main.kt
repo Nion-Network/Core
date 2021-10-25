@@ -4,7 +4,7 @@ import kotlinx.serialization.json.Json
 import logging.Dashboard
 import logging.Logger.info
 import logging.Logger.toggleLogging
-import manager.NetworkManager
+import network.Network
 import java.io.File
 
 /**
@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
     val configuration: Configuration = Json.decodeFromString(configurationJson)
 
     try {
-        val network = NetworkManager(configuration, listeningPort)
+        val network = Network(configuration, listeningPort)
         network.start()
     } catch (e: Exception) {
         e.printStackTrace()

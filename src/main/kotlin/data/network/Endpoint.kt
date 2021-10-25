@@ -12,7 +12,7 @@ enum class Endpoint(val identification: Byte) {
     NodeQuery(3),
     NodeFound(4),
     Welcome(5),
-    VoteReceived(6),
+    Vote(6),
     NewBlock(7),
     SyncReply(8),
     SyncRequest(9),

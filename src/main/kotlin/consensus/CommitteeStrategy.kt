@@ -1,45 +1,57 @@
 package consensus
 
-import data.communication.Message
-import data.communication.TransmissionType
-import data.chain.BlockVote
-import data.network.Endpoint
+import data.chain.Block
+import data.chain.Vote
 import data.chain.VoteRequest
 import data.chain.VoteType
-import logging.Dashboard
-import logging.Logger
-import manager.NetworkManager
+import data.communication.Message
+import data.communication.TransmissionType
+import data.network.Endpoint
 import manager.VerifiableDelayFunctionManager
+import network.Network
 import utils.Crypto
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Created by Mihael Valentin Berčič
- * on 04/10/2020 at 17:17
+ * on 25/10/2021 at 10:03
  * using IntelliJ IDEA
- *
- * Vote requests are being handled by this class.
  */
-class CommitteeStrategy(
-    private val networkManager: NetworkManager,
-    private val crypto: Crypto,
-    private val vdfManager: VerifiableDelayFunctionManager
-) {
+class CommitteeStrategy(private val network: Network, private val crypto: Crypto, private val vdf: VerifiableDelayFunctionManager) {
 
-    /** On vote request received, the block is verified and if correct, a positive vote is sent back. */
-    fun voteRequest(message: Message<VoteRequest>) {
+    private val votingLock = ReentrantLock()
+    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
+
+    fun requestVotes(block: Block, committee: Array<String>) {
+        val voteRequest = VoteRequest(block, network.ourNode)
+        network.searchAndSend(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committee)
+    }
+
+    fun voteRequested(message: Message<VoteRequest>) {
         val voteRequest = message.body
-        val block = voteRequest.block
-        val producer = voteRequest.producer
+        val blockInQuestion = voteRequest.block
+        val verified = vdf.verifyProof(blockInQuestion.difficulty, blockInQuestion.precedentHash, blockInQuestion.vdfProof)
+        val voteType = if (verified) VoteType.FOR else VoteType.AGAINST
+        val vote = Vote(blockInQuestion.hash, voteType)
+        network.send(Endpoint.Vote, TransmissionType.Unicast, vote, voteRequest.producer)
+    }
 
-        val blockVote = BlockVote(block.hash, crypto.sign(block.hash.encodeToByteArray()).toString(), VoteType.FOR)
+    fun voteReceived(message: Message<Vote>) {
+        val vote = message.body
+        if (vote.voteType != VoteType.FOR) return
+        votingLock.lock()
+        votes.computeIfAbsent(vote.blockHash) { mutableListOf() }.add(vote)
+        votingLock.unlock()
+    }
 
-        Dashboard.newVote(blockVote, sha256(crypto.publicKey).asHex)
-
-        val isValidProof = vdfManager.verifyProof(block.difficulty, block.precedentHash, block.vdfProof)
-        if (!isValidProof) Logger.error(block)
-        else networkManager.send(Endpoint.VoteReceived, TransmissionType.Unicast, blockVote, producer)
+    fun getVotes(block: Block): Block {
+        return votingLock.withLock {
+            val votes = votes[block.hash]
+            val count = votes?.count() ?: 0
+            block.copy(votes = count)
+        }
     }
 
 }
