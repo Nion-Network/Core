@@ -33,6 +33,7 @@ class ChainHistory(
 
     private val chainLock = ReentrantLock()
     private val chain = mutableListOf<Block>()
+    private var chainStarted = false
 
     private val inclusionChanges = ConcurrentHashMap<String, Boolean>()
 
@@ -128,7 +129,10 @@ class ChainHistory(
 
         val newInclusions = inclusionChanges.count { it.value }
         val isEnoughIncluded = getValidatorSize() + newInclusions >= configuration.committeeSize + 1
-        if (isChainEmpty() && isEnoughIncluded) chainBuilder.produceGenesisBlock()
+        if (!chainStarted && isChainEmpty() && isEnoughIncluded) {
+            chainStarted = true
+            chainBuilder.produceGenesisBlock()
+        }
     }
 
     fun getBlocks(fromSlot: Long): List<Block> {

@@ -65,7 +65,7 @@ class ChainBuilder(
                         runAfter(delayThird) {
                             val blockToBroadcast = committeeStrategy.getVotes(newBlock)
                             network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, *committeeNodes)
-                            if (network.isTrustedNode) Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
+                            Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
                         }
                     }
                 }
@@ -85,11 +85,8 @@ class ChainBuilder(
             blockProducer = crypto.publicKey,
             validatorChanges = chainHistory.getInclusionChanges()
         )
-        Logger.debug("Broadcasting genesis block...")
-        with(network) {
-            knownNodes.forEach { Logger.info("Sending genesis block to: ${it.value.ip}") }
-            send(Endpoint.NewBlock, TransmissionType.Broadcast, block)
-        }
+        Logger.info("Broadcasting genesis block...")
+        network.send(Endpoint.NewBlock, TransmissionType.Broadcast, block)
     }
 
     /** Requests inclusion by sending a broadcast message to [n][Configuration.broadcastSpreadPercentage] of random known nodes. */
