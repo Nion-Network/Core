@@ -22,7 +22,7 @@ class ChainHistory(
     private val crypto: Crypto,
     private val configuration: Configuration,
     private val chainBuilder: ChainBuilder,
-    isTrustedNode: Boolean
+    private val isTrustedNode: Boolean
 ) {
 
     var isInValidatorSet = isTrustedNode
@@ -74,23 +74,23 @@ class ChainHistory(
     }
 
     fun addBlocks(blocks: Array<Block>) {
-        chainLock.lock()
-        Logger.trace("Sync in progress...")
-        blocks.forEach { block ->
-            val lastBlock = chain.lastOrNull()
-            val lastSlot = lastBlock?.slot ?: 0
-            if (block.slot != lastSlot + 1) return
-
-            chain.add(block)
-            block.validatorChanges.forEach(this::modifyValidatorSet)
-            Logger.chain("Block [${block.slot}]\t[${block.votes}] has been added.")
+        chainLock.withLock {
+            Logger.trace("Sync in progress...")
+            blocks.forEach { block ->
+                val lastBlock = chain.lastOrNull()
+                val lastSlot = lastBlock?.slot ?: 0
+                if (block.slot == lastSlot + 1) {
+                    chain.add(block)
+                    block.validatorChanges.forEach(this::modifyValidatorSet)
+                    Logger.chain("Block [${block.slot}]\t[${block.votes}] has been added.")
+                }
+            }
+            Logger.trace("Sync finished...")
         }
-        Logger.trace("Sync finished...")
-        chainLock.unlock()
     }
 
     fun getInclusionChanges(): Map<String, Boolean> {
-        return inclusionChanges
+        return inclusionChanges.toMap()
     }
 
     /** Computes the task for the next block creation using current block information. */
@@ -129,14 +129,14 @@ class ChainHistory(
 
         val newInclusions = inclusionChanges.count { it.value }
         val isEnoughIncluded = getValidatorSize() + newInclusions >= configuration.committeeSize + 1
-        if (!chainStarted && isChainEmpty() && isEnoughIncluded) {
+        if (isTrustedNode && !chainStarted && isChainEmpty() && isEnoughIncluded) {
             chainStarted = true
             chainBuilder.produceGenesisBlock()
         }
     }
 
     fun getBlocks(fromSlot: Long): List<Block> {
-        return chainLock.withLock { chain.dropWhile { it.slot < fromSlot } }
+        return chainLock.withLock { chain.dropWhile { it.slot <= fromSlot } }
     }
 
 }

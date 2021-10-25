@@ -40,38 +40,45 @@ class ChainBuilder(
     }
 
     fun produceBlock(previousBlock: Block, nextTask: ChainTask) {
-        when (nextTask.myTask) {
-            SlotDuty.PRODUCER -> {
-                val vdfStart = System.currentTimeMillis()
-                val vdfProof = vdf.findProof(previousBlock.difficulty, previousBlock.hash)
-                val vdfComputationTime = System.currentTimeMillis() - vdfStart
-                val newBlock = Block(
-                    previousBlock.slot + 1,
-                    difficulty = configuration.initialDifficulty,
-                    timestamp = System.currentTimeMillis(),
-                    vdfProof = vdfProof,
-                    blockProducer = crypto.publicKey,
-                    validatorChanges = chainHistory.getInclusionChanges(),
-                    precedentHash = previousBlock.hash
-                )
-                val delayThird = configuration.slotDuration / 3
-                val firstDelay = max(0, delayThird - vdfComputationTime)
-                val committeeNodes = nextTask.committee.toTypedArray()
-                runAfter(firstDelay) {
-
-                    runAfter(delayThird) {
-                        committeeStrategy.requestVotes(newBlock, committeeNodes)
+        try {
+            when (nextTask.myTask) {
+                SlotDuty.PRODUCER -> {
+                    val vdfStart = System.currentTimeMillis()
+                    val vdfProof = vdf.findProof(previousBlock.difficulty, previousBlock.hash)
+                    val vdfComputationTime = System.currentTimeMillis() - vdfStart
+                    val newBlock = Block(
+                        previousBlock.slot + 1,
+                        difficulty = configuration.initialDifficulty,
+                        timestamp = System.currentTimeMillis(),
+                        vdfProof = vdfProof,
+                        blockProducer = crypto.publicKey,
+                        validatorChanges = chainHistory.getInclusionChanges(),
+                        precedentHash = previousBlock.hash
+                    )
+                    val delayThird = configuration.slotDuration / 3
+                    val firstDelay = max(0, delayThird - vdfComputationTime)
+                    val committeeNodes = nextTask.committee.toTypedArray()
+                    committeeNodes.forEach(network.dht::searchFor)
+                    Dashboard.vdfInformation("TIME TO BE A BLOCK PRODUCER.")
+                    runAfter(firstDelay) {
 
                         runAfter(delayThird) {
-                            val blockToBroadcast = committeeStrategy.getVotes(newBlock)
-                            network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, *committeeNodes)
-                            Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
+                            committeeStrategy.requestVotes(newBlock, committeeNodes)
+
+                            runAfter(delayThird) {
+                                val blockToBroadcast = committeeStrategy.getVotes(newBlock)
+                                network.send(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast)
+                                Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
+                                Dashboard.vdfInformation("Finished being a block producer!")
+                            }
                         }
                     }
                 }
+                SlotDuty.COMMITTEE -> network.searchAndSend(Endpoint.NewBlock, TransmissionType.Unicast, previousBlock, nextTask.blockProducer)
+                SlotDuty.VALIDATOR -> {}
             }
-            SlotDuty.COMMITTEE -> network.searchAndSend(Endpoint.NewBlock, TransmissionType.Unicast, previousBlock, nextTask.blockProducer)
-            SlotDuty.VALIDATOR -> {}
+        } catch (e:Exception){
+            Dashboard.reportException(e)
         }
     }
 
@@ -87,6 +94,7 @@ class ChainBuilder(
         )
         Logger.info("Broadcasting genesis block...")
         network.send(Endpoint.NewBlock, TransmissionType.Broadcast, block)
+        Dashboard.newBlockProduced(block, network.knownNodes.size, chainHistory.getValidatorSize())
     }
 
     /** Requests inclusion by sending a broadcast message to [n][Configuration.broadcastSpreadPercentage] of random known nodes. */

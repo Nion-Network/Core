@@ -38,7 +38,7 @@ class DistributedHashTable(private val network: Network) {
             coroutineAndReport { executeOnFound(forPublicKey) }
             return
         }
-        network.send(Endpoint.NodeQuery, TransmissionType.Unicast, QueryMessage(network.ourNode, forPublicKey))
+        network.send(Endpoint.NodeQuery, TransmissionType.Broadcast, QueryMessage(network.ourNode, forPublicKey))
     }
 
     /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][Network.knownNodes]. */
@@ -58,7 +58,7 @@ class DistributedHashTable(private val network: Network) {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) send(Endpoint.NodeFound, TransmissionType.Unicast, searchedNode, body.seekingNode)
-            else send(Endpoint.NodeQuery, TransmissionType.Unicast, body, knownNodes.values.random())
+            // else send(Endpoint.NodeQuery, TransmissionType.Unicast, body)
         }
     }
 
