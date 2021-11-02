@@ -52,10 +52,10 @@ class Network(val configuration: Configuration, val listeningPort: Int) {
     private val dockerDataProxy = DockerDataProxy(crypto)
     val docker = DockerMigrationStrategy(dht, dockerDataProxy, this, configuration)
 
-    val informationManager = InformationManager(dht, this)
+    private val informationManager = InformationManager(dht, dockerDataProxy, this)
     private val messageQueue = LinkedBlockingDeque<QueuedMessage<*>>()
     private val committeeStrategy = CommitteeStrategy(this, crypto, vdf)
-    private val chainBuilder = ChainBuilder(this, crypto, configuration, committeeStrategy, vdf)
+    private val chainBuilder = ChainBuilder(informationManager, docker, this, dht, crypto, configuration, committeeStrategy, vdf)
 
     val udp = UDPServer(configuration, crypto, knownNodes, listeningPort)
 
@@ -77,20 +77,22 @@ class Network(val configuration: Configuration, val listeningPort: Int) {
     private fun startListeningUDP() {
         udp.startListening { endPoint, data ->
             when (endPoint) {
-                NodeQuery -> data queueWith dht::onQuery
+                NodeQuery -> data executeImmediately dht::onQuery
                 NodeFound -> data queueWith dht::onFound
-                SyncRequest -> data queueWith chainBuilder::syncRequested
+                SyncRequest -> data executeImmediately chainBuilder::syncRequested
+                VoteRequest -> data executeImmediately committeeStrategy::voteRequested
 
                 SyncReply -> data queueWith chainBuilder::syncReplyReceived
-                VoteRequest -> data queueWith committeeStrategy::voteRequested
                 Vote -> data queueWith committeeStrategy::voteReceived
                 Welcome -> data queueWith dht::onJoin
                 NewBlock -> data queueWith chainBuilder::blockReceived
                 JoinRequest -> data queueWith dht::joinRequest
+                NodeStatistics -> data queueWith informationManager::dockerStatisticsReceived
+                RepresentativeStatistics -> data queueWith informationManager::representativeStatisticsReceived
                 InclusionRequest -> data queueWith chainBuilder::inclusionRequested
                 else -> {
                     Logger.error("Unexpected $endPoint in packet handler.")
-                    Dashboard.reportException(Exception("No fucking endpoint $endPoint."))
+                    Dashboard.reportException(Exception("No endpoint $endPoint."))
                 }
             }
         }

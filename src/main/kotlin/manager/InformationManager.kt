@@ -6,6 +6,7 @@ import data.communication.Message
 import data.communication.TransmissionType
 import data.docker.DockerStatistics
 import data.network.Endpoint
+import docker.DockerDataProxy
 import logging.Dashboard
 import logging.Logger
 import network.DistributedHashTable
@@ -14,6 +15,7 @@ import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import utils.runAfter
 import java.lang.Integer.max
+import java.util.*
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -24,16 +26,24 @@ import kotlin.random.Random
  *
  * Class is used for handling statistics and any networking regarding system statistics.
  */
-class InformationManager(private val dht: DistributedHashTable, private val network: Network) {
+class InformationManager(
+    private val dht: DistributedHashTable,
+    private val dockerDataProxy: DockerDataProxy,
+    private val network: Network
+) {
 
     private val crypto = network.crypto
     private val knownNodes = network.knownNodes
     private val configuration = network.configuration
 
-    val latestNetworkStatistics = mutableSetOf<DockerStatistics>()
+    private val latestNetworkStatistics = Collections.synchronizedList(mutableListOf<DockerStatistics>())
 
     /** Reports our statistics to either the producer or our cluster representative. */
     fun prepareForStatistics(task: ChainTask, validators: Collection<String>, lastBlock: Block) {
+
+        synchronized(latestNetworkStatistics) {
+            latestNetworkStatistics.removeIf { it.slot < lastBlock.slot }
+        }
         val clusterCount = max(1, validators.size / configuration.nodesPerCluster)
         val clusters = generateClusters(task, clusterCount, configuration.maxIterations, validators, lastBlock)
         val myPublicKey = crypto.publicKey
@@ -41,32 +51,44 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
 
         if (network.isTrustedNode) Dashboard.logCluster(lastBlock, task, clusters)
 
-        // val statistics = dockerManager.getLatestStatistics(lastBlock)
-        // latestNetworkStatistics.add(statistics)
+        val statistics = dockerDataProxy.getLatestLocalStatistics(lastBlock)
+        synchronized(latestNetworkStatistics) {
+            latestNetworkStatistics.add(statistics)
+        }
 
         if (task.blockProducer == crypto.publicKey) return
+        dht.searchFor(task.blockProducer)
 
         if (isRepresentative) runAfter(configuration.slotDuration / 3) {
-            network.searchAndSend(Endpoint.RepresentativeStatistics, TransmissionType.Unicast, latestNetworkStatistics.toList(), task.blockProducer)
-            Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
+            synchronized(latestNetworkStatistics) {
+                val list = latestNetworkStatistics.filter { it.slot == lastBlock.slot }
+                network.searchAndSend(Endpoint.RepresentativeStatistics, TransmissionType.Unicast, list, task.blockProducer)
+                Dashboard.vdfInformation("Sent to block producer.")
+                Logger.info("Sending info to ${knownNodes[task.blockProducer]?.ip} with ${latestNetworkStatistics.size}")
+            }
         } else {
             val myRepresentative = clusters.entries.firstOrNull { (_, nodes) -> nodes.contains(myPublicKey) }?.key
             if (myRepresentative != null) {
                 Logger.info("Reporting statistics to our cluster representative! ${sha256(myRepresentative).asHex}")
-                network.searchAndSend(Endpoint.NodeStatistics, TransmissionType.Unicast, TODO(), myRepresentative)
+                network.searchAndSend(Endpoint.NodeStatistics, TransmissionType.Unicast, statistics, myRepresentative)
             }
         }
     }
 
     /** Adds docker statistics sent by other nodes to [latestNetworkStatistics]. */
     fun dockerStatisticsReceived(message: Message<DockerStatistics>) {
-        latestNetworkStatistics.add(message.body)
+        synchronized(latestNetworkStatistics) {
+            latestNetworkStatistics.add(message.body)
+        }
+
         Logger.info("Docker stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
     /** Adds multiple statistics received by a cluster representative to [latestNetworkStatistics]. */
     fun representativeStatisticsReceived(message: Message<Array<DockerStatistics>>) {
-        latestNetworkStatistics.addAll(message.body)
+        synchronized(latestNetworkStatistics) {
+            latestNetworkStatistics.addAll(message.body)
+        }
         Logger.info("Representative stats received... Adding to the latest list: ${latestNetworkStatistics.size}")
     }
 
@@ -94,4 +116,7 @@ class InformationManager(private val dht: DistributedHashTable, private val netw
         return clusters.entries.associate { it.key to it.value.keys.toList() }
     }
 
+    fun getLatestStatistics(slot: Long): List<DockerStatistics> {
+        return synchronized(latestNetworkStatistics) { latestNetworkStatistics.toList() }
+    }
 }

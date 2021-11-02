@@ -97,8 +97,8 @@ class UDPServer(
                                 put(broadcastByte)
                                 put(endpoint.identification)
                                 put(messageId.toByteArray())
-                                put(slicesNeeded.toByte())
-                                put(slicePosition.toByte())
+                                putInt(slicesNeeded)
+                                putInt(slicePosition)
                                 putInt(data.size)
                                 put(data)
 
@@ -151,8 +151,8 @@ class UDPServer(
                         buffer[messageIdentification]
 
                         val messageId = String(messageIdentification)
-                        val totalSlices = buffer.get().toInt()
-                        val currentSlice = buffer.get().toInt()
+                        val totalSlices = buffer.int
+                        val currentSlice = buffer.int
                         val dataArray = ByteArray(buffer.int)
                         buffer[dataArray]
 

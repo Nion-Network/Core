@@ -55,7 +55,7 @@ object Dashboard {
      */
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
         var total = 0
-        for (measurement in statistics.iterator()) {
+        for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
             measurement.containers.onEach { container ->
@@ -70,7 +70,7 @@ object Dashboard {
                 queue.add(point)
             }
         }
-        vdfInformation("Count: $total")
+        vdfInformation("Count: $total ... Total: ${statistics.size}")
     }
 
     /** Sends the newly created block information to the dashboard. */

@@ -1,6 +1,14 @@
 package logging
 
 import data.DebugType
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.net.InetAddress
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -13,6 +21,11 @@ import java.util.*
  * Used for any type of logging.
  */
 object Logger {
+
+    private val myIP: String = InetAddress.getLocalHost().hostAddress
+
+    @Serializable
+    data class Log(val type: DebugType, val log: String, val ip: String, val timestamp: Long)
 
     private var isLoggingEnabled = false
     private var currentDebug: DebugType = DebugType.ALL
@@ -28,6 +41,8 @@ object Logger {
     const val white = "\u001b[37m"
     const val reset = "\u001B[0m"
 
+    private val httpClient = HttpClient.newHttpClient()
+
     private const val informationString =
         " -------------------------------------------\n" +
                 "| ${red}Debug information$reset                         |\n" +
@@ -39,11 +54,17 @@ object Logger {
 
     /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
-        if (!isLoggingEnabled) return
-        if (currentDebug == DebugType.ALL || currentDebug == debugType) {
-            val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
-            println("$color$typeString$reset$message")
-        }
+        val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
+        val output = "$color$typeString$reset$message"
+        if (isLoggingEnabled) println(output)
+        val timestamp = System.currentTimeMillis()
+        val log = Log(debugType, output, myIP, timestamp)
+        val json = Json.encodeToString(log)
+        val request = HttpRequest.newBuilder()
+            .uri(URI("http://88.200.63.133:8101/logs"))
+            .POST(HttpRequest.BodyPublishers.ofString(json))
+            .build()
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
     }
 
     /** Enables or disables software logging.  */

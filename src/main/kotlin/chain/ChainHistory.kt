@@ -5,12 +5,11 @@ import data.chain.Block
 import data.chain.ChainTask
 import data.chain.SlotDuty
 import data.communication.InclusionRequest
-import logging.Dashboard
 import logging.Logger
+import network.DistributedHashTable
 import utils.Crypto
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.random.Random
 
 /**
@@ -19,6 +18,7 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 class ChainHistory(
+    private val dht: DistributedHashTable,
     private val crypto: Crypto,
     private val configuration: Configuration,
     private val chainBuilder: ChainBuilder,
@@ -28,11 +28,8 @@ class ChainHistory(
     var isInValidatorSet = isTrustedNode
         private set
 
-    private val validatorLock = ReentrantLock()
-    private val validatorSet = mutableSetOf<String>()
-
-    private val chainLock = ReentrantLock()
-    private val chain = mutableListOf<Block>()
+    private val validatorSet = Collections.synchronizedSet(mutableSetOf<String>())
+    private val chain = Collections.synchronizedList(mutableListOf<Block>())
     private var chainStarted = false
 
     private val inclusionChanges = ConcurrentHashMap<String, Boolean>()
@@ -42,25 +39,28 @@ class ChainHistory(
     }
 
     fun getLastBlock(): Block? {
-        return chainLock.withLock { chain.lastOrNull() }
+        return synchronized(chain) { chain.lastOrNull() }
     }
 
     fun isChainEmpty(): Boolean {
-        return chainLock.withLock { chain.isEmpty() }
+        return synchronized(chain) { chain.isEmpty() }
     }
 
     fun getValidatorSize(): Int {
-        return validatorLock.withLock { validatorSet.size }
+        return synchronized(validatorSet) { validatorSet.size }
+    }
+
+    fun getValidators(): List<String> {
+        return synchronized(validatorSet) { validatorSet.toList() }
     }
 
     fun addBlock(block: Block) {
-        chainLock.withLock {
+        synchronized(chain) {
             val lastBlock = chain.lastOrNull()
             val lastSlot = lastBlock?.slot ?: 0
             if (block.slot <= lastSlot) return
             if (block.slot > lastSlot + 1) {
                 chainBuilder.requestSync()
-                Dashboard.vdfInformation("GOTTA SYNC")
                 return
             }
             chain.add(block)
@@ -69,12 +69,12 @@ class ChainHistory(
 
             Logger.chain("Block [${block.slot}]\t[${block.votes}] has been added.")
             val nextTask = calculateNextTask(block, configuration.committeeSize)
-            chainBuilder.produceBlock(block, nextTask)
+            chainBuilder.executeTask(block, nextTask)
         }
     }
 
     fun addBlocks(blocks: Array<Block>) {
-        chainLock.withLock {
+        synchronized(chain) {
             Logger.trace("Sync in progress...")
             blocks.forEach { block ->
                 val lastBlock = chain.lastOrNull()
@@ -95,31 +95,30 @@ class ChainHistory(
 
     /** Computes the task for the next block creation using current block information. */
     fun calculateNextTask(block: Block, committeeSize: Int): ChainTask {
-        validatorLock.withLock {
-            val seed = block.seed
-            val random = Random(seed)
-            val ourKey = crypto.publicKey
+        val seed = block.seed
+        val random = Random(seed)
+        val ourKey = crypto.publicKey
 
-            val validatorSetCopy = validatorSet.shuffled(random).toMutableList()
-            val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
-            val committee = validatorSetCopy.take(committeeSize)
+        val validatorSetCopy = validatorSet.shuffled(random).toMutableList()
+        val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
+        val committee = validatorSetCopy.take(committeeSize)
 
-            val ourRole = when {
-                blockProducerNode == ourKey -> SlotDuty.PRODUCER
-                committee.contains(ourKey) -> SlotDuty.COMMITTEE
-                else -> SlotDuty.VALIDATOR
-            }
-            return ChainTask(ourRole, blockProducerNode, committee)
+        val ourRole = when {
+            blockProducerNode == ourKey -> SlotDuty.PRODUCER
+            committee.contains(ourKey) -> SlotDuty.COMMITTEE
+            else -> SlotDuty.VALIDATOR
         }
+        return ChainTask(ourRole, blockProducerNode, committee)
     }
 
     private fun modifyValidatorSet(publicKey: String, hasBeenAdded: Boolean) {
-        validatorLock.withLock {
-            if (hasBeenAdded) validatorSet.add(publicKey)
-            else validatorSet.remove(publicKey)
-            if (publicKey == crypto.publicKey) isInValidatorSet = hasBeenAdded
-            inclusionChanges.remove(publicKey)
-        }
+        if (hasBeenAdded) {
+            validatorSet.add(publicKey)
+            dht.searchFor(publicKey)
+        } else validatorSet.remove(publicKey)
+        if (publicKey == crypto.publicKey) isInValidatorSet = hasBeenAdded
+        inclusionChanges.remove(publicKey)
+
     }
 
     fun inclusionRequested(inclusionRequest: InclusionRequest) {
@@ -136,7 +135,10 @@ class ChainHistory(
     }
 
     fun getBlocks(fromSlot: Long): List<Block> {
-        return chainLock.withLock { chain.dropWhile { it.slot <= fromSlot } }
+        return chain.dropWhile { it.slot <= fromSlot }
     }
 
+    fun getLastBlocks(amount: Int): List<Block> {
+        return chain.takeLast(amount)
+    }
 }

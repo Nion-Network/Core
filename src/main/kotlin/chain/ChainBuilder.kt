@@ -9,14 +9,19 @@ import data.communication.InclusionRequest
 import data.communication.Message
 import data.communication.SyncRequest
 import data.communication.TransmissionType
+import data.docker.MigrationPlan
 import data.network.Endpoint
+import docker.DockerMigrationStrategy
 import logging.Dashboard
 import logging.Logger
+import manager.InformationManager
 import manager.VerifiableDelayFunctionManager
+import network.DistributedHashTable
 import network.Network
 import utils.Crypto
 import utils.runAfter
 import java.lang.Long.max
+import kotlin.math.abs
 
 /**
  * Created by Mihael Valentin Berčič
@@ -24,14 +29,17 @@ import java.lang.Long.max
  * using IntelliJ IDEA
  */
 class ChainBuilder(
+    private val informationManager: InformationManager,
+    private val dockerMigrationStrategy: DockerMigrationStrategy,
     private val network: Network,
+    private val dht: DistributedHashTable,
     private val crypto: Crypto,
     private val configuration: Configuration,
     private val committeeStrategy: CommitteeStrategy,
     private val vdf: VerifiableDelayFunctionManager
 ) {
 
-    private val chainHistory = ChainHistory(crypto, configuration, this, network.isTrustedNode)
+    private val chainHistory = ChainHistory(dht, crypto, configuration, this, network.isTrustedNode)
 
     fun blockReceived(message: Message<Block>) {
         val newBlock = message.body
@@ -39,8 +47,12 @@ class ChainBuilder(
         if (!chainHistory.isInValidatorSet) requestInclusion(newBlock.slot)
     }
 
-    fun produceBlock(previousBlock: Block, nextTask: ChainTask) {
+    fun executeTask(previousBlock: Block, nextTask: ChainTask) {
         try {
+            previousBlock.migrations[crypto.publicKey]?.apply {
+                dockerMigrationStrategy.migrateContainer(this, previousBlock)
+            }
+            informationManager.prepareForStatistics(nextTask, chainHistory.getValidators(), previousBlock)
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     val vdfStart = System.currentTimeMillis()
@@ -59,21 +71,46 @@ class ChainBuilder(
                     val firstDelay = max(0, delayThird - vdfComputationTime)
                     val committeeNodes = nextTask.committee.toTypedArray()
                     committeeNodes.forEach(network.dht::searchFor)
-                    Dashboard.vdfInformation("TIME TO BE A BLOCK PRODUCER.")
-                    runAfter(firstDelay) {
+                    runAfter(firstDelay + delayThird + delayThird) {
+                        val latestStatistics = setOf(*informationManager.getLatestStatistics(previousBlock.slot).toTypedArray())
+                            .filter { it.slot == previousBlock.slot }
+                            .sortedByDescending { it.timestamp }
+                            .distinctBy { it.publicKey }
+                        Dashboard.reportStatistics(latestStatistics, newBlock.slot)
 
-                        runAfter(delayThird) {
-                            committeeStrategy.requestVotes(newBlock, committeeNodes)
+                        val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
+                        val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
+                        Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
 
-                            runAfter(delayThird) {
-                                val blockToBroadcast = committeeStrategy.getVotes(newBlock)
-                                val task = chainHistory.calculateNextTask(blockToBroadcast, configuration.committeeSize)
-                                network.send(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast)
-                                network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, task.blockProducer, *task.committee.toTypedArray())
-                                Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
-                                Dashboard.vdfInformation("Finished being a block producer!")
+                        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
+                            val lastBlocks = chainHistory.getLastBlocks(20)
+                            val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
+                            val leastConsumingApp = mostUsedNode.containers
+                                .filter { app -> lastMigrations.none { it.container == app.id } }
+                                .filter { it.cpuUsage > 5 }
+                                .minByOrNull { it.cpuUsage }
+
+                            if (leastConsumingApp != null) {
+                                val mostUsage = mostUsedNode.totalCPU
+                                val leastUsage = leastUsedNode.totalCPU
+                                val appUsage = leastConsumingApp.cpuUsage
+                                val beforeMigration = abs(mostUsage - leastUsage)
+                                val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
+                                val difference = abs(beforeMigration - afterMigration)
+
+                                Dashboard.reportException(Exception("Difference: $difference App: $appUsage"))
+                                if (difference >= 5) {
+                                    val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                                    newBlock.migrations[mostUsedNode.publicKey] = migration
+                                    Logger.debug(migration)
+                                }
                             }
                         }
+                        // committeeStrategy.requestVotes(newBlock, committeeNodes)
+                        val blockToBroadcast = committeeStrategy.getVotes(newBlock)
+                        val task = chainHistory.calculateNextTask(blockToBroadcast, configuration.committeeSize)
+                        network.searchAndSend(Endpoint.NewBlock, TransmissionType.Broadcast, blockToBroadcast, task.blockProducer, *task.committee.toTypedArray())
+                        Dashboard.newBlockProduced(blockToBroadcast, network.knownNodes.size, chainHistory.getValidatorSize())
                     }
                 }
                 SlotDuty.COMMITTEE -> network.searchAndSend(Endpoint.NewBlock, TransmissionType.Unicast, previousBlock, nextTask.blockProducer)
@@ -104,7 +141,7 @@ class ChainBuilder(
         val inclusionRequest = InclusionRequest(slot, crypto.publicKey)
         Dashboard.requestedInclusion(network.ourNode.ip, slot)
         Logger.debug("Requesting inclusion with slot ${inclusionRequest.currentSlot}...")
-        network.send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
+        network.send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest)
     }
 
     fun inclusionRequested(message: Message<InclusionRequest>) {
@@ -120,7 +157,7 @@ class ChainBuilder(
 
     fun syncRequested(message: Message<SyncRequest>) {
         val request = message.body
-        val blocksToSend = chainHistory.getBlocks(request.fromBlock)
+        val blocksToSend = chainHistory.getBlocks(request.fromBlock).take(500)
         network.send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSend, request.node)
     }
 

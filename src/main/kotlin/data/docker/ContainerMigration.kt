@@ -9,10 +9,11 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 class ContainerMigration(
-    val container: String,
+    val networkContainer: String,
+    val localContainerIdentifier: String,
     val slot: Long,
     val start: Long,
     val savedAt: Long,
     val transmitAt: Long = savedAt,
-    val image: String = "dormage/alpinestress"
+    val image: String = "dormage/java-stress"
 )

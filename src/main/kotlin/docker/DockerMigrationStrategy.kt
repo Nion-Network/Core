@@ -36,23 +36,23 @@ class DockerMigrationStrategy(
         startListeningForMigrations()
     }
 
-    /** Saves the image of the container([container]) and is stored as either checkpoint or .tar data. */
+    /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
         val arguments = if (configuration.useCriu) arrayOf("-c", container) else arrayOf(container)
         ProcessBuilder("bash", "SaveContainer.sh", *arguments).start().waitFor()
         return File("/tmp/$container.tar")
     }
 
-    /** Sends the requested container from [migrationPlan] to the next node. */
+    /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
-        Logger.info("We have to send container ${migrationPlan.container} to ${migrationPlan.to}")
+        Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
         dht.searchFor(migrationPlan.to) { receiver ->
-            val container = migrationPlan.container
+            val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
-            val containerMapping = dockerDataProxy.getMapping(container)
-            val file = saveContainer(containerMapping)
+            val localContainerIdentifier = dockerDataProxy.getMapping(networkContainerIdentifier)
+            val file = saveContainer(localContainerIdentifier)
             val savedAt = System.currentTimeMillis()
-            val containerMigration = ContainerMigration(container, block.slot, startedAt, savedAt)
+            val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
             Socket(receiver.ip, network.listeningPort + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
@@ -63,7 +63,8 @@ class DockerMigrationStrategy(
                 }
             }
             file.delete()
-            dockerDataProxy.removeContainer(container)
+            dockerDataProxy.removeContainer(localContainerIdentifier)
+            dockerDataProxy.removeContainer(networkContainerIdentifier)
         }
     }
 
@@ -76,28 +77,32 @@ class DockerMigrationStrategy(
             val migrationInformation = ProtoBuf.decodeFromByteArray<ContainerMigration>(migrationData)
 
             val image = migrationInformation.image
-            val migratedContainer = migrationInformation.container
+            val networkContainerIdentifier = migrationInformation.networkContainer
+            val localContainerIdentifier = migrationInformation.localContainerIdentifier
 
-            val outputFile = File("/tmp/$migratedContainer.tar").apply {
+            val outputFile = File.createTempFile("nion-", "-migration.tar").apply {
                 outputStream().use { dataInputStream.transferTo(it) }
             }
+            val filePath = outputFile.absolutePath
 
             val saveTime = migrationInformation.savedAt - migrationInformation.start
             val transmitDuration = System.currentTimeMillis() - migrationInformation.transmitAt
             val resumeStart = System.currentTimeMillis()
-            val arguments = if (configuration.useCriu) arrayOf("-c", migratedContainer, image) else arrayOf(migratedContainer)
+            val arguments = if (configuration.useCriu) arrayOf("-c", localContainerIdentifier, image, filePath) else arrayOf(localContainerIdentifier, filePath)
             val newContainer = ProcessBuilder("bash", "RunContainer.sh", *arguments)
                 .redirectErrorStream(true)
                 .start()
                 .inputStream.bufferedReader().use { it.readLine() }
             val resumeDuration = System.currentTimeMillis() - resumeStart
+            if (resumeDuration < 8000) {
+                Dashboard.reportException(Exception("${network.ourNode.ip} $newContainer"))
+            }
             val elapsed = System.currentTimeMillis() - migrationInformation.start
             val localIp = socket.localSocketAddress.toString()
             val remoteIp = socket.remoteSocketAddress.toString()
             val totalSize = encodedLength + fileLength
-            dockerDataProxy.addContainerMapping(migratedContainer, newContainer)
-            Dashboard.newMigration(localIp, remoteIp, migratedContainer, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
-            outputFile.delete()
+            dockerDataProxy.addContainerMapping(networkContainerIdentifier, newContainer)
+            Dashboard.newMigration(localIp, remoteIp, networkContainerIdentifier, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
         }
     }
 

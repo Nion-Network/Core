@@ -8,11 +8,12 @@ import data.communication.QueryMessage
 import data.communication.TransmissionType
 import data.network.Endpoint
 import data.network.Node
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import utils.coroutineAndReport
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -26,8 +27,14 @@ class DistributedHashTable(private val network: Network) {
 
     /** On found node for the [publicKey], if a lambda block for the current node exists, it is executed. */
     private fun executeOnFound(publicKey: String) {
-        network.knownNodes[publicKey]?.let { node ->
-            queue.remove(publicKey)?.invoke(node)
+        GlobalScope.launch {
+            try {
+                network.knownNodes[publicKey]?.let { node ->
+                    queue.remove(publicKey)?.invoke(node)
+                }
+            } catch (e: Exception) {
+                Dashboard.reportException(e)
+            }
         }
     }
 
@@ -35,10 +42,10 @@ class DistributedHashTable(private val network: Network) {
     fun searchFor(forPublicKey: String, onFound: ((Node) -> Unit)? = null) {
         if (onFound != null) queue[forPublicKey] = onFound
         if (network.knownNodes.containsKey(forPublicKey)) {
-            coroutineAndReport { executeOnFound(forPublicKey) }
+            executeOnFound(forPublicKey)
             return
         }
-        network.send(Endpoint.NodeQuery, TransmissionType.Broadcast, QueryMessage(network.ourNode, forPublicKey))
+        network.send(Endpoint.NodeQuery, TransmissionType.Unicast, QueryMessage(network.ourNode, forPublicKey))
     }
 
     /** When the node is found, the data is sent to this endpoint. The node is added to our [known nodes][Network.knownNodes]. */
@@ -58,7 +65,7 @@ class DistributedHashTable(private val network: Network) {
             knownNodes.computeIfAbsent(comingFrom.publicKey) { comingFrom }
             val searchedNode = knownNodes[lookingFor]
             if (searchedNode != null) send(Endpoint.NodeFound, TransmissionType.Unicast, searchedNode, body.seekingNode)
-            // else send(Endpoint.NodeQuery, TransmissionType.Unicast, body)
+            else send(Endpoint.NodeQuery, TransmissionType.Unicast, body)
         }
     }
 

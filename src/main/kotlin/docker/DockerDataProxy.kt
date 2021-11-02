@@ -24,23 +24,25 @@ class DockerDataProxy(private val crypto: Crypto) {
 
     fun getMapping(identifier: String) = containerMappings[identifier] ?: identifier
 
-    /** Adds the [container][identifier] to mappings. */
+    /** Adds the [localContainerIdentifier][identifier] to mappings. */
     fun addContainerMapping(networkIdentifier: String, localIdentifier: String) {
         containerMappings[networkIdentifier] = localIdentifier
         containerMappings[localIdentifier] = networkIdentifier
     }
 
-    /** Removes the [container][identifier] from mappings and statistics history. */
+    /** Removes the [localContainerIdentifier][identifier] from mappings and statistics history. */
     fun removeContainer(identifier: String) {
         localStatistics.remove(identifier)
-        containerMappings[identifier]?.let { containerMappings.remove(it) }
+        containerMappings[identifier]?.let {
+            containerMappings.remove(it)
+            localStatistics.remove(it)
+        }
         containerMappings.remove(identifier)
     }
 
     /** Returns latest [DockerStatistics] of [localStatistics]. */
     fun getLatestLocalStatistics(lastBlock: Block): DockerStatistics {
         val containers = localStatistics
-            .filterValues { System.currentTimeMillis() - it.updated <= 1000 }
             .map { (id, container) -> container.copy(id = containerMappings[id] ?: id) }
         return DockerStatistics(crypto.publicKey, containers, lastBlock.slot)
     }
@@ -69,13 +71,13 @@ class DockerDataProxy(private val crypto: Crypto) {
                         if (length > 0) String(buffer.array(), 0, length).split("\n").map { line ->
                             if (line.isNotEmpty()) {
                                 val fields = line.split(" ")
-                                if (fields.none { it == "--" || it.isEmpty() }) {
-                                    val containerId = fields[0]
+                                val containerId = fields[0]
+                                if (fields.none { it.contains("-") || it.isEmpty() }) {
                                     val cpuPercentage = fields[1].trim('%').toDouble()
                                     val memoryPercentage = fields[2].trim('%').toDouble()
                                     val processes = fields[3].toInt()
                                     localStatistics[containerId] = ContainerStatistics(containerId, cpuPercentage, memoryPercentage, processes)
-                                }
+                                } else localStatistics[containerId]?.apply { updated = System.currentTimeMillis() }
                             }
                         }
                         buffer.clear()
