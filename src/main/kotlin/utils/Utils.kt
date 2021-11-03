@@ -1,11 +1,5 @@
 package utils
 
-import data.communication.Message
-import data.chain.Block
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import java.security.MessageDigest
 import java.util.*
@@ -59,59 +53,13 @@ class Utils {
 
 }
 
-
-/** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-fun coroutineAndReport(block: () -> Unit) {
-    GlobalScope.launch {
-        try {
-            block()
-        } catch (e: Exception) {
-            Dashboard.reportException(e)
-        }
-    }
-}
-
-// TODO Comment
-fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
-    val len0 = lhs.length + 1
-    val len1 = rhs.length + 1
-    var cost = IntArray(len0)
-    var newCost = IntArray(len0)
-
-    for (i in 0 until len0) cost[i] = i
-    for (j in 1 until len1) {
-        newCost[0] = j
-        for (i in 1 until len0) {
-            val match = if (lhs[i - 1] == rhs[j - 1]) 0 else 1
-            val replaceCost = cost[i - 1] + match
-            val insertCost = cost[i] + 1
-            val deleteCost = newCost[i - 1] + 1
-            newCost[i] = insertCost.coerceAtMost(deleteCost).coerceAtMost(replaceCost)
-        }
-        val swap = cost
-        cost = newCost
-        newCost = swap
-    }
-    return cost[len0 - 1]
-}
-
 /** Executes [block] after [delay in milliseconds][delay]. */
 fun runAfter(delay: Long, block: () -> Unit) {
     Timer().schedule(delay) {
         try {
             block.invoke()
-        } catch (e:Exception){
+        } catch (e: Exception) {
             Dashboard.reportException(e)
         }
     }
-}
-
-/**
- * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
- *
- * @param T What data does the Message contain.
- * @return Message with data of type T.
- */
-inline fun <reified T> ByteArray.asMessage(): Message<T> {
-    return ProtoBuf.decodeFromByteArray(this)
 }

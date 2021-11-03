@@ -39,7 +39,7 @@ tasks.withType(Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     baseName("nion")
     manifest {
-        attributes["Main-Class"] = "MainKt"
+        attributes["Main-Class"] = "NionKt"
     }
 
     from {

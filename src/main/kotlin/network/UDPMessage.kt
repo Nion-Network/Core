@@ -1,4 +1,4 @@
-package communication
+package network
 
 import data.network.Endpoint
 import data.network.Node

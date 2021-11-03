@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 data class Configuration(
     val trustedNodeIP: String,
     val trustedNodePort: Int,
+    val port:Int,
     val maxNodes: Int,
     val keystorePath: String,
     val slotDuration: Long,
