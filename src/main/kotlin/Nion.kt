@@ -7,9 +7,10 @@ import network.DistributedHashTable
  */
 class Nion : DistributedHashTable() {
 
-    fun main(args: Array<String>) {
-        System.setProperty("kotlinx.coroutines.scheduler", "off")
+}
 
-    }
-
+fun main(args: Array<String>) {
+    System.setProperty("kotlinx.coroutines.scheduler", "off")
+    val nion = Nion()
+    nion.launch()
 }

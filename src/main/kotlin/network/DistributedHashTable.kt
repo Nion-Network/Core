@@ -1,9 +1,5 @@
 package network
 
-import data.communication.TransmissionType
-import data.network.Endpoint
-import data.network.Node
-
 /**
  * Created by Mihael Valentin Berčič
  * on 02/11/2021 at 18:39
@@ -11,11 +7,10 @@ import data.network.Node
  */
 abstract class DistributedHashTable : Server() {
 
-    fun search(publicKey: String) {}
+    fun search(publicKey: String) {
+        if (knownNodes.contains(publicKey)) {
 
-    override fun send(endpoint: Endpoint, transmissionType: TransmissionType, vararg nodes: Node) {
-
-        super.send(endpoint, transmissionType, *nodes)
+        }
     }
 
 }

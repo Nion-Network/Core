@@ -150,7 +150,7 @@ object Dashboard {
         queue.add(point)
     }
 
-    /** Reports that the node has requested inclusion into the validator set. */
+    /** Reports that the localNode has requested inclusion into the validator set. */
     fun requestedInclusion(from: String, slot: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
@@ -217,7 +217,7 @@ object Dashboard {
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
-            .addField("node", sha256(node).asHex)
+            .addField("localNode", sha256(node).asHex)
             .build()
     }
 }
