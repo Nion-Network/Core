@@ -1,8 +1,11 @@
 package network
 
+import data.communication.Message
 import data.communication.QueryMessage
 import data.communication.TransmissionType
 import data.network.Endpoint
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 
 /**
  * Created by Mihael Valentin Berčič
@@ -19,10 +22,14 @@ abstract class DistributedHashTable : Server() {
         }
     }
 
-    override fun send(endpoint: Endpoint, transmissionType: TransmissionType, data: Any, vararg publicKeys: String) {
-        if (publicKeys.isNotEmpty()) queryFor(*publicKeys)
-        super.send(endpoint, transmissionType, data, *publicKeys)
-    }
 
+    inline fun <reified T> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg publicKeys: String) {
+        if (publicKeys.isNotEmpty()) queryFor(*publicKeys)
+        val encodedBody = ProtoBuf.encodeToByteArray(data)
+        val signature = crypto.sign(encodedBody)
+        val message = Message(endpoint, crypto.publicKey, signature, data)
+        val encodedMessage = ProtoBuf.encodeToByteArray(message)
+        send(endpoint, transmissionType, message, encodedMessage, *publicKeys)
+    }
 
 }

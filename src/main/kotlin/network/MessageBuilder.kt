@@ -7,13 +7,14 @@ import data.network.Node
  * on 03/11/2021 at 18:54
  * using IntelliJ IDEA
  */
-class MessageBuilder(private val numberOfPackets: Int, vararg val nodes: Node) {
+class MessageBuilder(private val numberOfPackets: Int, val nodes: Collection<Node>) {
 
     private var totalAdded = 0
     private val array = arrayOfNulls<ByteArray>(numberOfPackets)
 
     fun addPart(position: Int, data: ByteArray): Boolean {
         array[position] = data
+        totalAdded++
         return totalAdded == numberOfPackets
     }
 

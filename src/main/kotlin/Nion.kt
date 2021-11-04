@@ -1,3 +1,5 @@
+import data.communication.TransmissionType
+import data.network.Endpoint
 import network.DistributedHashTable
 
 /**
@@ -11,5 +13,8 @@ class Nion : DistributedHashTable() {
 
 fun main(args: Array<String>) {
     System.setProperty("kotlinx.coroutines.scheduler", "off")
-    Nion().launch()
+    Nion().apply {
+        launch()
+        send(Endpoint.NewBlock, TransmissionType.Unicast, "Hejla!", "kiha")
+    }
 }

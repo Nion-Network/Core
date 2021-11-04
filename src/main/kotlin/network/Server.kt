@@ -35,25 +35,58 @@ abstract class Server {
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(crypto.publicKey, localAddress.hostAddress, configuration.port)
 
-    private val queuedForLater = ConcurrentHashMap<String, ByteArray>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
-
+    private val queuedForLater = ConcurrentHashMap<String, ByteArray>()
     protected val knownNodes = ConcurrentHashMap<String, Node>()
+
     private val networkHistory = ConcurrentHashMap<String, Long>()
+    private val messageBuilders = mutableMapOf<ByteArray, MessageBuilder>()
     private val udpSocket = DatagramSocket(configuration.port)
     private val tcpSocket = ServerSocket(configuration.port + 1)
+    private var started = false
 
     fun launch() {
+        if(started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
         Thread(this::listenForUDP).start()
         Thread(this::sendUDP).start()
+        knownNodes["miha"] = localNode
+        started = true
     }
 
     private fun listenForUDP() {
-        val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
-        val packet = DatagramPacket(dataBuffer.array(), configuration.packetSplitSize)
-        while (true) dataBuffer.apply {
+        val pureArray = ByteArray(configuration.packetSplitSize)
+        val inputStream = DataInputStream(ByteArrayInputStream(pureArray))
+        val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
+        while (true) inputStream.apply {
+            reset()
             udpSocket.receive(packet)
+            val packetId = readNBytes(32)
+            println("Received it! ${packetId.size}")
+            val messageId = readNBytes(32)
+            val isBroadcast = read() == 1
+            val endpoint = Endpoint.byId(read().toByte())
+            val totalSlices = readInt()
+            val currentSlice = readInt()
+            val dataLength = readInt()
+            val data = readNBytes(dataLength)
+            val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
+                val broadcastNodes = if (isBroadcast) pickRandomNodes() else emptyList()
+                MessageBuilder(totalSlices, broadcastNodes)
+            }
+            if (isBroadcast) {
+                messageBuilder.nodes.forEach { node ->
+                    packet.socketAddress = InetSocketAddress(node.ip, node.port)
+                    udpSocket.send(packet)
+                }
+            }
+
+            if (messageBuilder.addPart(currentSlice, data)) {
+                messageBuilders.remove(messageId)
+                println("Message received! $messageBuilder")
+                println(String(data))
+            }
+
         }
     }
 
@@ -87,11 +120,12 @@ abstract class Server {
                 val to = Integer.min(from + allowedDataSize, encodedMessageLength)
                 val data = encodedMessage.sliceArray(from until to)
                 val packetId = sha256(uuid + data)
-                val messageId = sha256(message.uid)
+                val messageId = sha256(outgoingMessage.messageUID)
+
                 put(packetId)
                 put(messageId)
                 put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                put(message.endpoint.identification)
+                put(outgoingMessage.endpoint.identification)
                 putInt(slicesNeeded)
                 putInt(slice)
                 putInt(data.size)
@@ -106,7 +140,7 @@ abstract class Server {
                     val delay = System.currentTimeMillis() - started
                     val sender = localAddress.toString()
                     val recipient = recipientAddress.toString()
-                    Dashboard.sentMessage(messageId.toString(), message.endpoint, sender, recipient, data.size, delay)
+                    Dashboard.sentMessage(messageId.toString(), outgoingMessage.endpoint, sender, recipient, data.size, delay)
                 }
             }
 
@@ -117,14 +151,16 @@ abstract class Server {
 
     }
 
-    class OutgoingQueuedMessage(val message: Message<*>, val transmissionType: TransmissionType, vararg val recipients: String)
+    private class OutgoingQueuedMessage(
+        val endpoint: Endpoint,
+        val transmissionType: TransmissionType,
+        val messageUID: String,
+        val message: ByteArray,
+        vararg val recipients: String
+    )
 
-    open fun send(endpoint: Endpoint, transmissionType: TransmissionType, data: Any, vararg publicKeys: String) {
-        val encodedBody = ProtoBuf.encodeToByteArray(data)
-        val signature = crypto.sign(encodedBody)
-        val message = Message(endpoint, crypto.publicKey, signature, data)
-        val outgoingQueuedMessage = OutgoingQueuedMessage(message, transmissionType, *publicKeys)
-        outgoingQueue.put(outgoingQueuedMessage)
+    fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message<*>, encodedMessage: ByteArray, vararg publicKeys: String) {
+        outgoingQueue.add(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, *publicKeys))
     }
 
     /** Schedules message history cleanup service that runs at fixed rate. */
