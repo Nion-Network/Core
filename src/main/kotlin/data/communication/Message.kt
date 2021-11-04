@@ -1,5 +1,6 @@
 package data.communication
 
+import data.network.Endpoint
 import kotlinx.serialization.Serializable
 import utils.Utils
 import utils.Utils.Companion.asHex
@@ -12,6 +13,7 @@ import java.util.*
  * Encapsulation of data that is sent to the client. The data will be verified via the signature and public key upon arrival. */
 @Serializable
 class Message<T>(
+    val endpoint: Endpoint,
     val publicKey: String,
     val signature: ByteArray,
     val body: T,
