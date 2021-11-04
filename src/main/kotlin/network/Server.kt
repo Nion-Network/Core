@@ -68,11 +68,11 @@ abstract class Server {
         }, 0, configuration.historyCleaningFrequency, TimeUnit.MINUTES)
     }
 
-    fun pickRandomNodes(): List<Node> {
+    /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
+    fun pickRandomNodes(amount: Int = 0): List<Node> {
         val totalKnownNodes = knownNodes.size
-        return knownNodes.values.take(5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100))
+        val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
+        return knownNodes.values.shuffled().take(toTake)
     }
-
-
 
 }
