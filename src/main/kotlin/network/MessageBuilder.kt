@@ -1,5 +1,6 @@
 package network
 
+import data.network.Endpoint
 import data.network.Node
 
 /**
@@ -7,7 +8,7 @@ import data.network.Node
  * on 03/11/2021 at 18:54
  * using IntelliJ IDEA
  */
-class MessageBuilder(private val numberOfPackets: Int, val nodes: Collection<Node>) {
+class MessageBuilder(val endpoint: Endpoint, private val numberOfPackets: Int, val nodes: Collection<Node>) {
 
     private var totalAdded = 0
     private val array = arrayOfNulls<ByteArray>(numberOfPackets)

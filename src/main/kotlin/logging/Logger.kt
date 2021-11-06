@@ -11,7 +11,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
 
 /**
  * Created by Mihael Berčič
@@ -43,15 +42,6 @@ object Logger {
 
     private val httpClient = HttpClient.newHttpClient()
 
-    private const val informationString =
-        " -------------------------------------------\n" +
-                "| ${red}Debug information$reset                         |\n" +
-                "| d = debug    e = error     c = chain      |\n" +
-                "| i = info     t = trace     x = consensus  |\n" +
-                "| ------------------------------------------|\n" +
-                "| a = ALL                                   |\n" +
-                " -------------------------------------------\n"
-
     /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
         val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
@@ -69,35 +59,7 @@ object Logger {
 
     /** Enables or disables software logging.  */
     fun toggleLogging(enable: Boolean) {
-        try {
-            isLoggingEnabled = enable
-            // TODO: remove logging listener.
-            if (enable) {
-                Thread {
-                    info(informationString)
-                    val scanner = Scanner(System.`in`)
-                    while (true) {
-                        if (scanner.hasNext()) {
-                            val next = scanner.next()
-                            currentDebug = when (next[0]) {
-                                'd' -> DebugType.DEBUG
-                                'i' -> DebugType.INFO
-                                'e' -> DebugType.ERROR
-                                't' -> DebugType.TRACE
-                                'c' -> DebugType.CHAIN
-                                'x' -> DebugType.CONSENSUS
-                                else -> DebugType.ALL
-                            }
-                            info("Logging level has changed to $currentDebug")
-                            info(informationString)
-
-                        }
-                    }
-                }.start()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        isLoggingEnabled = enable
 
     }
 

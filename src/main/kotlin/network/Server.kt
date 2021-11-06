@@ -6,9 +6,7 @@ import data.communication.TransmissionType
 import data.network.Endpoint
 import data.network.Node
 import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import utils.Crypto
 import utils.Utils.Companion.sha256
@@ -36,6 +34,7 @@ abstract class Server {
     val localNode = Node(crypto.publicKey, localAddress.hostAddress, configuration.port)
 
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
+    private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val queuedForLater = ConcurrentHashMap<String, ByteArray>()
     protected val knownNodes = ConcurrentHashMap<String, Node>()
 
@@ -46,10 +45,11 @@ abstract class Server {
     private var started = false
 
     fun launch() {
-        if(started) throw IllegalStateException("Nion has already started.")
+        if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
         Thread(this::listenForUDP).start()
         Thread(this::sendUDP).start()
+        Thread(this::processReceivedMessages).start()
         knownNodes["miha"] = localNode
         started = true
     }
@@ -62,17 +62,16 @@ abstract class Server {
             reset()
             udpSocket.receive(packet)
             val packetId = readNBytes(32)
-            println("Received it! ${packetId.size}")
             val messageId = readNBytes(32)
             val isBroadcast = read() == 1
-            val endpoint = Endpoint.byId(read().toByte())
+            val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
             val totalSlices = readInt()
             val currentSlice = readInt()
             val dataLength = readInt()
             val data = readNBytes(dataLength)
             val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
                 val broadcastNodes = if (isBroadcast) pickRandomNodes() else emptyList()
-                MessageBuilder(totalSlices, broadcastNodes)
+                MessageBuilder(endpoint, totalSlices, broadcastNodes)
             }
             if (isBroadcast) {
                 messageBuilder.nodes.forEach { node ->
@@ -83,8 +82,7 @@ abstract class Server {
 
             if (messageBuilder.addPart(currentSlice, data)) {
                 messageBuilders.remove(messageId)
-                println("Message received! $messageBuilder")
-                println(String(data))
+                receivedQueue.put(messageBuilder)
             }
 
         }
@@ -94,9 +92,8 @@ abstract class Server {
         val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
         while (true) dataBuffer.apply {
             val outgoingMessage = outgoingQueue.take()
-            val message = outgoingMessage.message
+            val encodedMessage = outgoingMessage.message
             val recipients = outgoingMessage.recipients
-            val encodedMessage = ProtoBuf.encodeToByteArray(message)
             val readyToSend = if (recipients.isEmpty()) pickRandomNodes() else recipients.mapNotNull { knownNodes[it] }
             val readyForSearch = recipients.filter { !knownNodes.containsKey(it) }
             readyForSearch.forEach { queuedForLater[it] = encodedMessage }
@@ -147,7 +144,14 @@ abstract class Server {
         }
     }
 
-    open fun onMessageReceived() {
+    private fun processReceivedMessages() {
+        while (true) {
+            val messageBuilder = receivedQueue.take()
+            onMessageReceived(messageBuilder.endpoint, messageBuilder.gluedData())
+        }
+    }
+
+    open fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
 
     }
 
@@ -159,7 +163,7 @@ abstract class Server {
         vararg val recipients: String
     )
 
-    fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message<*>, encodedMessage: ByteArray, vararg publicKeys: String) {
+    fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
         outgoingQueue.add(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, *publicKeys))
     }
 
