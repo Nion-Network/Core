@@ -1,11 +1,15 @@
+import data.Configuration
 import data.communication.Message
-import data.communication.TransmissionType
 import data.network.Endpoint
+import data.network.MessageProcessing
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import logging.Logger
+import logging.Dashboard
 import network.ChainBuilder
 import network.DistributedHashTable
+import network.MessageEndpoint
 import java.util.concurrent.LinkedBlockingQueue
 
 /**
@@ -13,14 +17,23 @@ import java.util.concurrent.LinkedBlockingQueue
  * on 26/03/2020 12:35
  * using IntelliJ IDEA
  */
-class Nion : DistributedHashTable() {
+class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>()
     private val chainBuilder = ChainBuilder(this)
+    private val queue = LinkedBlockingQueue<() -> Unit>()
 
     init {
-        Logger.toggleLogging(configuration.loggingEnabled)
         registerEndpoints(this, chainBuilder)
+        Thread(this::invokeFromQueue).start()
+    }
+
+    private fun invokeFromQueue() {
+        try {
+            while (true) queue.take().invoke()
+        } catch (e: Exception) {
+            Dashboard.reportException(e)
+        }
     }
 
     private fun registerEndpoints(vararg instances: Any) {
@@ -33,28 +46,20 @@ class Nion : DistributedHashTable() {
         }
     }
 
-    inline infix fun <reified T> ByteArray.queue(noinline block: (T) -> Unit) {
-        queue.put { block(ProtoBuf.decodeFromByteArray(this)) }
-        println("Put into queue!")
-        queue.take()()
-    }
-
-    val queue = LinkedBlockingQueue<() -> Unit>()
-
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
-        if (verified) endpoints[endpoint]?.invoke(message)
+        if (verified) {
+            val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
+            if (endpoint.processing == MessageProcessing.Queued) queue.put { execution(message) }
+            else GlobalScope.launch {
+                try {
+                    execution(message)
+                } catch (e: Exception) {
+                    Dashboard.reportException(e)
+                }
+            }
+        }
     }
 }
 
-fun main(args: Array<String>) {
-    System.setProperty("kotlinx.coroutines.scheduler", "off")
-    Nion().apply {
-        launch()
-        queryFor("kiha")
-        send(Endpoint.Ping, TransmissionType.Unicast, "Hello!")
-    }
-}
-
-annotation class MessageEndpoint(val endpoint: Endpoint)

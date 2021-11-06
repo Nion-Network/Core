@@ -1,9 +1,7 @@
 package network
 
-import MessageEndpoint
 import Nion
 import data.communication.Message
-import data.communication.QueryMessage
 import data.network.Endpoint
 import logging.Logger
 
@@ -13,10 +11,6 @@ import logging.Logger
  * using IntelliJ IDEA
  */
 class ChainBuilder(private val nion: Nion) {
-
-    init {
-        Logger.debug("Hello from chain builder1")
-    }
 
     @MessageEndpoint(Endpoint.Ping)
     fun onPing(message: Message) {

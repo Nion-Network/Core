@@ -1,6 +1,6 @@
 package network
 
-import MessageEndpoint
+import data.Configuration
 import data.communication.Message
 import data.communication.QueryMessage
 import data.communication.TransmissionType
@@ -14,7 +14,7 @@ import logging.Logger
  * on 02/11/2021 at 18:39
  * using IntelliJ IDEA
  */
-abstract class DistributedHashTable : Server() {
+abstract class DistributedHashTable(configuration: Configuration) : Server(configuration) {
 
     fun queryFor(vararg publicKeys: String) {
         val unknown = publicKeys.filter { !knownNodes.containsKey(it) }

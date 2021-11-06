@@ -26,9 +26,8 @@ import java.util.concurrent.TimeUnit
  * on 13/04/2021 at 00:57
  * using IntelliJ IDEA
  */
-abstract class Server {
+abstract class Server(protected val configuration: Configuration) {
 
-    val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(crypto.publicKey, localAddress.hostAddress, configuration.port)
