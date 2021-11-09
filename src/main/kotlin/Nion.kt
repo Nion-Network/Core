@@ -4,6 +4,7 @@ import data.network.Endpoint
 import data.network.MessageProcessing
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
@@ -41,7 +42,9 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
             val methods = instance.javaClass.methods.filter { it.annotations.any { annotation -> annotation is MessageEndpoint } }
             methods.forEach { method ->
                 val annotation = method.getAnnotation(MessageEndpoint::class.java)
-                endpoints[annotation.endpoint] = { method.invoke(instance, it) }
+                val endpoint = annotation.endpoint
+                if (endpoints.containsKey(endpoint)) throw Exception("Endpoint $endpoint is already registered.")
+                endpoints[endpoint] = { method.invoke(instance, it) }
             }
         }
     }

@@ -14,6 +14,7 @@ class ChainBuilder(private val nion: Nion) {
 
     @MessageEndpoint(Endpoint.Ping)
     fun onPing(message: Message) {
-        Logger.chain("Hello from onPing!")
+        Logger.chain("Message: ${message.bodyAs<String>()}")
     }
+    
 }
