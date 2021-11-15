@@ -1,6 +1,4 @@
 import data.Configuration
-import data.communication.TransmissionType
-import data.network.Endpoint
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import logging.Logger
@@ -17,7 +15,5 @@ fun main(args: Array<String>) {
     Logger.toggleLogging(configuration.loggingEnabled)
     Nion(configuration).apply {
         launch()
-        queryFor("kiha")
-        send(Endpoint.Ping, TransmissionType.Unicast, "Hello!")
     }
 }

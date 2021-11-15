@@ -5,14 +5,12 @@ import data.communication.Message
 import data.communication.TransmissionType
 import data.network.Endpoint
 import data.network.Node
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import logging.Dashboard
+import logging.Logger
 import utils.Crypto
 import utils.Utils.Companion.sha256
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
-import java.io.File
 import java.net.*
 import java.nio.ByteBuffer
 import java.util.*
@@ -26,11 +24,11 @@ import java.util.concurrent.TimeUnit
  * on 13/04/2021 at 00:57
  * using IntelliJ IDEA
  */
-abstract class Server(protected val configuration: Configuration) {
+abstract class Server(val configuration: Configuration) {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(crypto.publicKey, localAddress.hostAddress, configuration.port)
+    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
 
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
@@ -43,13 +41,12 @@ abstract class Server(protected val configuration: Configuration) {
     private val tcpSocket = ServerSocket(configuration.port + 1)
     private var started = false
 
-    fun launch() {
+    open fun launch() {
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
         Thread(this::listenForUDP).start()
         Thread(this::sendUDP).start()
         Thread(this::processReceivedMessages).start()
-        knownNodes["miha"] = localNode
         started = true
     }
 

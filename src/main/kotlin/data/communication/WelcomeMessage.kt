@@ -9,4 +9,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-class JoinedMessage(val acceptor: Node, val knownNodes: Array<Node>)
+class WelcomeMessage(val acceptor: Node, val knownNodes: Collection<Node>)

@@ -11,7 +11,7 @@ enum class Endpoint(val identification: Byte, val processing: MessageProcessing)
     InclusionRequest(2, MessageProcessing.Queued),
     NodeQuery(3, MessageProcessing.Immediate),
     NodeFound(4, MessageProcessing.Immediate),
-    Welcome(5, MessageProcessing.Immediate),
+    Welcome(5, MessageProcessing.Queued),
     Vote(6, MessageProcessing.Queued),
     NewBlock(7, MessageProcessing.Queued),
     SyncReply(8, MessageProcessing.Queued),

@@ -22,5 +22,5 @@ class Message(
     val timestamp: Long = System.currentTimeMillis(),
     val uid: String = Utils.sha256(UUID.randomUUID().toString()).asHex
 ) {
-    inline fun <reified T> bodyAs() = ProtoBuf.decodeFromByteArray<T>(body)
+    inline fun <reified T> decodeAs() = ProtoBuf.decodeFromByteArray<T>(body)
 }

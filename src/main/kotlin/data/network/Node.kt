@@ -10,4 +10,4 @@ import kotlinx.serialization.Serializable
  * Stores information of some Node in the network.
  */
 @Serializable
-data class Node(val publicKey: String, val ip: String, val port: Int)
+data class Node(val ip: String, val port: Int, val publicKey: String)
