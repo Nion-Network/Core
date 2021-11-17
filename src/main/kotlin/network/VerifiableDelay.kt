@@ -1,5 +1,7 @@
 package network
 
+import logging.Logger
+
 /**
  * Created by Mihael Valentin Berčič
  * on 15/11/2021 at 14:35
@@ -15,8 +17,7 @@ class VerifiableDelay {
             .redirectErrorStream(true)
 
         val process = processBuilder.start()
-        val output = process.inputStream.reader().use { it.readText() }
-        return output
+        return process.inputStream.use { String(it.readAllBytes()) }.dropLast(1)
     }
 
     /** Verifies the calculated vdf proof. */
@@ -27,8 +28,9 @@ class VerifiableDelay {
             .redirectErrorStream(true)
         val process = processBuilder.start()
         val output = process.inputStream.reader().use { it.readText() }
-
-        return output == "Proof is valid"
+        Logger.info("|./vdf-cli $hash $difficulty $proof|")
+        Logger.info(output)
+        return process.waitFor() == 0
     }
 
 }

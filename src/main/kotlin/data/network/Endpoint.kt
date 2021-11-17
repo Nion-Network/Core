@@ -10,7 +10,7 @@ enum class Endpoint(val identification: Byte, val processing: MessageProcessing)
     JoinRequest(1, MessageProcessing.Queued),
     InclusionRequest(2, MessageProcessing.Queued),
     NodeQuery(3, MessageProcessing.Immediate),
-    NodeFound(4, MessageProcessing.Immediate),
+    QueryReply(4, MessageProcessing.Immediate),
     Welcome(5, MessageProcessing.Queued),
     Vote(6, MessageProcessing.Queued),
     NewBlock(7, MessageProcessing.Queued),

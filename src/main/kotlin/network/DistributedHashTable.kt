@@ -28,16 +28,27 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
 
     @MessageEndpoint(Endpoint.JoinRequest)
     fun joinRequestReceived(message: Message) {
+        Logger.info("Working on join request...")
         val requestingNode = message.decodeAs<Node>()
-        val welcomeMessage = WelcomeMessage(localNode, knownNodes.values)
+        val welcomeMessage = WelcomeMessage(localNode, knownNodes.values.toList())
         addNewNodes(requestingNode)
         send(Endpoint.Welcome, TransmissionType.Unicast, welcomeMessage, requestingNode.publicKey)
+        Logger.info("Sending back welcome to ${requestingNode.ip}")
     }
 
     @MessageEndpoint(Endpoint.NodeQuery)
     fun onQuery(message: Message) {
         val query = message.decodeAs<QueryMessage>()
-        Logger.info("Coming from onQuery with $query!")
+        val lookingFor = query.publicKeys.mapNotNull { knownNodes[it] }
+        val seekingNode = query.seeker
+        addNewNodes(seekingNode)
+        send(Endpoint.QueryReply, TransmissionType.Unicast, lookingFor, seekingNode.publicKey)
+    }
+
+    @MessageEndpoint(Endpoint.QueryReply)
+    fun onQueryResponse(message: Message) {
+        val foundNodes = message.decodeAs<Array<Node>>()
+        addNewNodes(*foundNodes)
     }
 
     fun addNewNodes(vararg nodes: Node) {

@@ -29,11 +29,16 @@ abstract class Server(val configuration: Configuration) {
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
+    val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
 
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val queuedForLater = ConcurrentHashMap<String, ByteArray>()
-    protected val knownNodes = ConcurrentHashMap<String, Node>()
+    protected val knownNodes = ConcurrentHashMap<String, Node>().apply {
+        put(localNode.publicKey, localNode)
+    }
+
+    val knownNodeCount get() = knownNodes.size
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<ByteArray, MessageBuilder>()
@@ -42,6 +47,7 @@ abstract class Server(val configuration: Configuration) {
     private var started = false
 
     open fun launch() {
+        if (isTrustedNode) Logger.info("We're the trusted node.")
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
         Thread(this::listenForUDP).start()
@@ -54,33 +60,40 @@ abstract class Server(val configuration: Configuration) {
         val pureArray = ByteArray(configuration.packetSplitSize)
         val inputStream = DataInputStream(ByteArrayInputStream(pureArray))
         val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
-        while (true) inputStream.apply {
-            reset()
+        while (true) {
+            inputStream.reset()
             udpSocket.receive(packet)
-            val packetId = readNBytes(32)
-            val messageId = readNBytes(32)
-            val isBroadcast = read() == 1
-            val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
-            val totalSlices = readInt()
-            val currentSlice = readInt()
-            val dataLength = readInt()
-            val data = readNBytes(dataLength)
-            val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
-                val broadcastNodes = if (isBroadcast) pickRandomNodes() else emptyList()
-                MessageBuilder(endpoint, totalSlices, broadcastNodes)
-            }
-            if (isBroadcast) {
-                messageBuilder.nodes.forEach { node ->
-                    packet.socketAddress = InetSocketAddress(node.ip, node.port)
-                    udpSocket.send(packet)
+            val packetId = inputStream.readNBytes(32)
+            val messageId = inputStream.readNBytes(32)
+            val packetIdentifier = String(packetId)
+            val messageIdentifier = String(messageId)
+            if (networkHistory.containsKey(packetIdentifier) || networkHistory.containsKey(messageIdentifier)) continue
+            networkHistory[packetIdentifier] = System.currentTimeMillis()
+            networkHistory[messageIdentifier] = System.currentTimeMillis()
+            inputStream.apply {
+                val isBroadcast = read() == 1
+                val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
+                val totalSlices = readInt()
+                val currentSlice = readInt()
+                val dataLength = readInt()
+                val data = readNBytes(dataLength)
+                val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
+                    val broadcastNodes = if (isBroadcast) pickRandomNodes() else emptyList()
+                    MessageBuilder(endpoint, totalSlices, broadcastNodes)
                 }
-            }
+                if (isBroadcast) {
+                    messageBuilder.nodes.forEach { node ->
+                        packet.socketAddress = InetSocketAddress(node.ip, node.port)
+                        udpSocket.send(packet)
+                    }
+                }
 
-            if (messageBuilder.addPart(currentSlice, data)) {
-                messageBuilders.remove(messageId)
-                receivedQueue.put(messageBuilder)
-            }
+                if (messageBuilder.addPart(currentSlice, data)) {
+                    messageBuilders.remove(messageId)
+                    receivedQueue.put(messageBuilder)
+                }
 
+            }
         }
     }
 
@@ -178,7 +191,7 @@ abstract class Server(val configuration: Configuration) {
     fun pickRandomNodes(amount: Int = 0): List<Node> {
         val totalKnownNodes = knownNodes.size
         val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return knownNodes.values.shuffled().take(toTake)
+        return knownNodes.values.filter { it != localNode }.shuffled().take(toTake)
     }
 
 }

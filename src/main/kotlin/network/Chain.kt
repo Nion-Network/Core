@@ -1,0 +1,50 @@
+package network
+
+import data.chain.Block
+import logging.Logger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+/**
+ * Created by Mihael Valentin Berčič
+ * on 16/11/2021 at 16:21
+ * using IntelliJ IDEA
+ */
+
+class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int) {
+
+    private val lock = ReentrantLock(true)
+    private val blocks = mutableListOf<Block>()
+
+    fun getLastBlock(): Block? {
+        return lock.withLock { blocks.lastOrNull() }
+    }
+
+    fun getLastBlocks(fromSlot: Long): List<Block> {
+        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }
+    }
+
+
+    fun addBlocks(vararg newBlocks: Block): Boolean {
+        lock.withLock {
+            newBlocks.forEach { newBlock ->
+                val lastBlock = blocks.lastOrNull()
+                val lastHash = lastBlock?.hash ?: "FFFF"
+                val difficulty = lastBlock?.difficulty ?: initialDifficulty
+                val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, newBlock.vdfProof)
+                if (isLegitimate) blocks.add(newBlock)
+                else {
+                    Logger.trace("Proof is not legitimate for block ${newBlock.slot}!")
+                    Logger.info("Last hash: $lastHash")
+                    Logger.info("Last block: ${lastBlock?.slot}")
+                    Logger.info("New hash: ${newBlock.hash}")
+                    Logger.info("Precedent hash: ${newBlock.precedentHash}")
+                    Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+}

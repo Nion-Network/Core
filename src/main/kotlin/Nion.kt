@@ -14,7 +14,10 @@ import logging.Logger
 import network.ChainBuilder
 import network.DistributedHashTable
 import network.MessageEndpoint
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.util.concurrent.LinkedBlockingQueue
+
 
 /**
  * Created by Mihael Valentin Berčič
@@ -26,7 +29,7 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>()
     private val chainBuilder = ChainBuilder(this)
     private val queue = LinkedBlockingQueue<() -> Unit>()
-    private var isInNetwork = false
+    private var isInNetwork = isTrustedNode
 
     init {
         // TODO Remove after final decision of known trusted public key.
@@ -42,12 +45,13 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
     }
 
     @MessageEndpoint(Endpoint.Welcome)
-    private fun onWelcome(message: Message) {
+    fun onWelcome(message: Message) {
         val welcomeMessage = message.decodeAs<WelcomeMessage>()
         val acceptorNode = welcomeMessage.acceptor
         val newNodes = welcomeMessage.knownNodes
         addNewNodes(acceptorNode, *newNodes.toTypedArray())
         isInNetwork = true
+        chainBuilder.requestInclusion()
     }
 
     private fun invokeFromQueue() {
@@ -55,14 +59,15 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
             while (true) queue.take().invoke()
         } catch (e: Exception) {
             Dashboard.reportException(e)
+            val sw = StringWriter()
+            e.printStackTrace(PrintWriter(sw))
+            Logger.error(sw.toString())
         }
     }
 
     private fun registerEndpoints(vararg instances: Any) {
         instances.forEach { instance ->
-            val methods = instance.javaClass.let {
-                it.methods.plus(it.declaredMethods)
-            }.filter { it.annotations.any { annotation -> annotation is MessageEndpoint } }
+            val methods = instance.javaClass.methods.filter { it.annotations.any { annotation -> annotation is MessageEndpoint } }
             methods.forEach { method ->
                 val annotation = method.getAnnotation(MessageEndpoint::class.java)
                 val endpoint = annotation.endpoint
@@ -74,7 +79,6 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
     }
 
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
-        Logger.trace("Message received on $endpoint.")
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
         if (verified) {
@@ -85,6 +89,9 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
                     execution(message)
                 } catch (e: Exception) {
                     Dashboard.reportException(e)
+                    val sw = StringWriter()
+                    e.printStackTrace(PrintWriter(sw))
+                    Logger.error(sw.toString())
                 }
             }
         }
