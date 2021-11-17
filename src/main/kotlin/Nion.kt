@@ -42,6 +42,7 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
         send(Endpoint.JoinRequest, TransmissionType.Unicast, localNode)
         Thread.sleep(10_000)
         if (!isInNetwork) requestNetworkInclusion()
+        else knownNodes.remove("trusted")
     }
 
     @MessageEndpoint(Endpoint.Welcome)

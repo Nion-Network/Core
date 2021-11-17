@@ -37,7 +37,7 @@ class ChainBuilder(private val nion: Nion) {
             if (nion.isTrustedNode) Dashboard.newBlockProduced(block, nion.knownNodeCount, validatorSet.validatorCount)
             if (!validatorSet.isInValidatorSet) requestInclusion()
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
-            Logger.debug("Task for ${block.slot + 1} is ${nextTask.myTask}")
+            Logger.debug("Task for ${block.slot} is ${nextTask.myTask}")
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     val computationStart = System.currentTimeMillis()
@@ -58,12 +58,15 @@ class ChainBuilder(private val nion: Nion) {
                         nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
                     }
                 }
-                SlotDuty.COMMITTEE -> {}
+                SlotDuty.COMMITTEE -> {
+                    nion.send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
+                }
                 SlotDuty.VALIDATOR -> {}
             }
         } else {
             val lastBlock = chain.getLastBlock()
             val lastSlot = lastBlock?.slot ?: 0
+            Logger.error("Block ${block.slot} has been rejected. Our last slot is $lastSlot.")
             val slotDifference = block.slot - lastSlot
             if (slotDifference > 1) requestSynchronization()
         }
@@ -116,6 +119,7 @@ class ChainBuilder(private val nion: Nion) {
         val syncRequest = SyncRequest(nion.localNode, ourSlot)
         val randomNode = nion.pickRandomNodes(1).map { it.publicKey }
         nion.send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, *randomNode.toTypedArray())
+        Logger.info("Requesting synchronization from $ourSlot.")
     }
 
     fun requestInclusion() {

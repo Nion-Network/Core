@@ -26,7 +26,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
 
 
     fun addBlocks(vararg newBlocks: Block): Boolean {
-        lock.withLock {
+        return lock.withLock {
             newBlocks.forEach { newBlock ->
                 val lastBlock = blocks.lastOrNull()
                 val lastHash = lastBlock?.hash ?: "FFFF"
@@ -40,11 +40,11 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
                     Logger.info("New hash: ${newBlock.hash}")
                     Logger.info("Precedent hash: ${newBlock.precedentHash}")
                     Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")
-                    return false
+                    return@withLock false
                 }
             }
+            return@withLock true
         }
-        return true
     }
 
 }

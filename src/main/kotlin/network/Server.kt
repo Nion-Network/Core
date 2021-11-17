@@ -31,14 +31,20 @@ abstract class Server(val configuration: Configuration) {
     val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
 
-    private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
-    private val queuedForLater = ConcurrentHashMap<String, ByteArray>()
+    private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
+    private val queuedForLater = ConcurrentHashMap<String, OutgoingQueuedMessage>()
     protected val knownNodes = ConcurrentHashMap<String, Node>().apply {
         put(localNode.publicKey, localNode)
     }
 
     val knownNodeCount get() = knownNodes.size
+
+    fun checkForQueuedMessages(nodes: Array<Node>) {
+        val queuedMessages = nodes.mapNotNull { queuedForLater[it.publicKey] }
+        Logger.debug("Found nodes that were queued for after finding: ${queuedMessages.size}")
+        outgoingQueue.addAll(queuedMessages)
+    }
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<ByteArray, MessageBuilder>()
@@ -104,8 +110,8 @@ abstract class Server(val configuration: Configuration) {
             val encodedMessage = outgoingMessage.message
             val recipients = outgoingMessage.recipients
             val readyToSend = if (recipients.isEmpty()) pickRandomNodes() else recipients.mapNotNull { knownNodes[it] }
-            val readyForSearch = recipients.filter { !knownNodes.containsKey(it) }
-            readyForSearch.forEach { queuedForLater[it] = encodedMessage }
+            val readyForSearch = recipients.filter { !knownNodes.containsKey(it) }.toTypedArray()
+            readyForSearch.forEach { queuedForLater[it] = outgoingMessage.copy(recipients = readyForSearch) }
 
             /* Header length total 72B = 32B + 1B + 1B + 32B + 4B + 4B + 4B
             *   packetId: 32B
@@ -164,16 +170,16 @@ abstract class Server(val configuration: Configuration) {
 
     }
 
-    private class OutgoingQueuedMessage(
+    private data class OutgoingQueuedMessage(
         val endpoint: Endpoint,
         val transmissionType: TransmissionType,
         val messageUID: String,
         val message: ByteArray,
-        vararg val recipients: String
+        val recipients: Array<out String>
     )
 
     fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
-        outgoingQueue.add(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, *publicKeys))
+        outgoingQueue.add(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, publicKeys))
     }
 
     /** Schedules message history cleanup service that runs at fixed rate. */

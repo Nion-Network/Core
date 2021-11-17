@@ -46,9 +46,10 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
     }
 
     @MessageEndpoint(Endpoint.QueryReply)
-    fun onQueryResponse(message: Message) {
+    fun onQueryReply(message: Message) {
         val foundNodes = message.decodeAs<Array<Node>>()
         addNewNodes(*foundNodes)
+        checkForQueuedMessages(foundNodes)
     }
 
     fun addNewNodes(vararg nodes: Node) {
