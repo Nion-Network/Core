@@ -5,8 +5,6 @@ import data.communication.WelcomeMessage
 import data.network.Endpoint
 import data.network.MessageProcessing
 import data.network.Node
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
@@ -14,6 +12,7 @@ import logging.Logger
 import network.ChainBuilder
 import network.DistributedHashTable
 import network.MessageEndpoint
+import utils.launchCoroutine
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.concurrent.LinkedBlockingQueue
@@ -85,16 +84,7 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
         if (verified) {
             val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
             if (endpoint.processing == MessageProcessing.Queued) queue.put { execution(message) }
-            else GlobalScope.launch {
-                try {
-                    execution(message)
-                } catch (e: Exception) {
-                    Dashboard.reportException(e)
-                    val sw = StringWriter()
-                    e.printStackTrace(PrintWriter(sw))
-                    Logger.error(sw.toString())
-                }
-            }
+            else launchCoroutine { execution(message) }
         }
     }
 

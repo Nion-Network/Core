@@ -1,6 +1,11 @@
 package utils
 
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import logging.Dashboard
+import logging.Logger
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.security.MessageDigest
 import java.util.*
 import kotlin.concurrent.schedule
@@ -60,6 +65,19 @@ fun runAfter(delay: Long, block: () -> Unit) {
             block.invoke()
         } catch (e: Exception) {
             Dashboard.reportException(e)
+        }
+    }
+}
+
+fun launchCoroutine(block: () -> Unit) {
+    GlobalScope.launch {
+        try {
+            block()
+        } catch (e: Exception) {
+            Dashboard.reportException(e)
+            val sw = StringWriter()
+            e.printStackTrace(PrintWriter(sw))
+            Logger.error(sw.toString())
         }
     }
 }

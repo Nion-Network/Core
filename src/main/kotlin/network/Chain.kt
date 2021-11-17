@@ -10,7 +10,6 @@ import kotlin.concurrent.withLock
  * on 16/11/2021 at 16:21
  * using IntelliJ IDEA
  */
-
 class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int) {
 
     private val lock = ReentrantLock(true)
