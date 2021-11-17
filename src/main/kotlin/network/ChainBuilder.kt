@@ -31,9 +31,7 @@ class ChainBuilder(private val nion: Nion) {
         Logger.chain("Block ${block.slot} has been received and is being processed.")
         if (chain.addBlocks(block)) {
             Logger.chain("Added block ${block.slot} with ${block.votes}/${configuration.committeeSize} votes.")
-            block.validatorChanges.forEach { (key, wasAdded) ->
-                validatorSet.inclusionChange(key, wasAdded)
-            }
+            validatorSet.inclusionChanges(block)
             if (nion.isTrustedNode) Dashboard.newBlockProduced(block, nion.knownNodeCount, validatorSet.validatorCount)
             if (!validatorSet.isInValidatorSet) requestInclusion()
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
@@ -66,9 +64,9 @@ class ChainBuilder(private val nion: Nion) {
         } else {
             val lastBlock = chain.getLastBlock()
             val lastSlot = lastBlock?.slot ?: 0
-            Logger.error("Block ${block.slot} has been rejected. Our last slot is $lastSlot.")
             val slotDifference = block.slot - lastSlot
             if (slotDifference > 1) requestSynchronization()
+            Logger.error("Block ${block.slot} has been rejected. Our last slot is $lastSlot.")
         }
     }
 
@@ -104,11 +102,7 @@ class ChainBuilder(private val nion: Nion) {
         val blocks = message.decodeAs<Array<Block>>()
         val synchronizationSuccess = chain.addBlocks(*blocks)
         if (synchronizationSuccess) {
-            blocks.forEach { block ->
-                block.validatorChanges.forEach { (key, wasAdded) ->
-                    validatorSet.inclusionChange(key, wasAdded)
-                }
-            }
+            validatorSet.inclusionChanges(*blocks)
         }
         Logger.chain("Synchronization has been successful $synchronizationSuccess.")
     }

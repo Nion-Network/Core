@@ -28,12 +28,16 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
 
     val validatorCount get() = lock.withLock { validators.size }
 
-    fun inclusionChange(publicKey: String, isAdded: Boolean) {
+    fun inclusionChanges(vararg blocks: Block) {
         lock.withLock {
-            if (isAdded) validators.add(publicKey)
-            else validators.remove(publicKey)
-            scheduledChanges.remove(publicKey)
-            if (publicKey == localNode.publicKey) isInValidatorSet = isAdded
+            blocks.forEach { block ->
+                block.validatorChanges.forEach { (publicKey, wasAdded) ->
+                    if (wasAdded) validators.add(publicKey)
+                    else validators.remove(publicKey)
+                    scheduledChanges.remove(publicKey)
+                    if (publicKey == localNode.publicKey) isInValidatorSet = wasAdded
+                }
+            }
         }
     }
 
