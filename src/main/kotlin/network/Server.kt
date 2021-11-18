@@ -8,7 +8,9 @@ import data.network.Node
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
+import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
+import utils.tryAndReport
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.*
@@ -40,14 +42,13 @@ abstract class Server(val configuration: Configuration) {
 
     val knownNodeCount get() = knownNodes.size
 
-    fun checkForQueuedMessages(nodes: Array<Node>) {
+    fun checkForQueuedMessages(nodes: Array<out Node>) {
         val queuedMessages = nodes.mapNotNull { queuedForLater[it.publicKey] }
-        Logger.debug("Found nodes that were queued for after finding: ${queuedMessages.size}")
         outgoingQueue.addAll(queuedMessages)
     }
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
-    private val messageBuilders = mutableMapOf<ByteArray, MessageBuilder>()
+    private val messageBuilders = mutableMapOf<String, MessageBuilder>()
     private val udpSocket = DatagramSocket(configuration.port)
     private val tcpSocket = ServerSocket(configuration.port + 1)
     private var started = false
@@ -66,16 +67,13 @@ abstract class Server(val configuration: Configuration) {
         val pureArray = ByteArray(configuration.packetSplitSize)
         val inputStream = DataInputStream(ByteArrayInputStream(pureArray))
         val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
-        while (true) {
+        while (true) tryAndReport {
             inputStream.reset()
             udpSocket.receive(packet)
-            val packetId = inputStream.readNBytes(32)
-            val messageId = inputStream.readNBytes(32)
-            val packetIdentifier = String(packetId)
-            val messageIdentifier = String(messageId)
-            if (networkHistory.containsKey(packetIdentifier) || networkHistory.containsKey(messageIdentifier)) continue
-            networkHistory[packetIdentifier] = System.currentTimeMillis()
-            networkHistory[messageIdentifier] = System.currentTimeMillis()
+            val packetId = inputStream.readNBytes(32).asHex
+            val messageId = inputStream.readNBytes(32).asHex
+            if (networkHistory.containsKey(packetId) || networkHistory.containsKey(messageId)) return@tryAndReport
+            networkHistory[packetId] = System.currentTimeMillis()
             inputStream.apply {
                 val isBroadcast = read() == 1
                 val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
@@ -93,19 +91,18 @@ abstract class Server(val configuration: Configuration) {
                         udpSocket.send(packet)
                     }
                 }
-
                 if (messageBuilder.addPart(currentSlice, data)) {
                     messageBuilders.remove(messageId)
                     receivedQueue.put(messageBuilder)
+                    networkHistory[messageId] = System.currentTimeMillis()
                 }
-
             }
         }
     }
 
     private fun sendUDP() {
         val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
-        while (true) dataBuffer.apply {
+        while (true) tryAndReport {
             val outgoingMessage = outgoingQueue.take()
             val encodedMessage = outgoingMessage.message
             val recipients = outgoingMessage.recipients
@@ -113,7 +110,7 @@ abstract class Server(val configuration: Configuration) {
             val readyForSearch = recipients.filter { !knownNodes.containsKey(it) }.toTypedArray()
             readyForSearch.forEach { queuedForLater[it] = outgoingMessage.copy(recipients = readyForSearch) }
 
-            /* Header length total 72B = 32B + 1B + 1B + 32B + 4B + 4B + 4B
+            /* Header length total 78B = 32B + 1B + 1B + 32B + 4B + 4B + 4B
             *   packetId: 32B
             *   messageId: 32B
             *   broadcastByte: 1B
@@ -123,39 +120,42 @@ abstract class Server(val configuration: Configuration) {
             *   dataLength: 4B
             */
             val encodedMessageLength = encodedMessage.size
-            val allowedDataSize = configuration.packetSplitSize - 72
+            val allowedDataSize = configuration.packetSplitSize - 78
             val slicesNeeded = encodedMessageLength / allowedDataSize + 1
-            (0 until slicesNeeded).forEach { slice ->
-                clear()
-                val uuid = "$${UUID.randomUUID()}".toByteArray()
-                val from = slice * allowedDataSize
-                val to = Integer.min(from + allowedDataSize, encodedMessageLength)
-                val data = encodedMessage.sliceArray(from until to)
-                val packetId = sha256(uuid + data)
-                val messageId = sha256(outgoingMessage.messageUID)
+            dataBuffer.apply {
+                (0 until slicesNeeded).forEach { slice ->
+                    clear()
+                    val uuid = "$${UUID.randomUUID()}".toByteArray()
+                    val from = slice * allowedDataSize
+                    val to = Integer.min(from + allowedDataSize, encodedMessageLength)
+                    val data = encodedMessage.sliceArray(from until to)
+                    val packetId = sha256(uuid + data)
+                    val messageId = sha256(outgoingMessage.messageUID)
 
-                put(packetId)
-                put(messageId)
-                put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                put(outgoingMessage.endpoint.identification)
-                putInt(slicesNeeded)
-                putInt(slice)
-                putInt(data.size)
-                put(data)
+                    put(packetId)
+                    put(messageId)
+                    put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                    put(outgoingMessage.endpoint.identification)
+                    putInt(slicesNeeded)
+                    putInt(slice)
+                    putInt(data.size)
+                    put(data)
 
-                val packet = DatagramPacket(array(), 0, position())
-                val started = System.currentTimeMillis()
-                readyToSend.forEach { node ->
-                    val recipientAddress = InetSocketAddress(node.ip, node.port)
-                    packet.socketAddress = recipientAddress
-                    udpSocket.send(packet)
-                    val delay = System.currentTimeMillis() - started
-                    val sender = localAddress.toString()
-                    val recipient = recipientAddress.toString()
-                    Dashboard.sentMessage(messageId.toString(), outgoingMessage.endpoint, sender, recipient, data.size, delay)
+                    val packet = DatagramPacket(array(), 0, position())
+                    val started = System.currentTimeMillis()
+                    readyToSend.forEach { node ->
+                        val recipientAddress = InetSocketAddress(node.ip, node.port)
+                        packet.socketAddress = recipientAddress
+                        udpSocket.send(packet)
+                        val delay = System.currentTimeMillis() - started
+                        val sender = localAddress.toString()
+                        val recipient = recipientAddress.toString()
+                        Dashboard.sentMessage(messageId.toString(), outgoingMessage.endpoint, sender, recipient, data.size, delay)
+                    }
+                    Logger.trace("Sent to ${outgoingMessage.endpoint}...")
                 }
-            }
 
+            }
         }
     }
 
@@ -166,9 +166,7 @@ abstract class Server(val configuration: Configuration) {
         }
     }
 
-    open fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
-
-    }
+    abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
 
     private data class OutgoingQueuedMessage(
         val endpoint: Endpoint,

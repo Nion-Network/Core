@@ -12,14 +12,13 @@ enum class Endpoint(val identification: Byte, val processing: MessageProcessing)
     NodeQuery(3, MessageProcessing.Immediate),
     QueryReply(4, MessageProcessing.Immediate),
     Welcome(5, MessageProcessing.Queued),
-    Vote(6, MessageProcessing.Queued),
+    Vote(6, MessageProcessing.Immediate),
     NewBlock(7, MessageProcessing.Queued),
     SyncReply(8, MessageProcessing.Queued),
-    SyncRequest(9, MessageProcessing.Queued),
+    SyncRequest(9, MessageProcessing.Immediate),
     VoteRequest(10, MessageProcessing.Immediate),
-    NodeStatistics(12, MessageProcessing.Queued),
-    RepresentativeStatistics(13, MessageProcessing.Queued);
-
+    NodeStatistics(12, MessageProcessing.Immediate)
+    ;
 
     companion object {
         private val cache = values().associateBy { it.identification }

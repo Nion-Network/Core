@@ -9,7 +9,6 @@ import data.network.Endpoint
 import data.network.Node
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import logging.Logger
 import utils.launchCoroutine
 import java.util.concurrent.ConcurrentHashMap
 
@@ -22,10 +21,46 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
 
     private val queuedActions = ConcurrentHashMap<String, (Node) -> Unit>()
 
+    @MessageEndpoint(Endpoint.JoinRequest)
+    fun joinRequestReceived(message: Message) {
+        val requestingNode = message.decodeAs<Node>()
+        val welcomeMessage = WelcomeMessage(localNode, knownNodes.values.toList())
+        addNewNodes(requestingNode)
+        send(Endpoint.Welcome, TransmissionType.Unicast, welcomeMessage, requestingNode.publicKey)
+    }
+
+    @MessageEndpoint(Endpoint.NodeQuery)
+    fun onQuery(message: Message) {
+        val query = message.decodeAs<QueryMessage>()
+        val lookingFor = query.publicKeys.mapNotNull { knownNodes[it] }.associateBy { it.publicKey }
+        val missing = query.publicKeys.filter { !lookingFor.containsKey(it) }
+        val allAnswered = missing.isEmpty()
+        val seekingNode = query.seeker
+        addNewNodes(seekingNode)
+        if (lookingFor.isNotEmpty()) send(Endpoint.QueryReply, TransmissionType.Unicast, lookingFor.values.toList(), seekingNode.publicKey)
+        if (!allAnswered) pickRandomNodes(1).firstOrNull()?.apply {
+            ///send(Endpoint.NodeQuery, TransmissionType.Unicast, query.copy(publicKeys = missing), publicKey)
+        }
+
+    }
+
+    @MessageEndpoint(Endpoint.QueryReply)
+    fun onQueryReply(message: Message) {
+        val foundNodes = message.decodeAs<Array<Node>>()
+        addNewNodes(*foundNodes)
+        invokeQueuedAction(*foundNodes)
+    }
+
+    fun addNewNodes(vararg nodes: Node) {
+        val mapped = nodes.associateBy { it.publicKey }
+        knownNodes.putAll(mapped)
+        checkForQueuedMessages(nodes)
+    }
+
     fun queryFor(vararg publicKeys: String, onFoundBlock: ((Node) -> Unit)? = null) {
         val unknown = publicKeys.filter { !knownNodes.containsKey(it) }
         if (unknown.isNotEmpty()) {
-            val queryMessage = QueryMessage(localNode, publicKeys)
+            val queryMessage = QueryMessage(localNode, publicKeys.toList())
             send(Endpoint.NodeQuery, TransmissionType.Unicast, queryMessage)
         }
         if (onFoundBlock != null && publicKeys.isNotEmpty()) {
@@ -37,38 +72,6 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
         }
     }
 
-    @MessageEndpoint(Endpoint.JoinRequest)
-    fun joinRequestReceived(message: Message) {
-        Logger.info("Working on join request...")
-        val requestingNode = message.decodeAs<Node>()
-        val welcomeMessage = WelcomeMessage(localNode, knownNodes.values.toList())
-        addNewNodes(requestingNode)
-        send(Endpoint.Welcome, TransmissionType.Unicast, welcomeMessage, requestingNode.publicKey)
-        Logger.info("Sending back welcome to ${requestingNode.ip}")
-    }
-
-    @MessageEndpoint(Endpoint.NodeQuery)
-    fun onQuery(message: Message) {
-        val query = message.decodeAs<QueryMessage>()
-        val lookingFor = query.publicKeys.mapNotNull { knownNodes[it] }
-        val seekingNode = query.seeker
-        addNewNodes(seekingNode)
-        send(Endpoint.QueryReply, TransmissionType.Unicast, lookingFor, seekingNode.publicKey)
-    }
-
-    @MessageEndpoint(Endpoint.QueryReply)
-    fun onQueryReply(message: Message) {
-        val foundNodes = message.decodeAs<Array<Node>>()
-        addNewNodes(*foundNodes)
-        checkForQueuedMessages(foundNodes)
-        invokeQueuedAction(*foundNodes)
-    }
-
-    fun addNewNodes(vararg nodes: Node) {
-        val mapped = nodes.associateBy { it.publicKey }
-        knownNodes.putAll(mapped)
-    }
-
     private fun invokeQueuedAction(vararg nodes: Node) {
         nodes.forEach { node ->
             queuedActions.remove(node.publicKey)?.invoke(node)
@@ -76,12 +79,12 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
     }
 
     inline fun <reified T> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg publicKeys: String) {
-        if (publicKeys.isNotEmpty()) queryFor(*publicKeys)
         val encodedBody = ProtoBuf.encodeToByteArray(data)
         val signature = crypto.sign(encodedBody)
         val message = Message(endpoint, crypto.publicKey, encodedBody, signature)
         val encodedMessage = ProtoBuf.encodeToByteArray(message)
         send(endpoint, transmissionType, message, encodedMessage, *publicKeys)
+        if (publicKeys.isNotEmpty()) queryFor(*publicKeys)
     }
 
 }

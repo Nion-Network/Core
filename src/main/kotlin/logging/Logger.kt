@@ -64,11 +64,11 @@ object Logger {
     }
 
     fun info(message: Any) = log(DebugType.INFO, message, green)
-    fun debug(message: Any) = log(DebugType.DEBUG, message, blue)
+    fun debug(message: Any) = log(DebugType.DEBUG, message, magenta)
     fun error(message: Any) = log(DebugType.ERROR, message, red)
     fun trace(message: Any) = log(DebugType.TRACE, message, yellow)
     fun chain(message: Any) = log(DebugType.CHAIN, message, cyan)
-    fun consensus(message: Any) = log(DebugType.CONSENSUS, message, magenta)
+    fun consensus(message: Any) = log(DebugType.CONSENSUS, message, blue)
 
     /** Pads the string with the default character of ' ' at the end. */
     private fun padRight(string: String) = string.padEnd(12)

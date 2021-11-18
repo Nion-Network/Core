@@ -16,7 +16,7 @@ import kotlinx.serialization.Serializable
  * @property pids Number of processes the localContainerIdentifier is running.
  */
 @Serializable
-data class ContainerStatistics(
+data class DockerContainer(
     val id: String,
     var cpuUsage: Double,
     val memoryUsage: Double,

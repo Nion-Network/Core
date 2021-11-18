@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
 @Serializable
 data class DockerStatistics(
     val publicKey: String,
-    val containers: List<ContainerStatistics>,
+    val containers: List<DockerContainer>,
     val slot: Long,
     val timestamp: Long = System.currentTimeMillis(),
 ) {

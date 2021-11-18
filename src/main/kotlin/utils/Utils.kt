@@ -71,13 +71,24 @@ fun runAfter(delay: Long, block: () -> Unit) {
 
 fun launchCoroutine(block: () -> Unit) {
     GlobalScope.launch {
-        try {
-            block()
-        } catch (e: Exception) {
-            Dashboard.reportException(e)
-            val sw = StringWriter()
-            e.printStackTrace(PrintWriter(sw))
-            Logger.error(sw.toString())
+        tryAndReport(block)
+    }
+}
+
+fun tryAndReport(block: () -> Unit) {
+    try {
+        block()
+    } catch (e: Exception) {
+        Dashboard.reportException(e)
+        val sw = StringWriter()
+        e.printStackTrace(PrintWriter(sw))
+        Logger.error(sw.toString())
+        Logger.error(e.cause ?: "Unknown cause.")
+        e.cause?.apply {
+            val sww = StringWriter()
+            printStackTrace(PrintWriter(sww))
+            Logger.error(sww.toString())
+            Logger.error(cause ?: "Unknown cause.")
         }
     }
 }

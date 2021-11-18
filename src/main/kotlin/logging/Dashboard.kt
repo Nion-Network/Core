@@ -9,12 +9,14 @@ import data.docker.DockerStatistics
 import data.network.Endpoint
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import network.Cluster
 import org.influxdb.InfluxDBFactory
 import org.influxdb.dto.Point
 import org.influxdb.dto.Query
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import java.io.File
+import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -23,6 +25,7 @@ object Dashboard {
     private val configurationJson = File("./config.json").readText()
     private val configuration: Configuration = Json.decodeFromString(configurationJson)
     private val queue = LinkedBlockingQueue<Point>()
+    private val localAddress = InetAddress.getLocalHost()
 
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
@@ -79,6 +82,7 @@ object Dashboard {
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
+            addField("statistics", blockData.dockerStatistics.size)
             addField("validatorSet", validatorSize)
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
@@ -143,7 +147,7 @@ object Dashboard {
     /** Reports that an exception was caught */
     fun reportException(e: Exception) {
         val point = Point.measurement("exceptions")
-            .addField("cause", e.toString())
+            .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
             .build()
@@ -193,14 +197,14 @@ object Dashboard {
     }
 
     /** Reports clusters and their representatives. */
-    fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, List<String>>) {
+    fun logCluster(block: Block, nextTask: ChainTask, clusters: List<Cluster>) {
         if (!configuration.dashboardEnabled) return
         var index = 0
         queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
-        clusters.forEach { (representative, nodes) ->
-            queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, representative, index++))
-            nodes.forEach { node ->
-                queue.add(clusterNodePoint(block, nextTask, representative, node, index++))
+        clusters.forEach { cluster ->
+            queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, cluster.representative, index++))
+            cluster.nodes.forEach { node ->
+                queue.add(clusterNodePoint(block, nextTask, cluster.representative, node, index++))
             }
         }
     }

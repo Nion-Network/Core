@@ -7,14 +7,10 @@ import data.network.MessageProcessing
 import data.network.Node
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import logging.Dashboard
-import logging.Logger
 import network.ChainBuilder
-import network.DistributedHashTable
-import network.MessageEndpoint
+import network.DockerProxy
 import utils.launchCoroutine
-import java.io.PrintWriter
-import java.io.StringWriter
+import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
 
 
@@ -23,29 +19,43 @@ import java.util.concurrent.LinkedBlockingQueue
  * on 26/03/2020 12:35
  * using IntelliJ IDEA
  */
-class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
+class Nion(configuration: Configuration) : DockerProxy(configuration) {
 
-    private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>()
+    // Perhaps future change of Nion : ChainBuilder...
+
     private val chainBuilder = ChainBuilder(this)
     private val queue = LinkedBlockingQueue<() -> Unit>()
     private var isInNetwork = isTrustedNode
 
+    private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
+        Endpoint.NodeQuery to ::onQuery,
+        Endpoint.QueryReply to ::onQueryReply,
+        Endpoint.Welcome to ::onWelcome,
+        Endpoint.JoinRequest to ::joinRequestReceived,
+        Endpoint.NodeStatistics to ::dockerStatisticsReceived,
+        Endpoint.NewBlock to chainBuilder::blockReceived,
+        Endpoint.InclusionRequest to chainBuilder::inclusionRequested,
+        Endpoint.SyncRequest to chainBuilder::synchronizationRequested,
+        Endpoint.SyncReply to chainBuilder::synchronizationReply
+    )
+
     init {
         // TODO Remove after final decision of known trusted public key.
         addNewNodes(Node(configuration.trustedNodeIP, configuration.trustedNodePort, "trusted"))
-        registerEndpoints(this, chainBuilder)
         Thread(this::invokeFromQueue).start()
     }
 
     private fun requestNetworkInclusion() {
+        if (isInNetwork) {
+            knownNodes.remove("trusted")
+            return
+        }
         send(Endpoint.JoinRequest, TransmissionType.Unicast, localNode)
         Thread.sleep(10_000)
-        if (!isInNetwork) requestNetworkInclusion()
-        else knownNodes.remove("trusted")
+        requestNetworkInclusion()
     }
 
-    @MessageEndpoint(Endpoint.Welcome)
-    fun onWelcome(message: Message) {
+    private fun onWelcome(message: Message) {
         val welcomeMessage = message.decodeAs<WelcomeMessage>()
         val acceptorNode = welcomeMessage.acceptor
         val newNodes = welcomeMessage.knownNodes
@@ -55,27 +65,7 @@ class Nion(configuration: Configuration) : DistributedHashTable(configuration) {
     }
 
     private fun invokeFromQueue() {
-        try {
-            while (true) queue.take().invoke()
-        } catch (e: Exception) {
-            Dashboard.reportException(e)
-            val sw = StringWriter()
-            e.printStackTrace(PrintWriter(sw))
-            Logger.error(sw.toString())
-        }
-    }
-
-    private fun registerEndpoints(vararg instances: Any) {
-        instances.forEach { instance ->
-            val methods = instance.javaClass.methods.filter { it.annotations.any { annotation -> annotation is MessageEndpoint } }
-            methods.forEach { method ->
-                val annotation = method.getAnnotation(MessageEndpoint::class.java)
-                val endpoint = annotation.endpoint
-                if (endpoints.containsKey(endpoint)) throw Exception("Endpoint $endpoint is already registered.")
-                endpoints[endpoint] = { method.invoke(instance, it) }
-                Logger.trace("Registered ${method.name} at $endpoint.")
-            }
-        }
+        while (true) tryAndReport { queue.take().invoke() }
     }
 
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {

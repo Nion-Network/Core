@@ -1,5 +1,6 @@
 package data.chain
 
+import data.docker.DockerStatistics
 import data.docker.MigrationPlan
 import kotlinx.serialization.Serializable
 import utils.Utils
@@ -16,6 +17,7 @@ data class Block(
     val slot: Long,
     val difficulty: Int,
     val blockProducer: String,
+    val dockerStatistics: List<DockerStatistics>,
     val vdfProof: String = "",
     val timestamp: Long,
     val precedentHash: String,

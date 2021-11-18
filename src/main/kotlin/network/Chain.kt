@@ -10,7 +10,7 @@ import kotlin.concurrent.withLock
  * on 16/11/2021 at 16:21
  * using IntelliJ IDEA
  */
-class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int) {
+class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int, private val committeeSize: Int) {
 
     private val lock = ReentrantLock(true)
     private val blocks = mutableListOf<Block>()
@@ -20,7 +20,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
     }
 
     fun getLastBlocks(fromSlot: Long): List<Block> {
-        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }
+        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
     }
 
 
@@ -31,14 +31,18 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
                 val lastHash = lastBlock?.hash ?: "FFFF"
                 val difficulty = lastBlock?.difficulty ?: initialDifficulty
                 val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, newBlock.vdfProof)
-                if (isLegitimate) blocks.add(newBlock)
-                else {
-                    Logger.trace("Proof is not legitimate for block ${newBlock.slot}!")
-                    Logger.info("Last hash: $lastHash")
-                    Logger.info("Last block: ${lastBlock?.slot}")
-                    Logger.info("New hash: ${newBlock.hash}")
-                    Logger.info("Precedent hash: ${newBlock.precedentHash}")
-                    Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")
+                if (isLegitimate) {
+                    blocks.add(newBlock)
+                    Logger.chain("Block[${newBlock.votes}/$committeeSize] added [${newBlock.slot}].")
+                } else {
+                    if (newBlock.slot > (lastBlock?.slot ?: 0) && lastHash != newBlock.hash) {
+                        Logger.trace("Proof is not legitimate for block ${newBlock.slot}!")
+                        Logger.info("Last hash: $lastHash")
+                        Logger.info("Last block: ${lastBlock?.slot}")
+                        Logger.info("New hash: ${newBlock.hash}")
+                        Logger.info("Precedent hash: ${newBlock.precedentHash}")
+                        Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")
+                    }
                     return@withLock false
                 }
             }
