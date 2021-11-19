@@ -24,7 +24,7 @@ data class Block(
     val validatorChanges: Map<String, Boolean>,
     val votes: Int = 0,
     val migrations: Map<String, MigrationPlan> = mutableMapOf(),
-    val hash: String = Utils.sha256("$slot$difficulty$timestamp$precedentHash").asHex
+    val hash: String = Utils.sha256("$slot$difficulty$precedentHash").asHex
 ) {
 
     val seed by lazy {

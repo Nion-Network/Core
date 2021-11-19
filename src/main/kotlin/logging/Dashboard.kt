@@ -77,7 +77,7 @@ object Dashboard {
     }
 
     /** Sends the newly created block information to the dashboard. */
-    fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int) {
+    fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int, ip: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
@@ -87,7 +87,8 @@ object Dashboard {
             addField("slot", blockData.slot)
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
-            addField("blockProducer", blockData.blockProducer)
+            addField("ip", ip)
+            addField("blockProducer", sha256(blockData.blockProducer).asHex)
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)
@@ -221,7 +222,7 @@ object Dashboard {
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
-            .addField("localNode", sha256(node).asHex)
+            .addField("node", sha256(node).asHex)
             .build()
     }
 }

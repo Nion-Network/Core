@@ -38,8 +38,8 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
         val seekingNode = query.seeker
         addNewNodes(seekingNode)
         if (lookingFor.isNotEmpty()) send(Endpoint.QueryReply, TransmissionType.Unicast, lookingFor.values.toList(), seekingNode.publicKey)
-        if (!allAnswered) pickRandomNodes(1).firstOrNull()?.apply {
-            ///send(Endpoint.NodeQuery, TransmissionType.Unicast, query.copy(publicKeys = missing), publicKey)
+        if (!allAnswered) pickRandomNodes(1).apply {
+            send(Endpoint.NodeQuery, TransmissionType.Unicast, query.copy(publicKeys = missing), *map { it.publicKey }.toTypedArray())
         }
 
     }

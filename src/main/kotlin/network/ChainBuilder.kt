@@ -7,10 +7,12 @@ import data.communication.InclusionRequest
 import data.communication.Message
 import data.communication.SyncRequest
 import data.communication.TransmissionType
+import data.docker.MigrationPlan
 import data.network.Endpoint
 import logging.Dashboard
 import logging.Logger
 import utils.runAfter
+import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -30,12 +32,21 @@ class ChainBuilder(private val nion: Nion) {
         val block = message.decodeAs<Block>()
         if (chain.addBlocks(block)) {
             validatorSet.inclusionChanges(block)
-            if (nion.isTrustedNode) Dashboard.newBlockProduced(block, nion.knownNodeCount, validatorSet.validatorCount)
             if (!validatorSet.isInValidatorSet) requestInclusion()
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
-
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
-            nion.sendDockerStatistics(block, nextTask.blockProducer, clusters)
+
+            if (nion.isTrustedNode) nion.queryFor(nextTask.blockProducer) {
+                Dashboard.newBlockProduced(block, nion.knownNodeCount, validatorSet.validatorCount, it.ip)
+            }
+
+            nion.apply {
+                sendDockerStatistics(block, nextTask.blockProducer, clusters)
+                block.migrations[localNode.publicKey]?.apply {
+                    migrateContainer(this, block)
+                }
+            }
+            
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     Dashboard.logCluster(block, nextTask, clusters)
@@ -48,18 +59,52 @@ class ChainBuilder(private val nion: Nion) {
                     val computationDuration = System.currentTimeMillis() - computationStart
                     Logger.info("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
+                        val latestStatistics = nion.getNetworkStatistics(block.slot).apply {
+                            Logger.info("Total length: $size")
+                            Logger.info("Any duplicates? ${distinctBy { it.publicKey }.size}")
+                            Logger.debug("Total containers: ${sumOf { it.containers.size }}")
+                            Dashboard.reportStatistics(this, block.slot)
+                        }
+
+                        val futureMigrations = mutableMapOf<String, MigrationPlan>()
+                        val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
+                        val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
+                        Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
+
+                        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
+                            val lastBlocks = chain.getLastBlocks(block.slot - 20)
+                            val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
+                            val leastConsumingApp = mostUsedNode.containers
+                                .filter { app -> lastMigrations.none { it.container == app.id } }
+                                .filter { it.cpuUsage > 5 }
+                                .minByOrNull { it.cpuUsage }
+
+                            if (leastConsumingApp != null) {
+                                val mostUsage = mostUsedNode.totalCPU
+                                val leastUsage = leastUsedNode.totalCPU
+                                val appUsage = leastConsumingApp.cpuUsage
+                                val beforeMigration = abs(mostUsage - leastUsage)
+                                val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
+                                val difference = abs(beforeMigration - afterMigration)
+
+                                Dashboard.reportException(Exception("Difference: $difference App: $appUsage"))
+                                if (difference >= 5) {
+                                    val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                                    futureMigrations[mostUsedNode.publicKey] = migration
+                                    Logger.debug(migration)
+                                }
+                            }
+                        }
                         val newBlock = Block(
                             block.slot + 1,
                             difficulty = configuration.initialDifficulty,
                             timestamp = System.currentTimeMillis(),
-                            dockerStatistics = nion.getNetworkStatistics(block.slot).apply {
-                                Logger.error("Total length: $size")
-                                Logger.error("Any duplicates? ${distinctBy { it.publicKey }.size}")
-                            },
+                            dockerStatistics = latestStatistics,
                             vdfProof = proof,
                             blockProducer = nion.localNode.publicKey,
                             validatorChanges = validatorSet.getScheduledChanges(),
-                            precedentHash = block.hash
+                            precedentHash = block.hash,
+                            migrations = futureMigrations
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
                         nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
@@ -67,6 +112,22 @@ class ChainBuilder(private val nion: Nion) {
                 }
                 SlotDuty.COMMITTEE -> {
                     nion.send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
+                    runAfter(configuration.slotDuration * 2) {
+                        val skipVDF = verifiableDelay.computeProof(block.difficulty, block.hash)
+                        val skipBlock = Block(
+                            block.slot + 1,
+                            block.difficulty,
+                            "SKIPBLOCK",
+                            emptyList(),
+                            skipVDF,
+                            System.currentTimeMillis(),
+                            block.hash,
+                            mapOf(nextTask.blockProducer to false)
+                        )
+                        if (chain.getLastBlock()?.slot == block.slot) {
+                            nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
+                        }
+                    }
                 }
                 SlotDuty.VALIDATOR -> {}
             }

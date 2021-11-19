@@ -50,7 +50,7 @@ abstract class Server(val configuration: Configuration) {
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<String, MessageBuilder>()
     private val udpSocket = DatagramSocket(configuration.port)
-    private val tcpSocket = ServerSocket(configuration.port + 1)
+    protected val tcpSocket = ServerSocket(configuration.port + 1)
     private var started = false
 
     open fun launch() {
@@ -150,7 +150,7 @@ abstract class Server(val configuration: Configuration) {
                         val delay = System.currentTimeMillis() - started
                         val sender = localAddress.toString()
                         val recipient = recipientAddress.toString()
-                        Dashboard.sentMessage(messageId.toString(), outgoingMessage.endpoint, sender, recipient, data.size, delay)
+                        Dashboard.sentMessage(messageId.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
                     }
                     Logger.trace("Sent to ${outgoingMessage.endpoint}...")
                 }
