@@ -1,13 +1,11 @@
 package utils
 
-import logging.Logger.error
-import logging.Logger.info
+import logging.Logger
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.security.*
-import java.security.spec.InvalidKeySpecException
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
@@ -16,13 +14,19 @@ class Crypto(private val keystorePath: String) {
 
     // TODO make immutable, fix public key property.
 
-    var keyPair: KeyPair? = null
+    private var keyPair: KeyPair
+    var encodedPublicKey: ByteArray
+        private set
+    var publicKey: String
+        private set
+    var hashedPublicKey: ByteArray
+        private set
 
     /** Signs data using the keypair from [keystorePath]. */
     @Throws(Exception::class)
     fun sign(data: ByteArray?): ByteArray {
         val privateSignature = Signature.getInstance("SHA256withRSA")
-        privateSignature.initSign(keyPair!!.private)
+        privateSignature.initSign(keyPair.private)
         privateSignature.update(data)
         return privateSignature.sign()
     }
@@ -63,7 +67,7 @@ class Crypto(private val keystorePath: String) {
     }
 
     /** Loads and returns the keypair stored in [path] or throws an exception if the pair does not exist. */
-    @Throws(IOException::class, NoSuchAlgorithmException::class, InvalidKeySpecException::class)
+    @Throws(Exception::class)
     fun loadKeyPair(path: String): KeyPair {
         // Read Public Key.
         val filePublicKey = File("$path/public.key")
@@ -81,48 +85,28 @@ class Crypto(private val keystorePath: String) {
 
         // Generate KeyPair.
         val keyFactory = KeyFactory.getInstance("RSA")
-        val publicKeySpec = X509EncodedKeySpec(
-            encodedPublicKey
-        )
+        val publicKeySpec = X509EncodedKeySpec(encodedPublicKey)
         val publicKey = keyFactory.generatePublic(publicKeySpec)
-        val privateKeySpec = PKCS8EncodedKeySpec(
-            encodedPrivateKey
-        )
+        val privateKeySpec = PKCS8EncodedKeySpec(encodedPrivateKey)
         val privateKey = keyFactory.generatePrivate(privateKeySpec)
         return KeyPair(publicKey, privateKey)
     }
 
-    val publicKey: String
-        get() {
-            val pubKey: Key = keyPair!!.public
-            return String(Base64.getMimeEncoder().encode(pubKey.encoded))
-        }
-
     init {
-        //try to read the keypair from local storage
-        try {
-            keyPair = loadKeyPair(keystorePath)
-            info("Loaded KeyPair from: $keystorePath")
-        } catch (e: IOException) {
-            //assume local storage non-existent or corrupted so generate new keypair
-            var generator: KeyPairGenerator? = null
-            try {
-                generator = KeyPairGenerator.getInstance("RSA")
-                generator.initialize(2048, SecureRandom())
-                keyPair = generator.generateKeyPair()
-                info("Generated new KeyPair")
-                // saveKeyPair(keystorePath,keyPair);
-                info("Saved KeyPair to: $keystorePath")
-            } catch (ex: NoSuchAlgorithmException) {
-                ex.printStackTrace()
-            } catch (ex: Exception) {
-                error("Failed saving KeyPair to: $keystorePath")
-                //ex.printStackTrace(); //non breaking
+        keyPair = try {
+            loadKeyPair(keystorePath)
+        } catch (e: Exception) {
+            Logger.error("Could not load key pair: $e.")
+            Logger.info("Generating new key pair.")
+            val generatedPair = KeyPairGenerator.getInstance("RSA").let {
+                it.initialize(2048, SecureRandom())
+                it.generateKeyPair()
             }
-        } catch (e: NoSuchAlgorithmException) {
-            e.printStackTrace()
-        } catch (e: InvalidKeySpecException) {
-            e.printStackTrace()
+            // saveKeyPair(keystorePath, generatedPair)
+            generatedPair
         }
+        encodedPublicKey = keyPair.public.encoded
+        hashedPublicKey = Utils.sha256(encodedPublicKey)
+        publicKey = String(Base64.getMimeEncoder().encode(encodedPublicKey))
     }
 }

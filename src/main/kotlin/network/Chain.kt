@@ -15,15 +15,17 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
     private val lock = ReentrantLock(true)
     private val blocks = mutableListOf<Block>()
 
+    /** Returns the last block in the chain. */
     fun getLastBlock(): Block? {
         return lock.withLock { blocks.lastOrNull() }
     }
 
+    /** Returns max 100 blocks [from slot][fromSlot].*/
     fun getLastBlocks(fromSlot: Long): List<Block> {
         return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
     }
 
-
+    /** Attempts to add each block one by one to the chain. */
     fun addBlocks(vararg newBlocks: Block): Boolean {
         return lock.withLock {
             newBlocks.forEach { newBlock ->

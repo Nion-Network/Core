@@ -20,6 +20,7 @@ import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
+// To be removed once testing is complete, so code here is FAR from desired / optimal.
 object Dashboard {
 
     private val configurationJson = File("./config.json").readText()
@@ -47,7 +48,7 @@ object Dashboard {
                 Thread { while (true) write(queue.take()) }.start()
                 if (ping().isGood) Logger.info("InfluxDB connection successful")
             }
-        } else Logger.info("Dashboard disabled")
+        } else Logger.info("Dashboard is disabled.")
 
     }
 
@@ -88,7 +89,7 @@ object Dashboard {
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
-            addField("blockProducer", sha256(blockData.blockProducer).asHex)
+            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)

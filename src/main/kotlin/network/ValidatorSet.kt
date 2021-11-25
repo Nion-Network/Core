@@ -20,8 +20,10 @@ import kotlin.math.max
 class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
 
     private val lock = ReentrantLock(true)
-    private val scheduledChanges = ConcurrentHashMap<String, Boolean>()
     private val validators = mutableSetOf<String>()
+    private val scheduledChanges = ConcurrentHashMap<String, Boolean>()
+
+    val validatorCount get() = lock.withLock { validators.size }
     var isInValidatorSet = isTrustedNode
         private set
 
@@ -29,8 +31,8 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         if (isTrustedNode) scheduledChanges[localNode.publicKey] = true
     }
 
-    val validatorCount get() = lock.withLock { validators.size }
 
+    /** Goes over all blocks added and validator set is modified based on changes that happened in those blocks. */
     fun inclusionChanges(vararg blocks: Block) {
         lock.withLock {
             blocks.forEach { block ->
@@ -44,16 +46,17 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 
+    /** Schedules a change of validator set to be used in the next block. */
     fun scheduleChange(publicKey: String, add: Boolean) {
         scheduledChanges[publicKey] = add
     }
 
+    /** Returns all scheduled changes. */
     fun getScheduledChanges(): Map<String, Boolean> {
         return scheduledChanges
     }
 
-
-    /** Generates clusters based on k-means algorithm. */
+    /** Generates clusters based on k-means algorithm. Note: Distance is randomized at the moment. */
     fun generateClusters(blockProducer: String, configuration: Configuration, lastBlock: Block): List<Cluster> {
         return lock.withLock {
             val random = Random(lastBlock.seed)
@@ -66,11 +69,12 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
                 clusters.clear()
                 nodes.minus(centroids).shuffled(random).forEach { validator ->
                     val distances = centroids.map { it to random.nextInt() }
-                    val chosenCentroid = distances.minByOrNull { it.second }!! // Not possible for validator collection to be empty.
+                    val chosenCentroid = distances.minByOrNull { it.second } ?: return@forEach
                     val publicKey = chosenCentroid.first
                     val distance = chosenCentroid.second
                     clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
                 }
+                // TODO compute differences based on geo-sharding.
                 centroids = clusters.values.mapNotNull { distances ->
                     val averageDistance = distances.values.average()
                     distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
@@ -89,7 +93,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
             val ourKey = localNode.publicKey
 
             val validatorSetCopy = validators.shuffled(random).toMutableList()
-            val blockProducerNode = validatorSetCopy[0].apply { validatorSetCopy.remove(this) }
+            val blockProducerNode = validatorSetCopy.removeAt(0)
             val committee = validatorSetCopy.take(committeeSize)
 
             val ourRole = when {
@@ -101,5 +105,3 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 }
-
-data class Cluster(val representative: String, val nodes: Collection<String>)

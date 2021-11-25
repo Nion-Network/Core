@@ -45,7 +45,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
         val slot = block.slot
-        val localStatistics = DockerStatistics(localNode.publicKey, localContainers.values.toList(), slot)
+        val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
+        val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
         val ourPublicKey = localNode.publicKey
         val isRepresentative = clusters.any { it.representative == ourPublicKey }
         val ourCluster = clusters.firstOrNull { it.representative == ourPublicKey || it.nodes.contains(ourPublicKey) }
