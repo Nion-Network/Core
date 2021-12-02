@@ -13,8 +13,8 @@ fun main(args: Array<String>) {
     System.setProperty("kotlinx.coroutines.scheduler", "off")
     val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
     Logger.toggleLogging(configuration.loggingEnabled)
-
     Nion(configuration).apply {
+        if (!isTrustedNode) kademlia.bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort + 2)
         launch()
     }
 

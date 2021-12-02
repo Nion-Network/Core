@@ -52,6 +52,14 @@ object Dashboard {
 
     }
 
+    fun reportDHTQuery(hops: Int, duration: Long) {
+        val point = Point.measurement("dht")
+            .addField("hops", hops)
+            .addField("duration", duration)
+            .build()
+        queue.add(point)
+    }
+
     /**
      * Reports each containers' statistics back to our Grafana dashboard.
      *

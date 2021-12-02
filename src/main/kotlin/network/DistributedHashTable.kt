@@ -9,6 +9,9 @@ import data.network.Endpoint
 import data.network.Node
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Logger
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 import utils.launchCoroutine
 import java.util.concurrent.ConcurrentHashMap
 
@@ -60,8 +63,11 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
     fun queryFor(vararg publicKeys: String, onFoundBlock: ((Node) -> Unit)? = null) {
         val unknown = publicKeys.filter { !knownNodes.containsKey(it) }
         if (unknown.isNotEmpty()) {
-            val queryMessage = QueryMessage(localNode, publicKeys.toList())
+            val queryMessage = QueryMessage(localNode, unknown.toList())
             send(Endpoint.NodeQuery, TransmissionType.Unicast, queryMessage)
+            Logger.error("Querying for ${publicKeys.size}")
+            unknown.forEach { kademlia.lookup(sha256(it).asHex) }
+            Logger.error("Sent kademlia lookup for ${publicKeys.size}")
         }
         if (onFoundBlock != null && publicKeys.isNotEmpty()) {
             val known = publicKeys.mapNotNull { knownNodes[it] }

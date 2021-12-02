@@ -5,6 +5,7 @@ import data.communication.Message
 import data.communication.TransmissionType
 import data.network.Endpoint
 import data.network.Node
+import kademlia.Kademlia
 import logging.Dashboard
 import logging.Logger
 import utils.Crypto
@@ -32,6 +33,7 @@ abstract class Server(val configuration: Configuration) {
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
+    val kademlia = Kademlia(crypto.hashedPublicKey.asHex, localNode.ip, configuration.port + 2)
 
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
@@ -152,7 +154,7 @@ abstract class Server(val configuration: Configuration) {
                         val recipient = recipientAddress.toString()
                         Dashboard.sentMessage(messageId.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
                     }
-                    Logger.trace("Sent to ${outgoingMessage.endpoint}...")
+                    // Logger.trace("Sent to ${outgoingMessage.endpoint}...")
                 }
 
             }

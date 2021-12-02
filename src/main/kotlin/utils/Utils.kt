@@ -8,7 +8,9 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.security.MessageDigest
 import java.util.*
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.schedule
+import kotlin.concurrent.withLock
 
 /**
  * Created by Mihael Berčič
@@ -46,11 +48,15 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
+        private val shaLock = ReentrantLock()
+
         /** Digests [data] using SHA-256 hashing algorithm. */
         fun sha256(data: ByteArray): ByteArray {
-            return MessageDigest.getInstance("SHA-256").let {
-                it.update(data)
-                it.digest()
+            return shaLock.withLock {
+                MessageDigest.getInstance("SHA-256").let {
+                    it.update(data)
+                    it.digest()
+                }
             }
         }
 
