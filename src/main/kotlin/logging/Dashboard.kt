@@ -52,10 +52,11 @@ object Dashboard {
 
     }
 
-    fun reportDHTQuery(hops: Int, duration: Long) {
+    fun reportDHTQuery(identifier: String, hops: Int, duration: Long) {
         val point = Point.measurement("dht")
             .addField("hops", hops)
             .addField("duration", duration)
+            .addField("identifier", identifier)
             .build()
         queue.add(point)
     }

@@ -1,6 +1,6 @@
 package kademlia
 
-import kotlinx.serialization.Serializable
+import data.network.Node
 import logging.Logger
 import java.util.*
 import kotlin.random.Random
@@ -14,13 +14,13 @@ class KademliaTreeNode(val depth: Int) {
 
     private val identifier = Random.nextInt().toString(16)
 
-    private val nodes = mutableSetOf<KademliaNode>()
+    private val nodes = mutableSetOf<Node>()
     private val maxNodes = 5
     private var left: KademliaTreeNode? = null
     private var right: KademliaTreeNode? = null
     private var neighbour: KademliaTreeNode? = null
 
-    fun add(node: KademliaNode) {
+    fun add(node: Node) {
         val tree = if (node.bitSet.get(depth)) right else left
         if (tree == null) {
             Logger.debug("Adding ${node.identifier}.")
@@ -29,10 +29,12 @@ class KademliaTreeNode(val depth: Int) {
         } else tree.add(node)
     }
 
-    fun find(identifier: BitSet): List<KademliaNode> {
+    fun find(identifier: BitSet): List<Node> {
         val tree = if (identifier.get(depth)) right else left
+        Logger.info("Attempting to find it in the ${tree?.identifier}.")
         val closestNodes = tree?.find(identifier) ?: nodes.toList()
-        return closestNodes.ifEmpty { neighbour?.find(identifier) ?: nodes.toList() }
+        Logger.info("Attempting to find it. Closest nodes: ${closestNodes.size} ... ")
+        return closestNodes
     }
 
     private fun spill() {
@@ -56,14 +58,4 @@ class KademliaTreeNode(val depth: Int) {
         if (right != null) append("\"$identifier\" -> \"${right!!.identifier}\" [label=\"1\"]\n$right")
         if (left == null && right == null) append("\"$identifier\" [label=\"${nodes.map { it.identifier.substring(0..5) }}\"]\n")
     }.toString()
-}
-
-@Serializable
-data class KademliaNode(val identifier: String, val ip: String, val port: Int) {
-
-    val bitSet by lazy { BitSet.valueOf(identifier.toBigInteger(16).toByteArray()) }
-
-    override fun toString(): String {
-        return identifier
-    }
 }

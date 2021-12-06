@@ -4,6 +4,7 @@ import data.DebugType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import utils.tryAndReport
 import java.net.InetAddress
 import java.net.URI
 import java.net.http.HttpClient
@@ -11,6 +12,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Created by Mihael Berčič
@@ -41,26 +43,34 @@ object Logger {
     const val reset = "\u001B[0m"
 
     private val httpClient = HttpClient.newHttpClient()
+    private val queue = LinkedBlockingQueue<Log>()
 
     /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
         val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
         val output = "$color$typeString$reset$message"
-        if (isLoggingEnabled) println(output)
         val timestamp = System.currentTimeMillis()
         val log = Log(debugType, output, myIP, timestamp)
-        val json = Json.encodeToString(log)
-        val request = HttpRequest.newBuilder()
-            .uri(URI("http://88.200.63.133:8101/logs"))
-            .POST(HttpRequest.BodyPublishers.ofString(json))
-            .build()
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+        queue.add(log)
+    }
+
+    private fun clearQueue() {
+        while (true) tryAndReport {
+            val log = queue.take()
+            if (isLoggingEnabled) println(log.log)
+            val json = Json.encodeToString(log)
+            val request = HttpRequest.newBuilder()
+                .uri(URI("http://88.200.63.133:8101/logs"))
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build()
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+        }
     }
 
     /** Enables or disables software logging.  */
     fun toggleLogging(enable: Boolean) {
         isLoggingEnabled = enable
-
+        Thread(::clearQueue).start()
     }
 
     fun info(message: Any) = log(DebugType.INFO, message, green)

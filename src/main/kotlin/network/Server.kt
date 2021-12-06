@@ -31,9 +31,9 @@ abstract class Server(val configuration: Configuration) {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
+    val localNode = Node(localAddress.hostAddress, configuration.port, localAddress.hostAddress.split(".").last())
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
-    val kademlia = Kademlia(crypto.hashedPublicKey.asHex, localNode.ip, configuration.port + 2)
+    val kademlia = Kademlia(localNode, configuration.port + 2)
 
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()

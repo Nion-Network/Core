@@ -148,6 +148,7 @@ class ChainBuilder(private val nion: Nion) {
     /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
     @MessageEndpoint(Endpoint.InclusionRequest)
     fun inclusionRequested(message: Message) {
+        return
         val inclusionRequest = message.decodeAs<InclusionRequest>()
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0

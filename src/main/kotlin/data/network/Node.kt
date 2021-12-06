@@ -1,6 +1,10 @@
 package data.network
 
+import kademlia.asBitSet
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import utils.Utils.Companion.asHex
+import utils.Utils.Companion.sha256
 
 /**
  * Created by Mihael Valentin Berčič
@@ -10,4 +14,10 @@ import kotlinx.serialization.Serializable
  * Stores information of some Node in the network.
  */
 @Serializable
-data class Node(val ip: String, val port: Int, val publicKey: String)
+data class Node(val ip: String, val port: Int, val publicKey: String) {
+
+    @Transient
+    val identifier = sha256(publicKey).asHex
+    val bitSet get() = identifier.asBitSet
+
+}
