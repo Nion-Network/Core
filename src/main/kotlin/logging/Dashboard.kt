@@ -86,10 +86,10 @@ object Dashboard {
         vdfInformation("Count: $total ... Total: ${statistics.size}")
     }
 
-    /** Sends the newly created block information to the dashboard. */
+    /** Sends the newly created action information to the dashboard. */
     fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int, ip: String) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("block").apply {
+        val point = Point.measurement("action").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
             addField("statistics", blockData.dockerStatistics.size)
@@ -98,7 +98,7 @@ object Dashboard {
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
-            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
+            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip action implementation.
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)

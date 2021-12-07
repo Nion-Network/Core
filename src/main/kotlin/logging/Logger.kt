@@ -44,6 +44,8 @@ object Logger {
 
     private val httpClient = HttpClient.newHttpClient()
     private val queue = LinkedBlockingQueue<Log>()
+    private val batch = mutableListOf<Log>()
+    private const val batchSize = 10
 
     /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
@@ -58,12 +60,16 @@ object Logger {
         while (true) tryAndReport {
             val log = queue.take()
             if (isLoggingEnabled) println(log.log)
-            val json = Json.encodeToString(log)
-            val request = HttpRequest.newBuilder()
-                .uri(URI("http://88.200.63.133:8101/logs"))
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build()
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+            batch.add(log)
+            if (batch.size >= batchSize) {
+                val json = Json.encodeToString(batch)
+                val request = HttpRequest.newBuilder()
+                    .uri(URI("http://88.200.63.133:8101/logs"))
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build()
+                httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                batch.clear()
+            }
         }
     }
 

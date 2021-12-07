@@ -8,6 +8,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.security.MessageDigest
 import java.util.*
+import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.schedule
 import kotlin.concurrent.withLock
@@ -81,9 +82,11 @@ fun launchCoroutine(block: () -> Unit) {
     }
 }
 
-fun tryAndReport(block: () -> Unit) {
+fun <T> Lock.tryWithLock(action: () -> T) = tryAndReport { withLock(action) }
+
+fun <T> tryAndReport(block: () -> T): T? {
     try {
-        block()
+        return block()
     } catch (e: Exception) {
         Dashboard.reportException(e)
         val sw = StringWriter()
@@ -97,4 +100,5 @@ fun tryAndReport(block: () -> Unit) {
             Logger.error(cause ?: "Unknown cause.")
         }
     }
+    return null
 }

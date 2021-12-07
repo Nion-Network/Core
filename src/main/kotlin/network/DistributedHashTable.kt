@@ -63,8 +63,11 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
     fun queryFor(vararg publicKeys: String, onFoundBlock: ((Node) -> Unit)? = null) {
         val unknown = publicKeys.filter { !knownNodes.containsKey(it) }
         if (true || unknown.isNotEmpty()) {
-            val queryMessage = QueryMessage(localNode, unknown.toList())
+            val queryMessage = QueryMessage(localNode, publicKeys.toList())
             send(Endpoint.NodeQuery, TransmissionType.Unicast, queryMessage)
+            publicKeys.forEach {
+                kademlia.query(sha256(it).asHex)
+            }
         } else Logger.debug("Already know this node of ${publicKeys.joinToString(",") { sha256(it).asHex }}")
         if (onFoundBlock != null && publicKeys.isNotEmpty()) {
             val known = publicKeys.mapNotNull { knownNodes[it] }

@@ -46,7 +46,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 
-    /** Schedules a change of validator set to be used in the next block. */
+    /** Schedules a change of validator set to be used in the next action. */
     fun scheduleChange(publicKey: String, add: Boolean) {
         scheduledChanges[publicKey] = add
     }
@@ -84,8 +84,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 
-
-    /** Computes the task for the next block creation using current block information. */
+    /** Computes the task for the next action creation using current action information. */
     fun computeNextTask(block: Block, committeeSize: Int): ChainTask {
         return lock.withLock {
             val seed = block.seed

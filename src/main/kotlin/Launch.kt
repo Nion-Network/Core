@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
             launch()
 
 
-            // fun test() {
+            fun test() {
                 runAfter(Random.nextLong(5000, 15000)) {
                     tryAndReport {
                         val randomKey = "${Random.nextInt(2, 49)}"

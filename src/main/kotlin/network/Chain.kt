@@ -15,7 +15,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
     private val lock = ReentrantLock(true)
     private val blocks = mutableListOf<Block>()
 
-    /** Returns the last block in the chain. */
+    /** Returns the last action in the chain. */
     fun getLastBlock(): Block? {
         return lock.withLock { blocks.lastOrNull() }
     }
@@ -25,7 +25,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
         return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
     }
 
-    /** Attempts to add each block one by one to the chain. */
+    /** Attempts to add each action one by one to the chain. */
     fun addBlocks(vararg newBlocks: Block): Boolean {
         return lock.withLock {
             newBlocks.forEach { newBlock ->
@@ -38,9 +38,9 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
                     Logger.chain("Block[${newBlock.votes}/$committeeSize] added [${newBlock.slot}].")
                 } else {
                     if (newBlock.slot > (lastBlock?.slot ?: 0) && lastHash != newBlock.hash) {
-                        Logger.trace("Proof is not legitimate for block ${newBlock.slot}!")
+                        Logger.trace("Proof is not legitimate for action ${newBlock.slot}!")
                         Logger.info("Last hash: $lastHash")
-                        Logger.info("Last block: ${lastBlock?.slot}")
+                        Logger.info("Last action: ${lastBlock?.slot}")
                         Logger.info("New hash: ${newBlock.hash}")
                         Logger.info("Precedent hash: ${newBlock.precedentHash}")
                         Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")

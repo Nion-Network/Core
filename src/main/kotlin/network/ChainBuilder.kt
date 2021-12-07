@@ -51,7 +51,7 @@ class ChainBuilder(private val nion: Nion) {
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     Dashboard.logCluster(block, nextTask, clusters)
-                    Logger.chain("Producing block ${block.slot + 1}...")
+                    Logger.chain("Producing action ${block.slot + 1}...")
                     val computationStart = System.currentTimeMillis()
                     val proof = verifiableDelay.computeProof(block.difficulty, block.hash)
                     val committeeMembers = nextTask.committee.toTypedArray().apply {
@@ -107,7 +107,7 @@ class ChainBuilder(private val nion: Nion) {
                             precedentHash = block.hash,
                             migrations = futureMigrations
                         )
-                        Logger.chain("Broadcasting out block ${newBlock.slot}.")
+                        Logger.chain("Broadcasting out action ${newBlock.slot}.")
                         nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
                     }
                 }
@@ -127,7 +127,7 @@ class ChainBuilder(private val nion: Nion) {
                             votes = 69
                         )
                         if (chain.getLastBlock()?.slot == block.slot) {
-                            Dashboard.reportException(Exception("Sending out skip block [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
+                            Dashboard.reportException(Exception("Sending out skip action [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
                             nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
                         }
                     }
@@ -148,7 +148,6 @@ class ChainBuilder(private val nion: Nion) {
     /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
     @MessageEndpoint(Endpoint.InclusionRequest)
     fun inclusionRequested(message: Message) {
-        return
         val inclusionRequest = message.decodeAs<InclusionRequest>()
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
@@ -160,7 +159,7 @@ class ChainBuilder(private val nion: Nion) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF")
                 val genesisBlock = Block(1, configuration.initialDifficulty, nion.localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), "", validatorSet.getScheduledChanges())
                 nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
-                Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
+                Logger.chain("Broadcasting genesis action to $scheduledChanges nodes!")
             }
         }
     }

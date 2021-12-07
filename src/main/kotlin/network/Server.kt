@@ -31,7 +31,7 @@ abstract class Server(val configuration: Configuration) {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(localAddress.hostAddress, configuration.port, localAddress.hostAddress.split(".").last())
+    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
     val kademlia = Kademlia(localNode, configuration.port + 2)
 
