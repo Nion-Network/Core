@@ -1,12 +1,12 @@
 package kademlia
 
 import data.network.Node
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import utils.Utils.Companion.asBitSet
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import utils.launchCoroutine
@@ -18,7 +18,6 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.locks.ReentrantLock
@@ -30,34 +29,51 @@ import java.util.concurrent.locks.ReentrantLock
  */
 class Kademlia(private val localNode: Node, port: Int) {
 
-    private val tree = ConcurrentHashMap<Int, Bucket>()
-    private val outputQueue = LinkedBlockingQueue<QueueMessage>()
-    private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
-    private val datagramSocket = DatagramSocket(port)
-    private val queryTimes = ConcurrentHashMap<String, QueryDuration>()
-    private val bucketSize = 5
-    private val testLock = ReentrantLock(true)
     var totalKnownNodes = 0
         private set
 
+    val isBootstrapped get() = totalKnownNodes > 1
+    private val tree = ConcurrentHashMap<Int, Bucket>()
+    private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
+    private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
+    private val datagramSocket = DatagramSocket(port)
+    private val queryStorage = ConcurrentHashMap<String, KademliaQuery>()
+    private val bucketSize = 5
+    private val testLock = ReentrantLock(true)
+
     init {
         Logger.debug("Our identifier is: ${localNode.identifier}")
-        Thread(this::clearOutgoing).start()
+        Thread(this::sendOutgoing).start()
         Thread(this::receiveIncoming).start()
         Thread(this::processIncoming).start()
         add(localNode)
-
-        // testLookup()
         printTree()
     }
 
-    private fun add(node: Node) {
-        val bits = node.bitSet.apply { xor(localNode.bitSet) }
-        val position = bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
-        val bucket = tree.computeIfAbsent(position) { Bucket(bucketSize) }
-        if (bucket.add(node)) totalKnownNodes++
+    /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
+    fun bootstrap(ip: String, port: Int) {
+        Logger.info("Bootstrapping Kademlia!")
+        sendFindRequest(localNode.identifier, Node(ip, port, "BOOTSTRAP"))
     }
 
+    /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
+    fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
+        testLock.tryWithLock {
+            val identifier = sha256(publicKey).asHex
+            val distance = getDistance(identifier)
+            val knownNode = lookup(distance).firstOrNull { it.identifier == identifier }
+            if (knownNode == null) sendFindRequest(identifier, block = action)
+            else if (action != null) executeOnFound(action, knownNode)
+        }
+    }
+
+    /** Retrieves [amount] of the closest nodes. */
+    fun getRandomNodes(amount: Int): Set<Node> {
+        val distance = getDistance(localNode.identifier)
+        return lookup(distance, amount)
+    }
+
+    /** Looks into buckets and retrieves at least [bucketSize] closest nodes. */
     private fun lookup(position: Int, needed: Int = bucketSize, startedIn: Int = position): Set<Node> {
         Logger.info("Looking into Bucket[$position]")
         val bucket = tree[position]?.getNodes() ?: emptySet()
@@ -72,31 +88,25 @@ class Kademlia(private val localNode: Node, port: Int) {
         return bucket.plus(lookup(closestPosition, missing, startedIn))
     }
 
-    fun getRandomNodes(amount: Int): Set<Node> {
-        val distance = getDistance(localNode.identifier)
-        return lookup(distance, amount)
+    /** Adds the node to the appropriate bucket, if there is enough space. */
+    private fun add(node: Node) {
+        val bits = node.bitSet.apply { xor(localNode.bitSet) }
+        val position = bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
+        val bucket = tree.computeIfAbsent(position) { Bucket(bucketSize) }
+        if (bucket.add(node)) totalKnownNodes++
     }
 
-    fun query(publicKey: String, action: ((Node) -> Unit)? = null): Node? {
-        return testLock.tryWithLock {
-            val identifier = sha256(publicKey).asHex
-            val distance = getDistance(identifier)
-            val knownNode = lookup(distance).firstOrNull { it.identifier == identifier }
-            if (knownNode == null) sendFindRequest(identifier, block = action)
-            else if (action != null) executeOnFound(action, knownNode)
-            return@tryWithLock knownNode
-        }
-    }
-
+    /** Calculates the XOR distance between our [localNode] and [identifier]. */
     private fun getDistance(identifier: String): Int {
         val bits = identifier.asBitSet.apply { xor(localNode.bitSet) }
         return bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
     }
 
+    /** Reads from [datagramSocket] and puts messages into the [incoming messages queue][incomingQueue]. */
     private fun receiveIncoming() {
         val pureArray = ByteArray(60_000)
         val inputStream = DataInputStream(ByteArrayInputStream(pureArray))
-        val packet = DatagramPacket(pureArray, 60_000)
+        val packet = DatagramPacket(pureArray, pureArray.size)
         while (true) tryAndReport {
             inputStream.reset()
             datagramSocket.receive(packet)
@@ -108,6 +118,7 @@ class Kademlia(private val localNode: Node, port: Int) {
         }
     }
 
+    /** Takes one queued [KademliaMessage] from [incomingQueue] when available and processes it. */
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
@@ -117,13 +128,13 @@ class Kademlia(private val localNode: Node, port: Int) {
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
-                    val findMessage = ProtoBuf.decodeFromByteArray<FindRequest>(kademliaMessage.data)
-                    val distance = getDistance(findMessage.lookingFor)
+                    val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
+                    val distance = getDistance(lookingFor)
                     val closestNodes = lookup(distance)
-                    val reply = ClosestNodes(findMessage.lookingFor, closestNodes.toTypedArray())
+                    val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
                     addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
-                    Logger.info("Closest I could find for ${findMessage.lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                    Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
@@ -133,7 +144,7 @@ class Kademlia(private val localNode: Node, port: Int) {
                         val isFound = node != null
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
-                        val query = (if (node == null) queryTimes[lookingFor] else queryTimes.remove(lookingFor)) ?: return@apply
+                        val query = (if (node == null) queryStorage[lookingFor] else queryStorage.remove(lookingFor)) ?: return@apply
                         query.hops++
                         if (!isFound) {
                             shuffle()
@@ -153,10 +164,11 @@ class Kademlia(private val localNode: Node, port: Int) {
         }
     }
 
-    private fun clearOutgoing() {
+    /** Sends outgoing [kademlia messages][KademliaMessage] when available (from [outgoingQueue]).*/
+    private fun sendOutgoing() {
         val dataBuffer = ByteBuffer.allocate(60_000)
         while (true) tryAndReport {
-            val outgoing = outputQueue.take()
+            val outgoing = outgoingQueue.take()
             dataBuffer.apply {
                 clear()
                 putInt(outgoing.data.size)
@@ -167,6 +179,7 @@ class Kademlia(private val localNode: Node, port: Int) {
         }
     }
 
+    /** Sends a FIND_NODE request to the [recipient] or a random closest node (relative to the [identifier]). */
     private fun sendFindRequest(identifier: String, recipient: Node? = null, block: ((Node) -> Unit)? = null) {
         if (recipient == localNode) return
         val distance = getDistance(identifier)
@@ -177,31 +190,28 @@ class Kademlia(private val localNode: Node, port: Int) {
                 printTree()
             }
         }.filter { it.identifier != localNode.identifier }.random()
-        val findRequest = FindRequest(identifier)
-        val encodedRequest = ProtoBuf.encodeToByteArray(findRequest)
-        queryTimes.computeIfAbsent(identifier) { QueryDuration(hops = 0, action = block) }
+        val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
+        queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0, action = block) }
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
         Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)}.")
     }
 
+    /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
     private fun addToQueue(receiver: Node, endpoint: KademliaEndpoint, data: ByteArray) {
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = QueueMessage(receiver.ip, receiver.port + 2, encodedOutgoing)
-        outputQueue.put(queueMessage)
+        outgoingQueue.put(queueMessage)
     }
 
+    /**Launches the queued action from [queryStorage]. */
     private fun executeOnFound(action: ((Node) -> Unit), node: Node) {
         launchCoroutine {
             action(node)
         }
     }
 
-    fun bootstrap(ip: String, port: Int) {
-        Logger.info("Bootstrapping Kademlia!")
-        sendFindRequest(localNode.identifier, Node(ip, port, "BOOTSTRAP"))
-    }
-
+    /** Debugs the built kademlia tree [development purposes only]. */
     fun printTree() {
         val string = StringBuilder()
         tree.forEach { (index, bucket) ->
@@ -210,41 +220,4 @@ class Kademlia(private val localNode: Node, port: Int) {
         Logger.info("\n\n$string")
         Logger.info("Total nodes known: ${tree.values.sumOf { it.size }} vs $totalKnownNodes")
     }
-
-    data class QueryDuration(val start: Long = System.currentTimeMillis(), var hops: Int, val action: ((Node) -> Unit)? = null)
-
-    enum class KademliaEndpoint {
-        PING,
-        CLOSEST_NODES,
-        FIND_NODE;
-
-        companion object {
-            private val cache = values().associateBy { it.ordinal }
-            operator fun get(id: Int) = cache[id]
-        }
-    }
-
-    class QueueMessage(val ip: String, val port: Int, val data: ByteArray)
-
-    @Serializable
-    class KademliaMessage(val sender: Node, val endpoint: KademliaEndpoint, val data: ByteArray)
-
-    @Serializable
-    data class FindRequest(val lookingFor: String)
-
-    @Serializable
-    class ClosestNodes(val lookingFor: String, val nodes: Array<Node>)
-
-    private fun testLookup() {
-        (0..10).map {
-            add(Node("$it", it, "$it"))
-        }
-        val distance = getDistance(sha256("8").asHex)
-        println(lookup(distance).joinToString(",") { it.identifier.take(5) })
-    }
-
-    val isBootstrapped get() = totalKnownNodes > 1
-
 }
-
-val String.asBitSet get() = BitSet.valueOf(toBigInteger(16).toByteArray().reversedArray())

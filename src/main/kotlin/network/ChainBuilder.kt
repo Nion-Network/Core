@@ -28,7 +28,6 @@ class ChainBuilder(private val nion: Nion) {
     private val verifiableDelay = VerifiableDelay()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
 
-    @MessageEndpoint(Endpoint.NewBlock)
     fun blockReceived(message: Message) {
         val block = message.decodeAs<Block>()
         if (chain.addBlocks(block)) {
@@ -147,7 +146,6 @@ class ChainBuilder(private val nion: Nion) {
     private var sentGenesis = AtomicBoolean(false)
 
     /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
-    @MessageEndpoint(Endpoint.InclusionRequest)
     fun inclusionRequested(message: Message) {
         val inclusionRequest = message.decodeAs<InclusionRequest>()
         val lastBlock = chain.getLastBlock()
@@ -168,7 +166,6 @@ class ChainBuilder(private val nion: Nion) {
     }
 
     /** Respond with blocks between the slot and the end of the chain. */
-    @MessageEndpoint(Endpoint.SyncRequest)
     fun synchronizationRequested(message: Message) {
         val syncRequest = message.decodeAs<SyncRequest>()
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
@@ -177,7 +174,6 @@ class ChainBuilder(private val nion: Nion) {
     }
 
     /** Attempt to add blocks received from the random node. */
-    @MessageEndpoint(Endpoint.SyncReply)
     fun synchronizationReply(message: Message) {
         val blocks = message.decodeAs<Array<Block>>()
         Logger.info("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t\uD83D\uDE02\t${blocks.lastOrNull()?.slot} ")

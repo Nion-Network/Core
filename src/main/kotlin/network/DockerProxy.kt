@@ -59,7 +59,6 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         }
     }
 
-    @MessageEndpoint(Endpoint.NodeStatistics)
     fun dockerStatisticsReceived(message: Message) {
         val receivedStatistics = message.decodeAs<Array<DockerStatistics>>()
         addNetworkStatistics(*receivedStatistics)

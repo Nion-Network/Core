@@ -47,6 +47,8 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
+        val String.asBitSet: BitSet get() = BitSet.valueOf(toBigInteger(16).toByteArray().reversedArray())
+
         private val shaLock = ReentrantLock(true)
 
         /** Digests [data] using SHA-256 hashing algorithm. */

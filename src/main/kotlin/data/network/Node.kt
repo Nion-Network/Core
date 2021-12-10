@@ -1,8 +1,8 @@
 package data.network
 
-import kademlia.asBitSet
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import utils.Utils.Companion.asBitSet
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 

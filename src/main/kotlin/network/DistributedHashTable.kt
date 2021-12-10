@@ -8,6 +8,7 @@ import data.network.Endpoint
 import data.network.Node
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Logger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -19,7 +20,6 @@ abstract class DistributedHashTable(configuration: Configuration) : Server(confi
 
     private val queuedActions = ConcurrentHashMap<String, (Node) -> Unit>()
 
-    @MessageEndpoint(Endpoint.JoinRequest)
     fun joinRequestReceived(message: Message) {
         val requestingNode = message.decodeAs<Node>()
         val welcomeMessage = WelcomeMessage(localNode, emptyList())

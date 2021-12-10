@@ -39,7 +39,6 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     )
 
     init {
-        // TODO Remove after final decision of known trusted public key.
         Thread(this::invokeFromQueue).start()
     }
 
