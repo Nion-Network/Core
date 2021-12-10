@@ -18,17 +18,6 @@ import java.util.concurrent.ConcurrentHashMap
  */
 abstract class DistributedHashTable(configuration: Configuration) : Server(configuration) {
 
-    inline fun <reified T> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, amount: Int) {
-        val nodes = pickRandomNodes(amount)
-        send(endpoint, transmissionType, data, *nodes.map { it.publicKey }.toTypedArray())
-    }
 
-    inline fun <reified T> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, vararg publicKeys: String) {
-        val encodedBody = ProtoBuf.encodeToByteArray(data)
-        val signature = crypto.sign(encodedBody)
-        val message = Message(endpoint, crypto.publicKey, encodedBody, signature)
-        val encodedMessage = ProtoBuf.encodeToByteArray(message)
-        send(endpoint, transmissionType, message, encodedMessage, *publicKeys)
-    }
 
 }
