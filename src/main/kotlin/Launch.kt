@@ -11,14 +11,14 @@ import java.io.File
  * on 06/11/2021 at 19:43
  * using IntelliJ IDEA
  */
-fun main(args: Array<String>) {
+fun main() {
     System.setProperty("kotlinx.coroutines.scheduler", "off")
     val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
     Logger.toggleLogging(configuration.loggingEnabled)
     Dashboard.toString()
     tryAndReport {
         Nion(configuration).apply {
-            if (!isTrustedNode) kademlia.bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
+            if (!isTrustedNode) bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
             launch()
         }
     }

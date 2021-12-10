@@ -1,7 +1,5 @@
 import data.Configuration
 import data.communication.Message
-import data.communication.TransmissionType
-import data.communication.WelcomeMessage
 import data.network.Endpoint
 import data.network.MessageProcessing
 import kotlinx.serialization.decodeFromByteArray
@@ -10,7 +8,6 @@ import logging.Logger
 import network.ChainBuilder
 import network.DockerProxy
 import utils.launchCoroutine
-import utils.runAfter
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -26,11 +23,8 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
 
     private val chainBuilder = ChainBuilder(this)
     private val queue = LinkedBlockingQueue<() -> Unit>()
-    private var isInNetwork = isTrustedNode
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
-        Endpoint.Welcome to ::onWelcome,
-        Endpoint.JoinRequest to ::joinRequestReceived,
         Endpoint.NodeStatistics to ::dockerStatisticsReceived,
         Endpoint.NewBlock to chainBuilder::blockReceived,
         Endpoint.InclusionRequest to chainBuilder::inclusionRequested,
@@ -42,18 +36,6 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
         Thread(this::invokeFromQueue).start()
     }
 
-    private fun requestNetworkInclusion() {
-        Logger.info("Attempting to join the network!")
-        if (isInNetwork) return
-        send(Endpoint.JoinRequest, TransmissionType.Unicast, localNode)
-        runAfter(10_000, this::requestNetworkInclusion)
-    }
-
-    private fun onWelcome(message: Message) {
-        val welcomeMessage = message.decodeAs<WelcomeMessage>()
-        isInNetwork = true
-        chainBuilder.requestInclusion()
-    }
 
     private fun invokeFromQueue() {
         while (true) tryAndReport { queue.take().invoke() }
@@ -68,11 +50,6 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
             if (endpoint.processing == MessageProcessing.Queued) queue.put { execution(message) }
             else launchCoroutine { execution(message) }
         }
-    }
-
-    override fun launch() {
-        super.launch()
-        requestNetworkInclusion()
     }
 }
 

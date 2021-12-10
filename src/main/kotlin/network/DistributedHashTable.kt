@@ -18,14 +18,6 @@ import java.util.concurrent.ConcurrentHashMap
  */
 abstract class DistributedHashTable(configuration: Configuration) : Server(configuration) {
 
-    private val queuedActions = ConcurrentHashMap<String, (Node) -> Unit>()
-
-    fun joinRequestReceived(message: Message) {
-        val requestingNode = message.decodeAs<Node>()
-        val welcomeMessage = WelcomeMessage(localNode, emptyList())
-        send(Endpoint.Welcome, TransmissionType.Unicast, welcomeMessage, requestingNode.publicKey)
-    }
-
     inline fun <reified T> send(endpoint: Endpoint, transmissionType: TransmissionType, data: T, amount: Int) {
         val nodes = pickRandomNodes(amount)
         send(endpoint, transmissionType, data, *nodes.map { it.publicKey }.toTypedArray())

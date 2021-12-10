@@ -1,11 +1,13 @@
 package kademlia
 
+import data.Configuration
 import data.network.Node
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import utils.Crypto
 import utils.Utils.Companion.asBitSet
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
@@ -16,6 +18,7 @@ import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.DatagramPacket
 import java.net.DatagramSocket
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -27,7 +30,11 @@ import java.util.concurrent.locks.ReentrantLock
  * on 01/12/2021 at 13:10
  * using IntelliJ IDEA
  */
-class Kademlia(private val localNode: Node, port: Int) {
+open class Kademlia(configuration: Configuration) {
+
+    val crypto = Crypto(".")
+    val localAddress = InetAddress.getLocalHost()
+    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
 
     var totalKnownNodes = 0
         private set
@@ -36,16 +43,16 @@ class Kademlia(private val localNode: Node, port: Int) {
     private val tree = ConcurrentHashMap<Int, Bucket>()
     private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
-    private val datagramSocket = DatagramSocket(port)
+    private val datagramSocket = DatagramSocket(configuration.port + 2)
     private val queryStorage = ConcurrentHashMap<String, KademliaQuery>()
     private val bucketSize = 5
     private val testLock = ReentrantLock(true)
 
     init {
         Logger.debug("Our identifier is: ${localNode.identifier}")
-        Thread(this::sendOutgoing).start()
-        Thread(this::receiveIncoming).start()
-        Thread(this::processIncoming).start()
+        Thread(::sendOutgoing).start()
+        Thread(::receiveIncoming).start()
+        Thread(::processIncoming).start()
         add(localNode)
         printTree()
     }

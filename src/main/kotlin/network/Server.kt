@@ -8,13 +8,15 @@ import data.network.Node
 import kademlia.Kademlia
 import logging.Dashboard
 import logging.Logger
-import utils.Crypto
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import utils.tryAndReport
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
-import java.net.*
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -27,13 +29,9 @@ import java.util.concurrent.TimeUnit
  * on 13/04/2021 at 00:57
  * using IntelliJ IDEA
  */
-abstract class Server(val configuration: Configuration) {
+abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
 
-    val crypto = Crypto(".")
-    val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
-    val kademlia = Kademlia(localNode, configuration.port + 2)
 
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
@@ -83,8 +81,8 @@ abstract class Server(val configuration: Configuration) {
                         udpSocket.send(packet)
                     }
                 }
-                if (!kademlia.isBootstrapped) {
-                    kademlia.bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
+                if (!isBootstrapped) {
+                    bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
                     return@tryAndReport
                 }
                 if (messageBuilder.addPart(currentSlice, data)) {
@@ -171,7 +169,7 @@ abstract class Server(val configuration: Configuration) {
         keys.forEach { key ->
             val identifier = sha256(key).asHex.take(5)
             Logger.info("Looking for $identifier to send a message to $endpoint.")
-            kademlia.query(key) {
+            query(key) {
                 Logger.info("Found the one i was looking for!")
                 outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, sha256(message.uid), encodedMessage, it))
             }
@@ -191,9 +189,8 @@ abstract class Server(val configuration: Configuration) {
 
     /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
     fun pickRandomNodes(amount: Int = 0): List<Node> {
-        val totalKnownNodes = kademlia.totalKnownNodes
         val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return kademlia.getRandomNodes(toTake).filter { it != localNode }
+        return getRandomNodes(toTake).filter { it != localNode }
     }
 
 }

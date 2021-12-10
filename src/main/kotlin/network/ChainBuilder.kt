@@ -37,8 +37,8 @@ class ChainBuilder(private val nion: Nion) {
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
 
             if (nextTask.myTask == SlotDuty.PRODUCER) { // Debugging only.
-                nion.kademlia.query(nextTask.blockProducer) {
-                    Dashboard.newBlockProduced(block, nion.kademlia.totalKnownNodes, validatorSet.validatorCount, it.ip)
+                nion.query(nextTask.blockProducer) {
+                    Dashboard.newBlockProduced(block, nion.totalKnownNodes, validatorSet.validatorCount, it.ip)
                 }
             }
 
