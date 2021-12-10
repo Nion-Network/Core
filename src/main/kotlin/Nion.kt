@@ -22,7 +22,7 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     // Perhaps future change of Nion : ChainBuilder...
 
     private val chainBuilder = ChainBuilder(this)
-    private val queue = LinkedBlockingQueue<() -> Unit>()
+    private val processingQueue = LinkedBlockingQueue<() -> Unit>()
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
         Endpoint.NodeStatistics to ::dockerStatisticsReceived,
@@ -33,21 +33,22 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     )
 
     init {
-        Thread(this::invokeFromQueue).start()
+        Thread(this::processQueuedActions).start()
     }
 
-
-    private fun invokeFromQueue() {
-        while (true) tryAndReport { queue.take().invoke() }
+    /** Takes queued actions from [processingQueue] and executes them under supervision. */
+    private fun processQueuedActions() {
+        while (true) tryAndReport { processingQueue.take().invoke() }
     }
 
+    /** Acts accordingly to the [Endpoint] on how to process the received [Message]. */
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
         Logger.debug("We received a message on ${message.endpoint} [$verified]")
         if (verified) {
             val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
-            if (endpoint.processing == MessageProcessing.Queued) queue.put { execution(message) }
+            if (endpoint.processing == MessageProcessing.Queued) processingQueue.put { execution(message) }
             else launchCoroutine { execution(message) }
         }
     }
