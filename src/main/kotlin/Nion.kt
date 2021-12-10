@@ -4,12 +4,13 @@ import data.communication.TransmissionType
 import data.communication.WelcomeMessage
 import data.network.Endpoint
 import data.network.MessageProcessing
-import data.network.Node
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Logger
 import network.ChainBuilder
 import network.DockerProxy
 import utils.launchCoroutine
+import utils.runAfter
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -28,8 +29,6 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     private var isInNetwork = isTrustedNode
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
-        Endpoint.NodeQuery to ::onQuery,
-        Endpoint.QueryReply to ::onQueryReply,
         Endpoint.Welcome to ::onWelcome,
         Endpoint.JoinRequest to ::joinRequestReceived,
         Endpoint.NodeStatistics to ::dockerStatisticsReceived,
@@ -41,25 +40,18 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
 
     init {
         // TODO Remove after final decision of known trusted public key.
-        addNewNodes(Node(configuration.trustedNodeIP, configuration.trustedNodePort, "trusted"))
         Thread(this::invokeFromQueue).start()
     }
 
     private fun requestNetworkInclusion() {
-        if (isInNetwork) {
-            knownNodes.remove("trusted")
-            return
-        }
+        Logger.info("Attempting to join the network!")
+        if (isInNetwork) return
         send(Endpoint.JoinRequest, TransmissionType.Unicast, localNode)
-        Thread.sleep(10_000)
-        requestNetworkInclusion()
+        runAfter(10_000, this::requestNetworkInclusion)
     }
 
     private fun onWelcome(message: Message) {
         val welcomeMessage = message.decodeAs<WelcomeMessage>()
-        val acceptorNode = welcomeMessage.acceptor
-        val newNodes = welcomeMessage.knownNodes
-        addNewNodes(acceptorNode, *newNodes.toTypedArray())
         isInNetwork = true
         chainBuilder.requestInclusion()
     }
@@ -71,6 +63,7 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
+        Logger.debug("We received a message on ${message.endpoint} [$verified]")
         if (verified) {
             val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
             if (endpoint.processing == MessageProcessing.Queued) queue.put { execution(message) }

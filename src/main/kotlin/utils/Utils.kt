@@ -4,8 +4,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import logging.Dashboard
 import logging.Logger
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.locks.Lock
@@ -49,7 +47,7 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
-        private val shaLock = ReentrantLock(false)
+        private val shaLock = ReentrantLock(true)
 
         /** Digests [data] using SHA-256 hashing algorithm. */
         fun sha256(data: ByteArray): ByteArray {
@@ -89,16 +87,7 @@ fun <T> tryAndReport(block: () -> T): T? {
         return block()
     } catch (e: Exception) {
         Dashboard.reportException(e)
-        val sw = StringWriter()
-        e.printStackTrace(PrintWriter(sw))
-        Logger.error(sw.toString())
-        Logger.error(e.cause ?: "Unknown cause.")
-        e.cause?.apply {
-            val sww = StringWriter()
-            printStackTrace(PrintWriter(sww))
-            Logger.error(sww.toString())
-            Logger.error(cause ?: "Unknown cause.")
-        }
+        Logger.reportException(e)
     }
     return null
 }

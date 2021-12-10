@@ -1,6 +1,13 @@
 package logging
 
+import com.influxdb.LogLevel
+import com.influxdb.client.InfluxDBClientFactory
+import com.influxdb.client.InfluxDBClientOptions
+import com.influxdb.client.WriteOptions
+import com.influxdb.client.domain.WritePrecision
+import com.influxdb.client.write.Point
 import data.Configuration
+import data.DebugType
 import data.chain.Block
 import data.chain.ChainTask
 import data.chain.SlotDuty
@@ -10,15 +17,12 @@ import data.network.Endpoint
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import network.Cluster
-import org.influxdb.InfluxDBFactory
-import org.influxdb.dto.Point
-import org.influxdb.dto.Query
 import utils.Utils.Companion.asHex
 import utils.Utils.Companion.sha256
 import java.io.File
 import java.net.InetAddress
+import java.time.Instant
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
 
 // To be removed once testing is complete, so code here is FAR from desired / optimal.
 object Dashboard {
@@ -39,15 +43,18 @@ object Dashboard {
 
     init {
         if (configuration.dashboardEnabled) {
-            InfluxDBFactory.connect(configuration.influxUrl, configuration.influxUsername, configuration.influxPassword).apply {
-                query(Query("CREATE DATABASE PROD"))
-                setDatabase("PROD")
-                //setLogLevel(InfluxDB.LogLevel.FULL)
-                enableBatch(2000, 500, TimeUnit.MILLISECONDS)
+            val options = InfluxDBClientOptions.builder()
+                .url(configuration.influxUrl)
+                .authenticate(configuration.influxUsername, configuration.influxPassword.toCharArray())
+                .org("Innorenew")
+                .logLevel(LogLevel.BASIC)
+                .bucket("PROD")
+                .build()
 
-                Thread { while (true) write(queue.take()) }.start()
-                if (ping().isGood) Logger.info("InfluxDB connection successful")
-            }
+            val influxDB = InfluxDBClientFactory.create(options)
+            val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
+            Thread { while (true) writeApi.writePoint(queue.take()) }.start()
+            if (influxDB.ping()) Logger.info("InfluxDB connection successful")
         } else Logger.info("Dashboard is disabled.")
 
     }
@@ -57,8 +64,7 @@ object Dashboard {
             .addField("hops", hops)
             .addField("duration", duration)
             .addField("identifier", identifier)
-            .build()
-        queue.add(point)
+        queue.put(point)
     }
 
     /**
@@ -73,23 +79,23 @@ object Dashboard {
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
-                    time(System.currentTimeMillis() + total++, TimeUnit.MILLISECONDS)
+                    time(Instant.now().toEpochMilli(), WritePrecision.MS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
                     addField("memory", container.memoryUsage)
                     addField("slot", slot)
-                }.build()
-                queue.add(point)
+                }
+                queue.put(point)
             }
         }
         vdfInformation("Count: $total ... Total: ${statistics.size}")
     }
 
-    /** Sends the newly created action information to the dashboard. */
+    /** Sends the newly created block information to the dashboard. */
     fun newBlockProduced(blockData: Block, knownNodesSize: Int, validatorSize: Int, ip: String) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("action").apply {
+        val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
             addField("statistics", blockData.dockerStatistics.size)
@@ -98,12 +104,12 @@ object Dashboard {
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
-            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip action implementation.
+            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
             addField("previousHash", blockData.precedentHash)
             addField("hash", blockData.hash)
             addField("votes", blockData.votes)
-        }.build()
-        queue.add(point)
+        }
+        queue.put(point)
     }
 
     /** Reports to the dashboard that a new vote arrived. */
@@ -112,9 +118,9 @@ object Dashboard {
         val point = Point.measurement("attestations").apply {
             addField("blockHash", vote.blockHash)
             addField("committeeMember", publicKey)
-        }.build()
+        }
 
-        queue.add(point)
+        queue.put(point)
     }
 
     // TODO: remove
@@ -123,8 +129,8 @@ object Dashboard {
         val point = Point.measurement("queueSize").apply {
             addField("nodeId", publicKey)
             addField("queueSize", queueSize)
-        }.build()
-        queue.add(point)
+        }
+        queue.put(point)
     }
 
     /** Reports that a migration has been executed. */
@@ -141,7 +147,7 @@ object Dashboard {
     ) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
-            time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+            time(Instant.now().toEpochMilli(), WritePrecision.MS)
             addField("from", sender)
             addField("to", receiver)
             addField("slot", slot)
@@ -151,8 +157,8 @@ object Dashboard {
             addField("transmitDuration", transmitDuration)
             addField("size", totalSize)
             addField("resumeDuration", resumeDuration)
-        }.build()
-        queue.add(point)
+        }
+        queue.put(point)
     }
 
     /** Reports that an exception was caught */
@@ -161,8 +167,8 @@ object Dashboard {
             .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
-            .build()
-        queue.add(point)
+
+        queue.put(point)
     }
 
     /** Reports that the localNode has requested inclusion into the validator set. */
@@ -170,8 +176,8 @@ object Dashboard {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("inclusion")
             .addField("from", from)
-            .addField("slot", slot).build()
-        queue.add(point)
+            .addField("slot", slot)
+        queue.put(point)
     }
 
     /** Reports that a message with [id] has been sent. */
@@ -184,8 +190,8 @@ object Dashboard {
             .addField("target", sha256(receiver).asHex)
             .addField("size", messageSize)
             .addField("delay", delay)
-            .build()
-        queue.add(point)
+
+        queue.put(point)
     }
 
     // TODO: remove
@@ -193,8 +199,8 @@ object Dashboard {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("join")
             .addField("computation", computation)
-            .build()
-        queue.add(point)
+
+        queue.put(point)
     }
 
     /** Sends message sizes computed by ProtoBuf and Json which is used for comparison. */
@@ -203,19 +209,19 @@ object Dashboard {
         val point = Point.measurement("message_size")
             .addField("json", json)
             .addField("protobuf", protoBuf)
-            .build()
-        queue.add(point)
+
+        queue.put(point)
     }
 
     /** Reports clusters and their representatives. */
     fun logCluster(block: Block, nextTask: ChainTask, clusters: List<Cluster>) {
         if (!configuration.dashboardEnabled) return
         var index = 0
-        queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
+        queue.put(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
         clusters.forEach { cluster ->
-            queue.add(clusterNodePoint(block, nextTask, nextTask.blockProducer, cluster.representative, index++))
+            queue.put(clusterNodePoint(block, nextTask, nextTask.blockProducer, cluster.representative, index++))
             cluster.nodes.forEach { node ->
-                queue.add(clusterNodePoint(block, nextTask, cluster.representative, node, index++))
+                queue.put(clusterNodePoint(block, nextTask, cluster.representative, node, index++))
             }
         }
     }
@@ -228,11 +234,21 @@ object Dashboard {
             else -> SlotDuty.VALIDATOR
         }
         return Point.measurement("cluster")
-            .time(System.currentTimeMillis() + index, TimeUnit.MILLISECONDS)
+            .time(Instant.now().toEpochMilli(), WritePrecision.MS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
             .addField("node", sha256(node).asHex)
-            .build()
+    }
+
+    fun log(type: DebugType, message: Any, ip: String) {
+        if (!configuration.dashboardEnabled) return
+        val point = Point.measurement("logging")
+            .time(Instant.now(), WritePrecision.NS)
+            .addField("ip", ip)
+            .addField("type", "${type.ordinal}")
+            .addField("log", "$message")
+
+        queue.put(point)
     }
 }

@@ -38,16 +38,6 @@ abstract class Server(val configuration: Configuration) {
     private val receivedQueue = LinkedBlockingQueue<MessageBuilder>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
     private val queuedForLater = ConcurrentHashMap<String, OutgoingQueuedMessage>()
-    protected val knownNodes = ConcurrentHashMap<String, Node>().apply {
-        put(localNode.publicKey, localNode)
-    }
-
-    val knownNodeCount get() = knownNodes.size
-
-    fun checkForQueuedMessages(nodes: Array<out Node>) {
-        val queuedMessages = nodes.mapNotNull { queuedForLater[it.publicKey] }
-        outgoingQueue.addAll(queuedMessages)
-    }
 
     private val networkHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<String, MessageBuilder>()
@@ -93,6 +83,10 @@ abstract class Server(val configuration: Configuration) {
                         udpSocket.send(packet)
                     }
                 }
+                if (!kademlia.isBootstrapped) {
+                    kademlia.bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
+                    return@tryAndReport
+                }
                 if (messageBuilder.addPart(currentSlice, data)) {
                     messageBuilders.remove(messageId)
                     receivedQueue.put(messageBuilder)
@@ -107,11 +101,6 @@ abstract class Server(val configuration: Configuration) {
         while (true) tryAndReport {
             val outgoingMessage = outgoingQueue.take()
             val encodedMessage = outgoingMessage.message
-            val recipients = outgoingMessage.recipients
-            val readyToSend = if (recipients.isEmpty()) pickRandomNodes() else recipients.mapNotNull { knownNodes[it] }
-            val readyForSearch = recipients.filter { !knownNodes.containsKey(it) }.toTypedArray()
-            readyForSearch.forEach { queuedForLater[it] = outgoingMessage.copy(recipients = readyForSearch) }
-
             /* Header length total 78B = 32B + 1B + 1B + 32B + 4B + 4B + 4B
             *   packetId: 32B
             *   messageId: 32B
@@ -132,10 +121,9 @@ abstract class Server(val configuration: Configuration) {
                     val to = Integer.min(from + allowedDataSize, encodedMessageLength)
                     val data = encodedMessage.sliceArray(from until to)
                     val packetId = sha256(uuid + data)
-                    val messageId = sha256(outgoingMessage.messageUID)
 
                     put(packetId)
-                    put(messageId)
+                    put(outgoingMessage.messageUID)
                     put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
                     put(outgoingMessage.endpoint.identification)
                     putInt(slicesNeeded)
@@ -145,19 +133,19 @@ abstract class Server(val configuration: Configuration) {
 
                     val packet = DatagramPacket(array(), 0, position())
                     val started = System.currentTimeMillis()
-                    readyToSend.forEach { node ->
-                        val recipientAddress = InetSocketAddress(node.ip, node.port)
-                        packet.socketAddress = recipientAddress
-                        udpSocket.send(packet)
-                        val delay = System.currentTimeMillis() - started
-                        val sender = localAddress.toString()
-                        val recipient = recipientAddress.toString()
-                        Dashboard.sentMessage(messageId.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
-                    }
+                    val recipientNode = outgoingMessage.recipient
+                    val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
+                    packet.socketAddress = recipientAddress
+                    udpSocket.send(packet)
+                    val delay = System.currentTimeMillis() - started
+                    val sender = localAddress.toString()
+                    val recipient = recipientAddress.toString()
+                    Dashboard.sentMessage(outgoingMessage.messageUID.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
                     // Logger.trace("Sent to ${outgoingMessage.endpoint}...")
                 }
 
             }
+            Logger.debug("Server sent UDP packet to ${outgoingMessage.endpoint} @ ${outgoingMessage.recipient.identifier.take(5)}")
         }
     }
 
@@ -170,16 +158,24 @@ abstract class Server(val configuration: Configuration) {
 
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
 
-    private data class OutgoingQueuedMessage(
+    private class OutgoingQueuedMessage(
         val endpoint: Endpoint,
         val transmissionType: TransmissionType,
-        val messageUID: String,
+        val messageUID: ByteArray,
         val message: ByteArray,
-        val recipients: Array<out String>
+        val recipient: Node
     )
 
     fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
-        outgoingQueue.add(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, publicKeys))
+        val keys = publicKeys.takeIf { it.isNotEmpty() } ?: pickRandomNodes().map { it.publicKey }.toTypedArray()
+        keys.forEach { key ->
+            val identifier = sha256(key).asHex.take(5)
+            Logger.info("Looking for $identifier to send a message to $endpoint.")
+            kademlia.query(key) {
+                Logger.info("Found the one i was looking for!")
+                outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, sha256(message.uid), encodedMessage, it))
+            }
+        }
     }
 
     /** Schedules message history cleanup service that runs at fixed rate. */
@@ -195,9 +191,9 @@ abstract class Server(val configuration: Configuration) {
 
     /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
     fun pickRandomNodes(amount: Int = 0): List<Node> {
-        val totalKnownNodes = knownNodes.size
+        val totalKnownNodes = kademlia.totalKnownNodes
         val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return knownNodes.values.filter { it != localNode }.shuffled().take(toTake)
+        return kademlia.getRandomNodes(toTake).filter { it != localNode }
     }
 
 }

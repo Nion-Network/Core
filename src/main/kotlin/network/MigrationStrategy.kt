@@ -42,7 +42,7 @@ abstract class MigrationStrategy(configuration: Configuration) : DistributedHash
     /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
-        queryFor(migrationPlan.to) { receiver ->
+        kademlia.query(migrationPlan.to) { receiver ->
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
             val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier

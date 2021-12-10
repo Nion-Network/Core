@@ -12,6 +12,7 @@ import data.network.Endpoint
 import logging.Dashboard
 import logging.Logger
 import utils.runAfter
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -36,14 +37,14 @@ class ChainBuilder(private val nion: Nion) {
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
 
-            if (nion.isTrustedNode) { // Debugging only.
-                nion.queryFor(nextTask.blockProducer) {
-                    Dashboard.newBlockProduced(block, nion.knownNodeCount, validatorSet.validatorCount, it.ip)
+            if (nextTask.myTask == SlotDuty.PRODUCER) { // Debugging only.
+                nion.kademlia.query(nextTask.blockProducer) {
+                    Dashboard.newBlockProduced(block, nion.kademlia.totalKnownNodes, validatorSet.validatorCount, it.ip)
                 }
             }
 
             nion.apply {
-                sendDockerStatistics(block, nextTask.blockProducer, clusters)
+                // sendDockerStatistics(block, nextTask.blockProducer, clusters)
                 val ourMigration = block.migrations[localNode.publicKey] ?: return@apply
                 migrateContainer(ourMigration, block)
             }
@@ -51,12 +52,10 @@ class ChainBuilder(private val nion: Nion) {
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     Dashboard.logCluster(block, nextTask, clusters)
-                    Logger.chain("Producing action ${block.slot + 1}...")
+                    Logger.chain("Producing block ${block.slot + 1}...")
                     val computationStart = System.currentTimeMillis()
                     val proof = verifiableDelay.computeProof(block.difficulty, block.hash)
-                    val committeeMembers = nextTask.committee.toTypedArray().apply {
-                        nion.queryFor(*this)
-                    }
+                    val committeeMembers = nextTask.committee.toTypedArray()
                     val computationDuration = System.currentTimeMillis() - computationStart
                     Logger.info("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
@@ -107,7 +106,7 @@ class ChainBuilder(private val nion: Nion) {
                             precedentHash = block.hash,
                             migrations = futureMigrations
                         )
-                        Logger.chain("Broadcasting out action ${newBlock.slot}.")
+                        Logger.chain("Broadcasting out block ${newBlock.slot}.")
                         nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
                     }
                 }
@@ -127,7 +126,7 @@ class ChainBuilder(private val nion: Nion) {
                             votes = 69
                         )
                         if (chain.getLastBlock()?.slot == block.slot) {
-                            Dashboard.reportException(Exception("Sending out skip action [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
+                            Dashboard.reportException(Exception("Sending out skip block [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
                             nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
                         }
                     }
@@ -145,6 +144,8 @@ class ChainBuilder(private val nion: Nion) {
         }
     }
 
+    private var sentGenesis = AtomicBoolean(false)
+
     /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
     @MessageEndpoint(Endpoint.InclusionRequest)
     fun inclusionRequested(message: Message) {
@@ -153,13 +154,15 @@ class ChainBuilder(private val nion: Nion) {
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) validatorSet.scheduleChange(inclusionRequest.publicKey, true)
         if (nion.isTrustedNode && chain.getLastBlock() == null) {
+            Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
-            if (isEnoughToStart) {
+            if (isEnoughToStart && !sentGenesis.get()) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF")
                 val genesisBlock = Block(1, configuration.initialDifficulty, nion.localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), "", validatorSet.getScheduledChanges())
                 nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
-                Logger.chain("Broadcasting genesis action to $scheduledChanges nodes!")
+                sentGenesis.set(true)
+                Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
         }
     }
@@ -170,7 +173,6 @@ class ChainBuilder(private val nion: Nion) {
         val syncRequest = message.decodeAs<SyncRequest>()
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
-        nion.addNewNodes(requestingNode)
         nion.send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
     }
 
@@ -191,8 +193,7 @@ class ChainBuilder(private val nion: Nion) {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val syncRequest = SyncRequest(nion.localNode, ourSlot)
-        val randomNode = nion.pickRandomNodes(1).map { it.publicKey }
-        nion.send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, *randomNode.toTypedArray())
+        nion.send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
         Logger.error("Requesting synchronization from $ourSlot.")
     }
 

@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
  * on 07/10/2021 at 00:55
  * using IntelliJ IDEA
  *
- * Holds information about the future migration plan which gets stored in a action.
+ * Holds information about the future migration plan which gets stored in a block.
  */
 @Serializable
 data class MigrationPlan(val from: String, val to: String, val container: String)
