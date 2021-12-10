@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * on 18/11/2021 at 12:31
  * using IntelliJ IDEA
  */
-abstract class MigrationStrategy(configuration: Configuration) : DistributedHashTable(configuration) {
+abstract class MigrationStrategy(configuration: Configuration) : Server(configuration) {
 
     protected val networkMappings = ConcurrentHashMap<String, String>()
     protected val localContainers = ConcurrentHashMap<String, DockerContainer>()
