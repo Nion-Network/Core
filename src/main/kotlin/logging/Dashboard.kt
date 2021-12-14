@@ -45,9 +45,9 @@ object Dashboard {
         if (configuration.dashboardEnabled) {
             val options = InfluxDBClientOptions.builder()
                 .url(configuration.influxUrl)
-                .authenticate(configuration.influxUsername, configuration.influxPassword.toCharArray())
-                .org("Innorenew")
-                .logLevel(LogLevel.BASIC)
+                .authenticateToken(configuration.influxToken.toCharArray())
+                .org("innorenew")
+                // .logLevel(LogLevel.BASIC)
                 .bucket("PROD")
                 .build()
 

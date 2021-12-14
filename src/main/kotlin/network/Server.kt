@@ -174,7 +174,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
     fun pickRandomNodes(amount: Int = 0): List<Node> {
         val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return getRandomNodes(toTake).filter { it != localNode }
+        return getRandomNodes().shuffled().filter { it != localNode }.take(toTake)
     }
 
     /** Puts the action of adding the message to [outgoingQueue] in [queryStorage] for when the Node is found. Then the message is sent to the Node.*/

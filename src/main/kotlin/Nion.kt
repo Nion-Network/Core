@@ -6,7 +6,6 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
 import network.ChainBuilder
-import network.DockerProxy
 import utils.launchCoroutine
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
@@ -17,19 +16,17 @@ import java.util.concurrent.LinkedBlockingQueue
  * on 26/03/2020 12:35
  * using IntelliJ IDEA
  */
-class Nion(configuration: Configuration) : DockerProxy(configuration) {
+class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
     // Perhaps future change of Nion : ChainBuilder...
-
-    private val chainBuilder = ChainBuilder(this)
     private val processingQueue = LinkedBlockingQueue<() -> Unit>()
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
         Endpoint.NodeStatistics to ::dockerStatisticsReceived,
-        Endpoint.NewBlock to chainBuilder::blockReceived,
-        Endpoint.InclusionRequest to chainBuilder::inclusionRequested,
-        Endpoint.SyncRequest to chainBuilder::synchronizationRequested,
-        Endpoint.SyncReply to chainBuilder::synchronizationReply
+        Endpoint.NewBlock to ::blockReceived,
+        Endpoint.InclusionRequest to ::inclusionRequested,
+        Endpoint.SyncRequest to ::synchronizationRequested,
+        Endpoint.SyncReply to ::synchronizationReply
     )
 
     init {
@@ -39,6 +36,11 @@ class Nion(configuration: Configuration) : DockerProxy(configuration) {
     /** Takes queued actions from [processingQueue] and executes them under supervision. */
     private fun processQueuedActions() {
         while (true) tryAndReport { processingQueue.take().invoke() }
+    }
+
+    override fun launch() {
+        super.launch()
+        attemptInclusion()
     }
 
     /** Acts accordingly to the [Endpoint] on how to process the received [Message]. */

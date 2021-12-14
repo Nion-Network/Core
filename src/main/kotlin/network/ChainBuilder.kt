@@ -1,6 +1,6 @@
 package network
 
-import Nion
+import data.Configuration
 import data.chain.Block
 import data.chain.SlotDuty
 import data.communication.InclusionRequest
@@ -21,12 +21,12 @@ import kotlin.math.max
  * on 06/11/2021 at 13:50
  * using IntelliJ IDEA
  */
-class ChainBuilder(private val nion: Nion) {
+abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configuration) {
 
-    private val configuration = nion.configuration
-    private val validatorSet = ValidatorSet(nion.localNode, nion.isTrustedNode)
+    private val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val verifiableDelay = VerifiableDelay()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
+    private var sentGenesis = AtomicBoolean(false)
 
     fun blockReceived(message: Message) {
         val block = message.decodeAs<Block>()
@@ -36,16 +36,16 @@ class ChainBuilder(private val nion: Nion) {
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
 
-            if (nextTask.myTask == SlotDuty.PRODUCER) { // Debugging only.
-                nion.query(nextTask.blockProducer) {
-                    Dashboard.newBlockProduced(block, nion.totalKnownNodes, validatorSet.validatorCount, it.ip)
+            if (isTrustedNode) {
+                query(nextTask.blockProducer) {
+                    Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, it.ip)
                 }
             }
 
-            nion.apply {
-                // sendDockerStatistics(block, nextTask.blockProducer, clusters)
-                val ourMigration = block.migrations[localNode.publicKey] ?: return@apply
-                migrateContainer(ourMigration, block)
+
+            // sendDockerStatistics(block, nextTask.blockProducer, clusters)
+            block.migrations[localNode.publicKey]?.apply {
+                migrateContainer(this, block)
             }
 
             when (nextTask.myTask) {
@@ -58,7 +58,7 @@ class ChainBuilder(private val nion: Nion) {
                     val computationDuration = System.currentTimeMillis() - computationStart
                     Logger.info("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
-                        val latestStatistics = nion.getNetworkStatistics(block.slot).apply {
+                        val latestStatistics = getNetworkStatistics(block.slot).apply {
                             Logger.info("Total length: $size")
                             Logger.info("Any duplicates? ${distinctBy { it.publicKey }.size}")
                             Logger.debug("Total containers: ${sumOf { it.containers.size }}")
@@ -100,21 +100,21 @@ class ChainBuilder(private val nion: Nion) {
                             timestamp = System.currentTimeMillis(),
                             dockerStatistics = latestStatistics,
                             vdfProof = proof,
-                            blockProducer = nion.localNode.publicKey,
+                            blockProducer = localNode.publicKey,
                             validatorChanges = validatorSet.getScheduledChanges(),
                             precedentHash = block.hash,
                             migrations = futureMigrations
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
-                        nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
+                        send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
                     }
                 }
                 SlotDuty.COMMITTEE -> {
-                    nion.send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
-                    runAfter(configuration.slotDuration * 3) {
+                    send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
+                    /*runAfter(configuration.slotDuration * 3) {
                         val skipVDF = verifiableDelay.computeProof(block.difficulty, block.hash)
                         val skipBlock = Block(
-                            block.slot + 1,
+                            block.slot,
                             block.difficulty,
                             "SKIPBLOCK",
                             emptyList(),
@@ -126,9 +126,9 @@ class ChainBuilder(private val nion: Nion) {
                         )
                         if (chain.getLastBlock()?.slot == block.slot) {
                             Dashboard.reportException(Exception("Sending out skip block [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
-                            nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
+                            send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
                         }
-                    }
+                    }*/
                 }
                 SlotDuty.VALIDATOR -> {}
             }
@@ -143,26 +143,30 @@ class ChainBuilder(private val nion: Nion) {
         }
     }
 
-    private var sentGenesis = AtomicBoolean(false)
-
     /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
     fun inclusionRequested(message: Message) {
+        if (!validatorSet.isInValidatorSet) return
         val inclusionRequest = message.decodeAs<InclusionRequest>()
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) validatorSet.scheduleChange(inclusionRequest.publicKey, true)
-        if (nion.isTrustedNode && chain.getLastBlock() == null) {
+        if (isTrustedNode && chain.getLastBlock() == null) {
             Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
             if (isEnoughToStart && !sentGenesis.get()) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF")
-                val genesisBlock = Block(1, configuration.initialDifficulty, nion.localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), "", validatorSet.getScheduledChanges())
-                nion.send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
+                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), "", validatorSet.getScheduledChanges())
+                send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
                 sentGenesis.set(true)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
         }
+    }
+
+    fun attemptInclusion() {
+        if (validatorSet.isInValidatorSet) return
+        runAfter(configuration.slotDuration, this::requestInclusion)
     }
 
     /** Respond with blocks between the slot and the end of the chain. */
@@ -170,17 +174,15 @@ class ChainBuilder(private val nion: Nion) {
         val syncRequest = message.decodeAs<SyncRequest>()
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
-        nion.send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
+        send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
     }
 
     /** Attempt to add blocks received from the random node. */
     fun synchronizationReply(message: Message) {
         val blocks = message.decodeAs<Array<Block>>()
-        Logger.info("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t\uD83D\uDE02\t${blocks.lastOrNull()?.slot} ")
+        Logger.info("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
         val synchronizationSuccess = chain.addBlocks(*blocks)
-        if (synchronizationSuccess) {
-            validatorSet.inclusionChanges(*blocks)
-        }
+        if (synchronizationSuccess) validatorSet.inclusionChanges(*blocks)
         Logger.chain("Synchronization has been successful $synchronizationSuccess.")
     }
 
@@ -188,16 +190,17 @@ class ChainBuilder(private val nion: Nion) {
     private fun requestSynchronization() {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
-        val syncRequest = SyncRequest(nion.localNode, ourSlot)
-        nion.send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
+        val syncRequest = SyncRequest(localNode, ourSlot)
+        send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
         Logger.error("Requesting synchronization from $ourSlot.")
     }
 
     /** Requests inclusion into the validator set. */
-    fun requestInclusion() {
+    internal fun requestInclusion() {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
-        val inclusionRequest = InclusionRequest(ourSlot, nion.localNode.publicKey)
-        nion.send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest)
+        val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
+        send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest)
+        Logger.info("Requesting inclusion with $ourSlot.")
     }
 }

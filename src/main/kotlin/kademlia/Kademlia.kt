@@ -35,6 +35,7 @@ open class Kademlia(configuration: Configuration) {
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
+    private val knownNodes = ConcurrentHashMap<String, Node>()
 
     var totalKnownNodes = 0
         private set
@@ -58,9 +59,9 @@ open class Kademlia(configuration: Configuration) {
     }
 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
-    fun bootstrap(ip: String, port: Int) {
+    fun bootstrap(ip: String, port: Int, block: ((Node) -> Unit)? = null) {
         Logger.info("Bootstrapping Kademlia!")
-        sendFindRequest(localNode.identifier, Node(ip, port, "BOOTSTRAP"))
+        sendFindRequest(localNode.identifier, Node(ip, port, "BOOTSTRAP"), block)
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
@@ -75,14 +76,14 @@ open class Kademlia(configuration: Configuration) {
     }
 
     /** Retrieves [amount] of the closest nodes. */
-    fun getRandomNodes(amount: Int): Set<Node> {
+    fun getRandomNodes(): Set<Node> {
         val distance = getDistance(localNode.identifier)
-        return lookup(distance, amount)
+        return lookup(distance, 3 * bucketSize)
     }
 
     /** Looks into buckets and retrieves at least [bucketSize] closest nodes. */
     private fun lookup(position: Int, needed: Int = bucketSize, startedIn: Int = position): Set<Node> {
-        Logger.info("Looking into Bucket[$position]")
+        Logger.trace("Missing: $needed.")
         val bucket = tree[position]?.getNodes() ?: emptySet()
         val missing = needed - bucket.size
         if (missing <= 0) return bucket
@@ -121,7 +122,6 @@ open class Kademlia(configuration: Configuration) {
             val data = inputStream.readNBytes(dataLength)
             val kademliaMessage = ProtoBuf.decodeFromByteArray<KademliaMessage>(data)
             incomingQueue.put(kademliaMessage)
-            Logger.trace("Added to Kademlia incoming queue: ${kademliaMessage.endpoint}.")
         }
     }
 
@@ -130,7 +130,6 @@ open class Kademlia(configuration: Configuration) {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
             val start = System.currentTimeMillis()
-            Logger.trace("Processing ${kademliaMessage.endpoint}.")
             add(kademliaMessage.sender)
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
@@ -163,11 +162,8 @@ open class Kademlia(configuration: Configuration) {
                             Dashboard.reportDHTQuery(node.identifier, query.hops, duration)
                         }
                     }
-                    Logger.trace("Current duration: ${System.currentTimeMillis() - start}ms")
                 }
             }
-            Logger.trace("Took me ${System.currentTimeMillis() - start}ms to process the message.")
-            printTree()
         }
     }
 
@@ -191,7 +187,6 @@ open class Kademlia(configuration: Configuration) {
         if (recipient == localNode) return
         val distance = getDistance(identifier)
         val sendTo = recipient ?: lookup(distance).apply {
-            Logger.info("Lookup size: " + this.size)
             if (isEmpty()) {
                 Logger.error("LOOKUP SIZE for ${identifier.take(5)} IS 0 SOMEHOW!")
                 printTree()
