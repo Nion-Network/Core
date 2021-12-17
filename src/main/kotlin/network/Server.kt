@@ -35,6 +35,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
 
+    protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val processingQueue = LinkedBlockingQueue<MessageBuilder>()
     private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
 
@@ -174,7 +175,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
     fun pickRandomNodes(amount: Int = 0): List<Node> {
         val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return getRandomNodes().shuffled().filter { it != localNode }.take(toTake)
+        return getRandomNodes(toTake).filter { it.identifier != localNode.identifier }
     }
 
     /** Puts the action of adding the message to [outgoingQueue] in [queryStorage] for when the Node is found. Then the message is sent to the Node.*/

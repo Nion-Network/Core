@@ -23,7 +23,6 @@ import kotlin.math.max
  */
 abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configuration) {
 
-    private val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val verifiableDelay = VerifiableDelay()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
     private var sentGenesis = AtomicBoolean(false)

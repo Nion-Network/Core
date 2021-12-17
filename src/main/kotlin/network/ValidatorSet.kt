@@ -91,7 +91,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
             val random = Random(seed)
             val ourKey = localNode.publicKey
 
-            val validatorSetCopy = validators.shuffled(random).toMutableList()
+            val validatorSetCopy = validators.sorted().shuffled(random).toMutableList()
             val blockProducerNode = validatorSetCopy.removeAt(0)
             val committee = validatorSetCopy.take(committeeSize)
 

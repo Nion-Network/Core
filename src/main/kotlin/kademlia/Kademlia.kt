@@ -37,9 +37,7 @@ open class Kademlia(configuration: Configuration) {
     val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
-    var totalKnownNodes = 0
-        private set
-
+    val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
     private val tree = ConcurrentHashMap<Int, Bucket>()
     private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
@@ -68,17 +66,15 @@ open class Kademlia(configuration: Configuration) {
     fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
         testLock.tryWithLock {
             val identifier = sha256(publicKey).asHex
-            val distance = getDistance(identifier)
-            val knownNode = lookup(distance).firstOrNull { it.identifier == identifier }
+            val knownNode = knownNodes[identifier]
             if (knownNode == null) sendFindRequest(identifier, block = action)
             else if (action != null) executeOnFound(action, knownNode)
         }
     }
 
     /** Retrieves [amount] of the closest nodes. */
-    fun getRandomNodes(): Set<Node> {
-        val distance = getDistance(localNode.identifier)
-        return lookup(distance, 3 * bucketSize)
+    fun getRandomNodes(amount: Int): List<Node> {
+        return knownNodes.values.shuffled().take(amount)
     }
 
     /** Looks into buckets and retrieves at least [bucketSize] closest nodes. */
@@ -101,7 +97,8 @@ open class Kademlia(configuration: Configuration) {
         val bits = node.bitSet.apply { xor(localNode.bitSet) }
         val position = bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
         val bucket = tree.computeIfAbsent(position) { Bucket(bucketSize) }
-        if (bucket.add(node)) totalKnownNodes++
+        bucket.add(node)
+        knownNodes.computeIfAbsent(node.identifier) { node }
     }
 
     /** Calculates the XOR distance between our [localNode] and [identifier]. */
@@ -129,7 +126,6 @@ open class Kademlia(configuration: Configuration) {
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            val start = System.currentTimeMillis()
             add(kademliaMessage.sender)
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
