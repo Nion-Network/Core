@@ -1,6 +1,7 @@
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import utils.Utils.Companion.sha256
+import java.util.*
 import kotlin.random.Random
 
 /**
@@ -16,5 +17,10 @@ class ValidatorTest {
         val setA = sha256(mutableSetOf("A", "B").sorted().shuffled(Random(seed)).apply { println(this) }.joinToString(""))
         val setB = sha256(mutableSetOf("B", "A").sorted().shuffled(Random(seed)).apply { println(this) }.joinToString(""))
         assertEquals(true, setA.contentEquals(setB))
+    }
+
+    @Test
+    internal fun binaryParentTest() {
+        val tree = (0..10).toList()
     }
 }
