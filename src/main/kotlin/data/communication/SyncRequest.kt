@@ -9,4 +9,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-data class SyncRequest(val node: Node, val fromBlock: Long)
+data class SyncRequest(val node: Node, val fromSlot: Long)

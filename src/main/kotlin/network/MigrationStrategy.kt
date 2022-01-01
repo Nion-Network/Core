@@ -1,39 +1,35 @@
-package docker
+package network
 
 import data.Configuration
 import data.chain.Block
 import data.docker.ContainerMigration
+import data.docker.DockerContainer
 import data.docker.MigrationPlan
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import network.DistributedHashTable
-import network.Network
-import utils.coroutineAndReport
+import utils.tryAndReport
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
-import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by Mihael Valentin Berčič
- * on 27/11/2020 at 17:11
+ * on 18/11/2021 at 12:31
  * using IntelliJ IDEA
  */
-class DockerMigrationStrategy(
-    private val dht: DistributedHashTable,
-    private val dockerDataProxy: DockerDataProxy,
-    private val network: Network,
-    private val configuration: Configuration
-) {
+abstract class MigrationStrategy(configuration: Configuration) : Server(configuration) {
 
-    private val migrationSocket = ServerSocket(network.listeningPort + 1)
+    protected val networkMappings = ConcurrentHashMap<String, String>()
+    protected val localContainers = ConcurrentHashMap<String, DockerContainer>()
+    protected val imageMappings = ConcurrentHashMap<String, String>()
 
     init {
-        startListeningForMigrations()
+        Thread(::startListeningForMigrations).start()
     }
 
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
@@ -46,15 +42,15 @@ class DockerMigrationStrategy(
     /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
-        dht.searchFor(migrationPlan.to) { receiver ->
+        query(migrationPlan.to) { receiver ->
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
-            val localContainerIdentifier = dockerDataProxy.getMapping(networkContainerIdentifier)
+            val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier
             val file = saveContainer(localContainerIdentifier)
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, network.listeningPort + 1).use { socket ->
+            Socket(receiver.ip, configuration.port + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     write(encoded)
@@ -63,8 +59,8 @@ class DockerMigrationStrategy(
                 }
             }
             file.delete()
-            dockerDataProxy.removeContainer(localContainerIdentifier)
-            dockerDataProxy.removeContainer(networkContainerIdentifier)
+            localContainers.remove(localContainerIdentifier)
+            localContainers.remove(networkContainerIdentifier)
         }
     }
 
@@ -95,27 +91,24 @@ class DockerMigrationStrategy(
                 .inputStream.bufferedReader().use { it.readLine() }
             val resumeDuration = System.currentTimeMillis() - resumeStart
             if (resumeDuration < 8000) {
-                Dashboard.reportException(Exception("${network.ourNode.ip} $newContainer"))
+                Dashboard.reportException(Exception("${localNode.ip} $newContainer"))
             }
             val elapsed = System.currentTimeMillis() - migrationInformation.start
             val localIp = socket.localSocketAddress.toString()
             val remoteIp = socket.remoteSocketAddress.toString()
             val totalSize = encodedLength + fileLength
-            dockerDataProxy.addContainerMapping(networkContainerIdentifier, newContainer)
+            networkMappings[networkContainerIdentifier] = newContainer
+            networkMappings[newContainer] = networkContainerIdentifier
             Dashboard.newMigration(localIp, remoteIp, networkContainerIdentifier, elapsed, saveTime, transmitDuration, resumeDuration, totalSize, migrationInformation.slot)
         }
     }
 
     /** Starts the thread listening on socket for receiving migrations. */
     private fun startListeningForMigrations() {
-        Thread {
-            while (true) {
-                val socket = migrationSocket.accept()
-                coroutineAndReport {
-                    socket.use { executeMigration(it) }
-                }
-            }
-        }.start()
+        while (true) tryAndReport {
+            executeMigration(tcpSocket.accept())
+        }
     }
+
 
 }

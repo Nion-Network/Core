@@ -5,27 +5,23 @@ package data.network
  * on 15/10/2020 at 14:44
  * using IntelliJ IDEA
  */
-enum class Endpoint(val identification: Byte) {
-    Ping(0),
-    JoinRequest(1),
-    InclusionRequest(2),
-    NodeQuery(3),
-    NodeFound(4),
-    Welcome(5),
-    Vote(6),
-    NewBlock(7),
-    SyncReply(8),
-    SyncRequest(9),
-    VoteRequest(10),
-    UpdateDockerStats(11),
-    RunNewImage(12),
-    RunMigratedImage(13),
-    NodeStatistics(14),
-    RepresentativeStatistics(15);
-
+enum class Endpoint(val identification: Byte, val processing: MessageProcessing) {
+    Ping(0, MessageProcessing.Queued),
+    JoinRequest(1, MessageProcessing.Queued),
+    InclusionRequest(2, MessageProcessing.Queued),
+    NodeQuery(3, MessageProcessing.Immediate),
+    QueryReply(4, MessageProcessing.Immediate),
+    Welcome(5, MessageProcessing.Queued),
+    Vote(6, MessageProcessing.Immediate),
+    NewBlock(7, MessageProcessing.Queued),
+    SyncReply(8, MessageProcessing.Queued),
+    SyncRequest(9, MessageProcessing.Immediate),
+    VoteRequest(10, MessageProcessing.Immediate),
+    NodeStatistics(12, MessageProcessing.Immediate)
+    ;
 
     companion object {
-        private val cache = values().map { it.identification to it }.toMap()
+        private val cache = values().associateBy { it.identification }
 
         fun byId(id: Byte) = cache[id]
     }

@@ -2,16 +2,13 @@ package logging
 
 import data.DebugType
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.net.InetAddress
-import java.net.URI
 import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * Created by Mihael Berčič
@@ -42,71 +39,44 @@ object Logger {
     const val reset = "\u001B[0m"
 
     private val httpClient = HttpClient.newHttpClient()
-
-    private const val informationString =
-        " -------------------------------------------\n" +
-                "| ${red}Debug information$reset                         |\n" +
-                "| d = debug    e = error     c = chain      |\n" +
-                "| i = info     t = trace     x = consensus  |\n" +
-                "| ------------------------------------------|\n" +
-                "| a = ALL                                   |\n" +
-                " -------------------------------------------\n"
+    private val queue = LinkedBlockingQueue<Log>()
+    private val batch = mutableListOf<Log>()
+    private const val batchSize = 10
 
     /** Prints the given message with the coloring and debug information provided.*/
     private fun log(debugType: DebugType, message: Any, color: String = black) {
-        val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
-        val output = "$color$typeString$reset$message"
-        if (isLoggingEnabled) println(output)
-        val timestamp = System.currentTimeMillis()
-        val log = Log(debugType, output, myIP, timestamp)
-        val json = Json.encodeToString(log)
-        val request = HttpRequest.newBuilder()
-            .uri(URI("http://88.200.63.133:8101/logs"))
-            .POST(HttpRequest.BodyPublishers.ofString(json))
-            .build()
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+        if (isLoggingEnabled) {
+            val typeString = LocalDateTime.now().format(timeFormatter).padEnd(11) + " | " + padRight(debugType.name)
+            val output = "$color$typeString$reset$message"
+            println(output)
+        }
+        Dashboard.log(debugType, message, myIP)
     }
 
     /** Enables or disables software logging.  */
     fun toggleLogging(enable: Boolean) {
-        try {
-            isLoggingEnabled = enable
-            // TODO: remove logging listener.
-            if (enable) {
-                Thread {
-                    info(informationString)
-                    val scanner = Scanner(System.`in`)
-                    while (true) {
-                        if (scanner.hasNext()) {
-                            val next = scanner.next()
-                            currentDebug = when (next[0]) {
-                                'd' -> DebugType.DEBUG
-                                'i' -> DebugType.INFO
-                                'e' -> DebugType.ERROR
-                                't' -> DebugType.TRACE
-                                'c' -> DebugType.CHAIN
-                                'x' -> DebugType.CONSENSUS
-                                else -> DebugType.ALL
-                            }
-                            info("Logging level has changed to $currentDebug")
-                            info(informationString)
+        isLoggingEnabled = enable
+    }
 
-                        }
-                    }
-                }.start()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+    fun reportException(e: Exception) {
+        val sw = StringWriter()
+        e.printStackTrace(PrintWriter(sw))
+        error(sw.toString())
+        error(e.cause ?: "Unknown cause.")
+        e.cause?.apply {
+            val sww = StringWriter()
+            printStackTrace(PrintWriter(sww))
+            error(sww.toString())
+            error(cause ?: "Unknown cause.")
         }
-
     }
 
     fun info(message: Any) = log(DebugType.INFO, message, green)
-    fun debug(message: Any) = log(DebugType.DEBUG, message, blue)
+    fun debug(message: Any) = log(DebugType.DEBUG, message, magenta)
     fun error(message: Any) = log(DebugType.ERROR, message, red)
     fun trace(message: Any) = log(DebugType.TRACE, message, yellow)
     fun chain(message: Any) = log(DebugType.CHAIN, message, cyan)
-    fun consensus(message: Any) = log(DebugType.CONSENSUS, message, magenta)
+    fun consensus(message: Any) = log(DebugType.CONSENSUS, message, blue)
 
     /** Pads the string with the default character of ' ' at the end. */
     private fun padRight(string: String) = string.padEnd(12)

@@ -9,4 +9,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-data class QueryMessage(val seekingNode: Node, val searchingPublicKey: String)
+data class QueryMessage(val seeker: Node, val publicKeys: Collection<String>)

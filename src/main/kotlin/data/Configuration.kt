@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 data class Configuration(
     val trustedNodeIP: String,
     val trustedNodePort: Int,
+    val port:Int,
     val maxNodes: Int,
     val keystorePath: String,
     val slotDuration: Long,
@@ -18,8 +19,7 @@ data class Configuration(
     val initialDifficulty: Int,
     val committeeSize: Int,
     val influxUrl: String,
-    val influxUsername: String,
-    val influxPassword: String,
+    val influxToken:String,
     val dashboardEnabled: Boolean,
     val loggingEnabled: Boolean,
     val trustedLoggingEnabled: Boolean,

@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-data class InclusionRequest(val currentSlot: Long, val nodePublicKey: String)
+data class InclusionRequest(val currentSlot: Long, val publicKey: String)

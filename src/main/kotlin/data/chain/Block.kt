@@ -1,5 +1,6 @@
 package data.chain
 
+import data.docker.DockerStatistics
 import data.docker.MigrationPlan
 import kotlinx.serialization.Serializable
 import utils.Utils
@@ -15,14 +16,15 @@ import java.math.BigInteger
 data class Block(
     val slot: Long,
     val difficulty: Int,
-    val timestamp: Long,
     val blockProducer: String,
-    val precedentHash: String = "",
-    val hash: String = Utils.sha256("$slot$difficulty$timestamp$precedentHash").asHex,
-    var votes: Int = 0,
-    val validatorChanges: Map<String, Boolean> = emptyMap(),
-    val migrations: MutableMap<String, MigrationPlan> = mutableMapOf(),
-    var vdfProof: String = ""
+    val dockerStatistics: List<DockerStatistics>,
+    val vdfProof: String = "",
+    val timestamp: Long,
+    val precedentHash: String,
+    val validatorChanges: Map<String, Boolean>,
+    val votes: Int = 0,
+    val migrations: Map<String, MigrationPlan> = mutableMapOf(),
+    val hash: String = Utils.sha256("$slot$difficulty$precedentHash").asHex
 ) {
 
     val seed by lazy {

@@ -1,15 +1,15 @@
 package utils
 
-import data.communication.Message
-import data.chain.Block
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
+import logging.Logger
 import java.security.MessageDigest
 import java.util.*
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.schedule
+import kotlin.concurrent.withLock
 
 /**
  * Created by Mihael Berčič
@@ -47,11 +47,17 @@ class Utils {
 
         fun sha256(data: String) = sha256(data.encodeToByteArray())
 
+        val String.asBitSet: BitSet get() = BitSet.valueOf(toBigInteger(16).toByteArray().reversedArray())
+
+        private val shaLock = ReentrantLock(true)
+
         /** Digests [data] using SHA-256 hashing algorithm. */
         fun sha256(data: ByteArray): ByteArray {
-            return MessageDigest.getInstance("SHA-256").let {
-                it.update(data)
-                it.digest()
+            return shaLock.withLock {
+                MessageDigest.getInstance("SHA-256").let {
+                    it.update(data)
+                    it.digest()
+                }
             }
         }
 
@@ -59,59 +65,31 @@ class Utils {
 
 }
 
-
-/** Launches a new coroutine that executes the [block] and reports any exceptions caught to the dashboard. */
-fun coroutineAndReport(block: () -> Unit) {
-    GlobalScope.launch {
+/** Executes [block] after [delay in milliseconds][delay]. */
+fun runAfter(delay: Long, block: () -> Unit) {
+    Timer().schedule(delay) {
         try {
-            block()
+            block.invoke()
         } catch (e: Exception) {
             Dashboard.reportException(e)
         }
     }
 }
 
-// TODO Comment
-fun levenshteinDistance(block: Block, lhs: String, rhs: String): Int {
-    val len0 = lhs.length + 1
-    val len1 = rhs.length + 1
-    var cost = IntArray(len0)
-    var newCost = IntArray(len0)
-
-    for (i in 0 until len0) cost[i] = i
-    for (j in 1 until len1) {
-        newCost[0] = j
-        for (i in 1 until len0) {
-            val match = if (lhs[i - 1] == rhs[j - 1]) 0 else 1
-            val replaceCost = cost[i - 1] + match
-            val insertCost = cost[i] + 1
-            val deleteCost = newCost[i - 1] + 1
-            newCost[i] = insertCost.coerceAtMost(deleteCost).coerceAtMost(replaceCost)
-        }
-        val swap = cost
-        cost = newCost
-        newCost = swap
-    }
-    return cost[len0 - 1]
-}
-
-/** Executes [block] after [delay in milliseconds][delay]. */
-fun runAfter(delay: Long, block: () -> Unit) {
-    Timer().schedule(delay) {
-        try {
-            block.invoke()
-        } catch (e:Exception){
-            Dashboard.reportException(e)
-        }
+fun launchCoroutine(block: () -> Unit) {
+    GlobalScope.launch {
+        tryAndReport(block)
     }
 }
 
-/**
- * Decodes the [Message<T>] using ProtoBuf from the ByteArray.
- *
- * @param T What data does the Message contain.
- * @return Message with data of type T.
- */
-inline fun <reified T> ByteArray.asMessage(): Message<T> {
-    return ProtoBuf.decodeFromByteArray(this)
+fun <T> Lock.tryWithLock(action: () -> T) = tryAndReport { withLock(action) }
+
+fun <T> tryAndReport(block: () -> T): T? {
+    try {
+        return block()
+    } catch (e: Exception) {
+        Dashboard.reportException(e)
+        Logger.reportException(e)
+    }
+    return null
 }
