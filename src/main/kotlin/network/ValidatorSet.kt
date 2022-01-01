@@ -5,6 +5,7 @@ import data.chain.Block
 import data.chain.ChainTask
 import data.chain.SlotDuty
 import data.network.Node
+import utils.Utils.Companion.sha256
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -20,7 +21,7 @@ import kotlin.math.max
 class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
 
     private val lock = ReentrantLock(true)
-    private val validators = mutableSetOf<String>()
+    private var validators = mutableSetOf<String>()
     private val scheduledChanges = ConcurrentHashMap<String, Boolean>()
 
     val validatorCount get() = lock.withLock { validators.size }
@@ -43,6 +44,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
                     if (publicKey == localNode.publicKey) isInValidatorSet = wasAdded
                 }
             }
+            validators = validators.toSortedSet()
         }
     }
 
@@ -84,15 +86,14 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 
-
-    /** Computes the task for the next block creation using current block information. */
+    /** Computes the task for the next action creation using current block information. */
     fun computeNextTask(block: Block, committeeSize: Int): ChainTask {
         return lock.withLock {
             val seed = block.seed
             val random = Random(seed)
             val ourKey = localNode.publicKey
 
-            val validatorSetCopy = validators.shuffled(random).toMutableList()
+            val validatorSetCopy = validators.sorted().shuffled(random).toMutableList()
             val blockProducerNode = validatorSetCopy.removeAt(0)
             val committee = validatorSetCopy.take(committeeSize)
 
@@ -104,4 +105,6 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
             ChainTask(ourRole, blockProducerNode, committee)
         }
     }
+
+    fun hashed() = lock.withLock { sha256(validators.joinToString("")) }
 }

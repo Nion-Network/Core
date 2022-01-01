@@ -35,8 +35,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                 val list = networkStatistics.computeIfAbsent(dockerStatistics.slot) { mutableListOf() }
                 list.add(dockerStatistics)
             }
+            Logger.info("Added ${statistics.size} statistics...")
         }
-        Logger.info("Added ${statistics.size} statistics...")
     }
 
     fun getNetworkStatistics(slot: Long): List<DockerStatistics> {
@@ -53,15 +53,12 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         Logger.info("Sending docker statistics[$isRepresentative]: ${ourCluster?.nodes?.size ?: 0}")
         if (!isRepresentative) {
             if (ourCluster != null) send(Endpoint.NodeStatistics, TransmissionType.Unicast, arrayOf(localStatistics), ourCluster.representative)
-            else addNetworkStatistics(localStatistics)
         } else runAfter(configuration.slotDuration / 2) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
             send(Endpoint.NodeStatistics, TransmissionType.Unicast, statistics, blockProducer)
         }
-
     }
 
-    @MessageEndpoint(Endpoint.NodeStatistics)
     fun dockerStatisticsReceived(message: Message) {
         val receivedStatistics = message.decodeAs<Array<DockerStatistics>>()
         addNetworkStatistics(*receivedStatistics)

@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * on 18/11/2021 at 12:31
  * using IntelliJ IDEA
  */
-abstract class MigrationStrategy(configuration: Configuration) : DistributedHashTable(configuration) {
+abstract class MigrationStrategy(configuration: Configuration) : Server(configuration) {
 
     protected val networkMappings = ConcurrentHashMap<String, String>()
     protected val localContainers = ConcurrentHashMap<String, DockerContainer>()
@@ -42,7 +42,7 @@ abstract class MigrationStrategy(configuration: Configuration) : DistributedHash
     /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
-        queryFor(migrationPlan.to) { receiver ->
+        query(migrationPlan.to) { receiver ->
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
             val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier
