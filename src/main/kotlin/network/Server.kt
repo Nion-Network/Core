@@ -70,7 +70,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             if (messageHistory.containsKey(packetId) || messageHistory.containsKey(messageId)) return@tryAndReport
             messageHistory[packetId] = System.currentTimeMillis()
             inputStream.apply {
-                val validatorSetHashed = inputStream.readNBytes(32).asHex
                 val isBroadcast = read() == 1
                 val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
                 val totalSlices = readInt()
@@ -106,10 +105,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             val outgoingMessage = outgoingQueue.take()
             val encodedMessage = outgoingMessage.message
-            /* Header length total 110B = 32B + 32B + 32B + 1B + 1B + 4B + 4B + 4B
+            /* Header length total 78B = 32B + 32B + 1B + 1B + 4B + 4B + 4B
             *   packetId: 32B
             *   messageId: 32B
-            *   validatorSetHash: 32B
             *   broadcastByte: 1B
             *   endpointByte: 1B
             *   slicesNeeded: 4B
@@ -130,7 +128,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
                     put(packetId)
                     put(outgoingMessage.messageUID)
-                    put(validatorSet.hashed())
                     put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
                     put(outgoingMessage.endpoint.identification)
                     putInt(slicesNeeded)
