@@ -17,8 +17,8 @@ import data.network.Endpoint
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import network.Cluster
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
+import utils.asHex
+import utils.sha256
 import java.io.File
 import java.net.InetAddress
 import java.time.Instant

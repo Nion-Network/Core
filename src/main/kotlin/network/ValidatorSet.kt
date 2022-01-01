@@ -5,7 +5,7 @@ import data.chain.Block
 import data.chain.ChainTask
 import data.chain.SlotDuty
 import data.network.Node
-import utils.Utils.Companion.sha256
+import utils.sha256
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock

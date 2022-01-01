@@ -3,8 +3,8 @@ package data.chain
 import data.docker.DockerStatistics
 import data.docker.MigrationPlan
 import kotlinx.serialization.Serializable
-import utils.Utils
-import utils.Utils.Companion.asHex
+import utils.asHex
+import utils.sha256
 import java.math.BigInteger
 
 /**
@@ -24,10 +24,10 @@ data class Block(
     val validatorChanges: Map<String, Boolean>,
     val votes: Int = 0,
     val migrations: Map<String, MigrationPlan> = mutableMapOf(),
-    val hash: String = Utils.sha256("$slot$difficulty$precedentHash").asHex
+    val hash: String = sha256("$slot$difficulty$precedentHash").asHex
 ) {
 
     val seed by lazy {
-        BigInteger(Utils.sha256(vdfProof).asHex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+        BigInteger(sha256(vdfProof).asHex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
     }
 }

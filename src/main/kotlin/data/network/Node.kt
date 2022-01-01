@@ -2,9 +2,9 @@ package data.network
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import utils.Utils.Companion.asBitSet
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
+import utils.asBitSet
+import utils.asHex
+import utils.sha256
 
 /**
  * Created by Mihael Valentin Berčič

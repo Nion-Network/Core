@@ -10,8 +10,8 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import utils.Utils.Companion.asHex
-import utils.Utils.Companion.sha256
+import utils.asHex
+import utils.sha256
 import utils.tryAndReport
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream

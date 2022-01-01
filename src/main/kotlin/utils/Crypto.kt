@@ -106,7 +106,7 @@ class Crypto(private val keystorePath: String) {
             generatedPair
         }
         encodedPublicKey = keyPair.public.encoded
-        hashedPublicKey = Utils.sha256(encodedPublicKey)
+        hashedPublicKey = sha256(encodedPublicKey)
         publicKey = String(Base64.getMimeEncoder().encode(encodedPublicKey))
     }
 }
