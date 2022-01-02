@@ -28,6 +28,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         Thread(::listenForDockerStatistics).start()
     }
 
+    /** Stores all [statistics] into latest [networkStatistics] using [networkLock]. */
     private fun addNetworkStatistics(vararg statistics: DockerStatistics) {
         networkLock.withLock {
             statistics.forEach { dockerStatistics ->
@@ -38,10 +39,12 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         }
     }
 
+    /** Retrieves all [DockerStatistics] from [networkStatistics] for the [slot]. */
     fun getNetworkStatistics(slot: Long): List<DockerStatistics> {
         return networkLock.withLock { networkStatistics[slot]?.toList() ?: emptyList() }
     }
 
+    /** Sends (new) local [DockerStatistics] to our representative / block producer (if we're representative).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
         val slot = block.slot
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
@@ -58,6 +61,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         }
     }
 
+    /** On [Endpoint.NodeStatistics] received, all received statistics are added to [networkStatistics] using [networkLock]. */
     fun dockerStatisticsReceived(message: Message) {
         val receivedStatistics = message.decodeAs<Array<DockerStatistics>>()
         addNetworkStatistics(*receivedStatistics)
