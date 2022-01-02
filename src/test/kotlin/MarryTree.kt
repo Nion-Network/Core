@@ -9,30 +9,44 @@ import utils.TreeUtils
  */
 class MarryTree {
 
-    private val k = 9
-    private val index = 72
-    private val ourDepth = TreeUtils.computeDepth(k, index)
-    private val totalOnDepth = TreeUtils.computeTotalNodesOnDepth(k, ourDepth)
+    private val k = 3
+    private val index = 8
+    private val depth = TreeUtils.computeDepth(k, index)
+    private val totalOnDepth = TreeUtils.computeTotalNodesOnDepth(k, depth)
 
     @Test
     fun depthComputation() {
-        assertEquals(2, ourDepth)
+        assertEquals(2, depth)
     }
 
     @Test
     fun maxAtDepthComputation() {
-        assertEquals(91, totalOnDepth)
+        assertEquals(13, totalOnDepth)
     }
 
     @Test
     fun minimumIndexAtDepthComputation() {
-        val min = TreeUtils.computeMinimumIndexAtDepth(k, totalOnDepth, ourDepth)
-        assertEquals(10, min)
+        val min = TreeUtils.computeMinimumIndexAtDepth(k, totalOnDepth, depth)
+        assertEquals(4, min)
     }
 
     @Test
     fun maximumIndexAtDepthComputation() {
         val max = TreeUtils.computeMaximumIndexAtDepth(totalOnDepth)
-        assertEquals(90, max)
+        assertEquals(12, max)
+    }
+
+    @Test
+    fun findChildren() {
+        val children = TreeUtils.findChildren(k, index)
+        assertEquals(25..27, children)
+    }
+
+    @Test
+    fun findNeighbour() {
+        val minIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalOnDepth, depth)
+        val maxIndex = TreeUtils.computeMaximumIndexAtDepth(totalOnDepth)
+        val neighbour = (12 + 1).takeIf { it <= maxIndex } ?: minIndex
+        assertEquals(4, neighbour)
     }
 }

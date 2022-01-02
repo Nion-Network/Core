@@ -5,6 +5,7 @@ import data.chain.Block
 import data.chain.ChainTask
 import data.chain.SlotDuty
 import data.network.Node
+import logging.Logger
 import utils.sha256
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -21,17 +22,24 @@ import kotlin.math.max
 class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
 
     private val lock = ReentrantLock(true)
-    private var validators = mutableSetOf<String>()
+    private val validators = mutableSetOf<String>()
     private val scheduledChanges = ConcurrentHashMap<String, Boolean>()
 
     val validatorCount get() = lock.withLock { validators.size }
+    val activeValidators: List<String> get() = lock.withLock { validators.toList() }
+
     var isInValidatorSet = isTrustedNode
         private set
+
 
     init {
         if (isTrustedNode) scheduledChanges[localNode.publicKey] = true
     }
 
+    /** Returns shuffled validator set using passed [random]. */
+    fun shuffled(random: kotlin.random.Random): List<String> {
+        return lock.withLock { validators.shuffled(random) }
+    }
 
     /** Goes over all blocks added and validator set is modified based on changes that happened in those blocks. */
     fun inclusionChanges(vararg blocks: Block) {
@@ -44,13 +52,17 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
                     if (publicKey == localNode.publicKey) isInValidatorSet = wasAdded
                 }
             }
-            validators = validators.toSortedSet()
         }
+    }
+
+    fun clearScheduledChanges(publicKey: String) {
+        scheduledChanges.remove(publicKey)
     }
 
     /** Schedules a change of validator set to be used in the next block. */
     fun scheduleChange(publicKey: String, add: Boolean) {
         scheduledChanges[publicKey] = add
+        Logger.info("Scheduled inclusion change of ${publicKey.take(5)} to $add.")
     }
 
     /** Returns all scheduled changes. */

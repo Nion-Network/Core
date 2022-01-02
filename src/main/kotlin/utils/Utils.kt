@@ -65,6 +65,11 @@ object TreeUtils {
         return totalAtDepth - 1
     }
 
+    fun findChildren(k: Int, index: Int): IntRange {
+        val firstChildIndex = k * index + 1
+        val lastChildIndex = k * (index + 1)
+        return firstChildIndex..lastChildIndex
+    }
 }
 
 private val shaLock = ReentrantLock(true)

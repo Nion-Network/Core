@@ -62,7 +62,7 @@ open class Kademlia(configuration: Configuration) {
             val identifier = sha256(publicKey).asHex
             val knownNode = knownNodes[identifier]
             if (knownNode == null) sendFindRequest(identifier, block = action)
-            else if (action != null) executeOnFound(action, knownNode)
+            else if (action != null) action(knownNode)
         }
     }
 

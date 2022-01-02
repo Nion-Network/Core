@@ -4,7 +4,6 @@ import data.network.Endpoint
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
-import utils.asHex
 import utils.sha256
 import java.util.*
 
@@ -20,7 +19,7 @@ class Message(
     val body: ByteArray,
     val signature: ByteArray,
     val timestamp: Long = System.currentTimeMillis(),
-    val uid: String = sha256(UUID.randomUUID().toString()).asHex
+    val uid: ByteArray = sha256(UUID.randomUUID().toString())
 ) {
     inline fun <reified T> decodeAs() = ProtoBuf.decodeFromByteArray<T>(body)
 }

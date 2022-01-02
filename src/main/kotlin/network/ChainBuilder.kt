@@ -149,6 +149,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) validatorSet.scheduleChange(inclusionRequest.publicKey, true)
+        else validatorSet.clearScheduledChanges(inclusionRequest.publicKey)
         if (isTrustedNode && chain.getLastBlock() == null) {
             Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
@@ -199,7 +200,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
-        send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest)
+        send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
         Logger.info("Requesting inclusion with $ourSlot.")
     }
 }
