@@ -1,6 +1,5 @@
 package logging
 
-import data.DebugType
 import kotlinx.serialization.Serializable
 import java.io.PrintWriter
 import java.io.StringWriter

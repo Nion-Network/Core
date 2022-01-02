@@ -1,6 +1,6 @@
 package network
 
-import data.network.Endpoint
+import network.data.Endpoint
 
 /**
  * Created by Mihael Valentin Berčič

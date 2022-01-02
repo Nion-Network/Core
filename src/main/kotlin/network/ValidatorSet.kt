@@ -1,11 +1,11 @@
 package network
 
-import data.Configuration
-import data.chain.Block
-import data.chain.ChainTask
-import data.chain.SlotDuty
-import data.network.Node
+import Configuration
+import chain.data.Block
+import chain.data.ChainTask
+import chain.data.SlotDuty
 import logging.Logger
+import network.data.Node
 import utils.sha256
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap

@@ -1,11 +1,10 @@
-import data.Configuration
-import data.communication.Message
-import data.network.Endpoint
-import data.network.MessageProcessing
+import chain.ChainBuilder
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
-import network.ChainBuilder
+import network.data.Endpoint
+import network.data.MessageProcessing
+import network.data.communication.Message
 import utils.launchCoroutine
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue

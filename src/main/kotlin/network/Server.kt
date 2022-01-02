@@ -1,15 +1,15 @@
 package network
 
-import data.Configuration
-import data.communication.Message
-import data.communication.TransmissionType
-import data.network.Endpoint
-import data.network.Node
-import kademlia.Kademlia
+import Configuration
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import network.data.Endpoint
+import network.data.Node
+import network.data.communication.Message
+import network.data.communication.TransmissionType
+import network.kademlia.Kademlia
 import utils.TreeUtils
 import utils.asHex
 import utils.sha256
@@ -215,7 +215,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     /** Puts the action of adding the message to [outgoingQueue] in [queryStorage] for when the Node is found. Then the message is sent to the Node.*/
     fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
-        val seed = BigInteger(message.uid.asHex, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+        val seed = BigInteger(message.uid).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val messageRandom = Random(seed)
         val validators = validatorSet.shuffled(messageRandom)
 

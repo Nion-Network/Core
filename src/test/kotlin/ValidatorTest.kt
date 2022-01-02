@@ -1,7 +1,7 @@
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import utils.sha256
-import java.util.*
+import java.security.MessageDigest
 import kotlin.random.Random
 
 /**
