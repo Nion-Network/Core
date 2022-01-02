@@ -19,7 +19,7 @@ class Block(
     val dockerStatistics: List<DockerStatistics>,
     val vdfProof: String = "",
     val timestamp: Long,
-    val precedentHash: String,
+    val precedentHash: ByteArray,
     val validatorChanges: Map<String, Boolean>,
     val votes: Int = 0,
     val migrations: Map<String, MigrationPlan> = mutableMapOf(),

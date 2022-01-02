@@ -103,8 +103,8 @@ object Dashboard {
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
             addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
-            addField("previousHash", blockData.precedentHash)
-            addField("hash", blockData.hash)
+            addField("previousHash", blockData.precedentHash.asHex)
+            addField("hash", blockData.hash.asHex)
             addField("votes", blockData.votes)
         }
         queue.put(point)

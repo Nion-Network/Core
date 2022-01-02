@@ -30,20 +30,20 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
         return lock.withLock {
             newBlocks.forEach { newBlock ->
                 val lastBlock = blocks.lastOrNull()
-                val lastHash = lastBlock?.hash ?: "FFFF"
+                val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
                 val difficulty = lastBlock?.difficulty ?: initialDifficulty
                 val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, newBlock.vdfProof)
                 if (isLegitimate) {
                     blocks.add(newBlock)
                     Logger.chain("Block[${newBlock.votes}/$committeeSize] added [${newBlock.slot}].")
                 } else {
-                    if (newBlock.slot > (lastBlock?.slot ?: 0) && lastHash != newBlock.hash) {
+                    if (newBlock.slot > (lastBlock?.slot ?: 0) && !lastHash.contentEquals(newBlock.hash)) {
                         Logger.trace("Proof is not legitimate for block ${newBlock.slot}!")
                         Logger.info("Last hash: $lastHash")
                         Logger.info("Last block: ${lastBlock?.slot}")
                         Logger.info("New hash: ${newBlock.hash}")
                         Logger.info("Precedent hash: ${newBlock.precedentHash}")
-                        Logger.info("Precedent vs lastBlock ${newBlock.precedentHash == lastHash}")
+                        Logger.info("Precedent vs lastBlock ${newBlock.precedentHash.contentEquals(lastHash)}")
                     }
                     return@withLock false
                 }

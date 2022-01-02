@@ -3,10 +3,10 @@ package chain
 import Configuration
 import chain.data.Block
 import chain.data.SlotDuty
+import docker.DockerProxy
 import docker.MigrationPlan
 import logging.Dashboard
 import logging.Logger
-import docker.DockerProxy
 import network.data.Endpoint
 import network.data.communication.InclusionRequest
 import network.data.communication.Message
@@ -156,8 +156,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
             if (isEnoughToStart && !sentGenesis.get()) {
-                val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF")
-                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), "", validatorSet.getScheduledChanges())
+                val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
+                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
                 send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
                 sentGenesis.set(true)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
