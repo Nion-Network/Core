@@ -48,6 +48,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 migrateContainer(this, block)
             }
 
+            validatorSet.clearScheduledChanges()
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     Dashboard.logCluster(block, nextTask, clusters)
@@ -150,7 +151,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) validatorSet.scheduleChange(inclusionRequest.publicKey, true)
-        else validatorSet.clearScheduledChanges(inclusionRequest.publicKey)
         if (isTrustedNode && chain.getLastBlock() == null) {
             Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }

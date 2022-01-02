@@ -55,8 +55,8 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         }
     }
 
-    fun clearScheduledChanges(publicKey: String) {
-        scheduledChanges.remove(publicKey)
+    fun clearScheduledChanges() {
+        scheduledChanges.clear()
     }
 
     /** Schedules a change of validator set to be used in the next block. */
