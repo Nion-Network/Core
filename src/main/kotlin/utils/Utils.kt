@@ -15,7 +15,6 @@ import kotlin.concurrent.withLock
  * on 26/03/2020 14:45
  * using IntelliJ IDEA
  */
-
 private val digits = charArrayOf(
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
     'E', 'F'
@@ -40,6 +39,7 @@ val ByteArray.asHex
         return out.joinToString("")
     }
 
+/** Returns HEX encoded identifier as a bit set. */
 val String.asBitSet: BitSet get() = BitSet.valueOf(toBigInteger(16).toByteArray().reversedArray())
 
 /** Digests [data] using SHA-256 hashing algorithm. */
@@ -64,14 +64,17 @@ fun runAfter(delay: Long, block: () -> Unit) {
     }
 }
 
+/** Launches a coroutine and executes [block] on that coroutine.*/
 fun launchCoroutine(block: () -> Unit) {
     GlobalScope.launch {
         tryAndReport(block)
     }
 }
 
+/** Try catch for a [Lock] that reports any exceptions to our [Dashboard]. */
 fun <T> Lock.tryWithLock(action: () -> T) = tryAndReport { withLock(action) }
 
+/** Tries to run block and reports any caught exceptions to our [Dashboard] and [Logger]. */
 fun <T> tryAndReport(block: () -> T): T? {
     try {
         return block()
