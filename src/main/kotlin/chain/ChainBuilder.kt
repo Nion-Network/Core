@@ -42,8 +42,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 }
             }
 
-
-            // sendDockerStatistics(block, nextTask.blockProducer, clusters)
+            sendDockerStatistics(block, nextTask.blockProducer, clusters)
             block.migrations[localNode.publicKey]?.apply {
                 migrateContainer(this, block)
             }
@@ -61,7 +60,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
                             Logger.info("Total length: $size")
-                            Logger.info("Any duplicates? ${distinctBy { it.publicKey }.size}")
+                            Logger.info("Distinct: ${distinctBy { it.publicKey }.size}")
                             Logger.debug("Total containers: ${sumOf { it.containers.size }}")
                             Dashboard.reportStatistics(this, block.slot)
                         }

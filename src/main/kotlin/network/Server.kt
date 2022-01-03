@@ -113,7 +113,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         query(publicKey) { node ->
                             val newPacket = DatagramPacket(packet.data, 0, packet.length, InetSocketAddress(node.ip, node.port))
                             udpSocket.send(newPacket)
-                            Logger.info("Retransmission of udp packet to ${node.ip}.")
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = node.publicKey

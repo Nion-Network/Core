@@ -55,6 +55,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         Logger.info("Sending docker statistics[$isRepresentative]: ${ourCluster?.nodes?.size ?: 0}")
         if (!isRepresentative) {
             if (ourCluster != null) send(Endpoint.NodeStatistics, TransmissionType.Unicast, arrayOf(localStatistics), ourCluster.representative)
+            else addNetworkStatistics(localStatistics)
         } else runAfter(configuration.slotDuration / 2) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
             send(Endpoint.NodeStatistics, TransmissionType.Unicast, statistics, blockProducer)
