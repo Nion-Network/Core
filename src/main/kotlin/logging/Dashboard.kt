@@ -77,7 +77,7 @@ object Dashboard {
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
-                    time(Instant.now().plusNanos(total), WritePrecision.NS)
+                    time(Instant.now().plusMillis(total), WritePrecision.NS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
