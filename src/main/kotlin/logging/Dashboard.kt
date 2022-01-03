@@ -71,19 +71,20 @@ object Dashboard {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
-        var total = 0
+        var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
-                    time(Instant.now().toEpochMilli(), WritePrecision.MS)
+                    time(Instant.now().plusNanos(total), WritePrecision.NS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
                     addField("cpu", container.cpuUsage)
                     addField("memory", container.memoryUsage)
                     addField("slot", slot)
                 }
+                total++
                 queue.put(point)
             }
         }
@@ -145,7 +146,7 @@ object Dashboard {
     ) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
-            time(Instant.now().toEpochMilli(), WritePrecision.MS)
+            time(Instant.now(), WritePrecision.NS)
             addField("from", sender)
             addField("to", receiver)
             addField("slot", slot)
@@ -182,6 +183,7 @@ object Dashboard {
     fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
+            .time(Instant.now(), WritePrecision.NS)
             .addField("id", id)
             .addField("endpoint", endpoint.name)
             .addField("source", sha256(sender).asHex)
@@ -232,7 +234,7 @@ object Dashboard {
             else -> SlotDuty.VALIDATOR
         }
         return Point.measurement("cluster")
-            .time(Instant.now().toEpochMilli(), WritePrecision.MS)
+            .time(Instant.now(), WritePrecision.NS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
