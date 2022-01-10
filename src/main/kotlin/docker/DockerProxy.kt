@@ -8,6 +8,7 @@ import network.Cluster
 import network.data.Endpoint
 import network.data.communication.Message
 import network.data.communication.TransmissionType
+import utils.CircularList
 import utils.runAfter
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -70,6 +71,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     /** Starts a process of `docker stats` and keeps the [localStatistics] up to date. */
     private fun listenForDockerStatistics() {
+        val numberOfElements = (configuration.slotDuration / 1000).toInt()
+
         val process = ProcessBuilder()
             .command("docker", "stats", "--no-trunc", "--format", "{{.ID}} {{.CPUPerc}} {{.MemPerc}} {{.PIDs}}")
             .redirectErrorStream(true)
@@ -95,7 +98,13 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                                 val cpuPercentage = fields[1].trim('%').toDouble()
                                 val memoryPercentage = fields[2].trim('%').toDouble()
                                 val processes = fields[3].toInt()
-                                localContainers[containerId] = DockerContainer(containerId, cpuPercentage, memoryPercentage, processes)
+                                val container = localContainers.computeIfAbsent(containerId) {
+                                    DockerContainer(containerId, processes, CircularList(numberOfElements), CircularList(numberOfElements))
+                                }
+                                container.apply {
+                                    cpuUsage.add(cpuPercentage)
+                                    memoryUsage.add(memoryPercentage)
+                                }
                             } else localContainers[containerId]?.apply { updated = System.currentTimeMillis() }
                         }
                     }

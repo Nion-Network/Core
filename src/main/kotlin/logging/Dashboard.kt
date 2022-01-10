@@ -80,8 +80,8 @@ object Dashboard {
                     time(Instant.now().plusMillis(total), WritePrecision.NS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
-                    addField("cpu", container.cpuUsage)
-                    addField("memory", container.memoryUsage)
+                    addField("cpu", container.averageCpuUsage)
+                    addField("memory", container.averageMemoryUsage)
                     addField("slot", slot)
                 }
                 total++

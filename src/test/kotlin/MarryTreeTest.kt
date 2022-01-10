@@ -1,5 +1,10 @@
+import docker.DockerContainer
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import utils.CircularList
 import utils.TreeUtils
 
 /**
@@ -16,6 +21,11 @@ class MarryTreeTest {
 
     @Test
     fun depthComputation() {
+        val container = DockerContainer("", 10, CircularList(5), CircularList(5))
+        val x = ProtoBuf.encodeToByteArray(container)
+        val y = ProtoBuf.decodeFromByteArray<DockerContainer>(x)
+
+        assertEquals(y, container)
         assertEquals(2, depth)
     }
 

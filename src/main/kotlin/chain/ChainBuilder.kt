@@ -14,7 +14,6 @@ import network.data.communication.SyncRequest
 import network.data.communication.TransmissionType
 import utils.runAfter
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -70,6 +69,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
                         Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
 
+                        /*
                         if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
                             val lastBlocks = chain.getLastBlocks(block.slot - 20)
                             val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
@@ -94,6 +94,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                                 }
                             }
                         }
+                        */
                         val newBlock = Block(
                             block.slot + 1,
                             difficulty = configuration.initialDifficulty,

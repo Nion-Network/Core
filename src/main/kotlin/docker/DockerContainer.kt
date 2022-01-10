@@ -1,6 +1,7 @@
 package docker
 
 import kotlinx.serialization.Serializable
+import utils.CircularList
 
 /**
  * Created by Mihael Valentin Berčič
@@ -18,8 +19,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DockerContainer(
     val id: String,
-    var cpuUsage: Double,
-    val memoryUsage: Double,
     val pids: Int,
+    val memoryUsage: CircularList<Double>,
+    var cpuUsage: CircularList<Double>,
     var updated: Long = System.currentTimeMillis()
-)
+) {
+
+    val averageCpuUsage get(): Double = cpuUsage.elements().average()
+
+    val averageMemoryUsage get(): Double = memoryUsage.elements().average()
+
+}
