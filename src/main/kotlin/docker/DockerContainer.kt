@@ -14,19 +14,19 @@ import utils.CircularList
  * @property name
  * @property cpuUsage Expressed in percentages.
  * @property memoryUsage Expressed in percentages.
- * @property pids Number of processes the localContainerIdentifier is running.
+ * @property processes Number of processes the localContainerIdentifier is running.
  */
 @Serializable
 data class DockerContainer(
     val id: String,
-    val pids: Int,
+    var processes: Int,
     val memoryUsage: CircularList<Double>,
-    var cpuUsage: CircularList<Double>,
+    val cpuUsage: CircularList<Double>,
     var updated: Long = System.currentTimeMillis()
 ) {
 
-    val averageCpuUsage get(): Double = cpuUsage.elements().average()
+    val averageCpuUsage get(): Double = cpuUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
 
-    val averageMemoryUsage get(): Double = memoryUsage.elements().average()
+    val averageMemoryUsage get(): Double = memoryUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
 
 }

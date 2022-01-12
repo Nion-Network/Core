@@ -4,7 +4,6 @@ import Configuration
 import chain.data.Block
 import chain.data.SlotDuty
 import docker.DockerProxy
-import docker.MigrationPlan
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
@@ -41,11 +40,11 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 }
             }
 
-            sendDockerStatistics(block, nextTask.blockProducer, clusters)
             block.migrations[localNode.publicKey]?.apply {
                 migrateContainer(this, block)
             }
 
+            sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
@@ -64,37 +63,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             Dashboard.reportStatistics(this, block.slot)
                         }
 
-                        val futureMigrations = mutableMapOf<String, MigrationPlan>()
-                        val mostUsedNode = latestStatistics.maxByOrNull { it.totalCPU }
-                        val leastUsedNode = latestStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
-                        Logger.debug("$mostUsedNode $leastUsedNode ${leastUsedNode == mostUsedNode}")
+                        val migrations = computeMigrations(latestStatistics)
 
-                        /*
-                        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
-                            val lastBlocks = chain.getLastBlocks(block.slot - 20)
-                            val lastMigrations = lastBlocks.map { it.migrations.values }.flatten()
-                            val leastConsumingApp = mostUsedNode.containers
-                                .filter { app -> lastMigrations.none { it.container == app.id } }
-                                .filter { it.cpuUsage > 5 }
-                                .minByOrNull { it.cpuUsage }
-
-                            if (leastConsumingApp != null) {
-                                val mostUsage = mostUsedNode.totalCPU
-                                val leastUsage = leastUsedNode.totalCPU
-                                val appUsage = leastConsumingApp.cpuUsage
-                                val beforeMigration = abs(mostUsage - leastUsage)
-                                val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
-                                val difference = abs(beforeMigration - afterMigration)
-
-                                Dashboard.reportException(Exception("Difference: $difference App: $appUsage"))
-                                if (difference >= 5) {
-                                    val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
-                                    futureMigrations[mostUsedNode.publicKey] = migration
-                                    Logger.debug(migration)
-                                }
-                            }
-                        }
-                        */
                         val newBlock = Block(
                             block.slot + 1,
                             difficulty = configuration.initialDifficulty,
@@ -104,7 +74,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             blockProducer = localNode.publicKey,
                             validatorChanges = validatorSet.getScheduledChanges(),
                             precedentHash = block.hash,
-                            migrations = futureMigrations
+                            migrations = migrations
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
                         send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)

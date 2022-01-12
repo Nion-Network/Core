@@ -14,6 +14,7 @@ import java.io.DataOutputStream
 import java.io.File
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 /**
  * Created by Mihael Valentin Berčič
@@ -109,4 +110,30 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     }
 
 
+    protected fun computeMigrations(dockerStatistics: List<DockerStatistics>): Map<String, MigrationPlan> {
+        val migrations = mutableMapOf<String, MigrationPlan>()
+        val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
+        val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
+
+        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
+            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.averageCpuUsage }
+
+            if (leastConsumingApp != null) {
+                val mostUsage = mostUsedNode.totalCPU
+                val leastUsage = leastUsedNode.totalCPU
+                val appUsage = leastConsumingApp.averageCpuUsage
+                val beforeMigration = abs(mostUsage - leastUsage)
+                val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
+                val difference = abs(beforeMigration - afterMigration)
+
+                Dashboard.reportException(Exception("Difference: $difference% \t App: $appUsage"))
+                if (difference > 1) {
+                    val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                    migrations[mostUsedNode.publicKey] = migration
+                    Logger.debug(migration)
+                }
+            }
+        }
+        return migrations
+    }
 }
