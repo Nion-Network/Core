@@ -136,15 +136,14 @@ open class Kademlia(configuration: Configuration) {
                     val lookingFor = closestNodes.lookingFor
                     closestNodes.nodes.apply { // TODO: clean this
                         val node = firstOrNull { it.identifier == lookingFor }
-                        val isFound = node != null
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
                         val query = (if (node == null) queryStorage[lookingFor] else queryStorage.remove(lookingFor)) ?: return@apply
                         query.hops++
-                        if (!isFound) {
+                        if (node == null) {
                             shuffle()
                             take(3).forEach { sendFindRequest(lookingFor, it) }
-                        } else if (node != null) {
+                        } else {
                             query.action?.apply { executeOnFound(this, node) }
                             val duration = System.currentTimeMillis() - query.start
                             Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")

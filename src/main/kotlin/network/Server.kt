@@ -68,8 +68,10 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             inputStream.reset()
             udpSocket.receive(packet)
-            val packetId = inputStream.readNBytes(32).asHex
-            val messageId = inputStream.readNBytes(32).asHex
+            val packetIdBytes = inputStream.readNBytes(32)
+            val packetId = packetIdBytes.asHex
+            val messageIdBytes = inputStream.readNBytes(32)
+            val messageId = messageIdBytes.asHex
             if (messageHistory.containsKey(packetId) || messageHistory.containsKey(messageId)) return@tryAndReport
             messageHistory[packetId] = System.currentTimeMillis()
             inputStream.apply {
@@ -108,15 +110,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {
-                    val started = System.currentTimeMillis()
                     messageBuilder.nodes.forEach { publicKey ->
                         query(publicKey) { node ->
-                            val newPacket = DatagramPacket(packet.data, 0, packet.length, InetSocketAddress(node.ip, node.port))
-                            udpSocket.send(newPacket)
-                            val delay = System.currentTimeMillis() - started
-                            val sender = localNode.publicKey
-                            val recipient = node.publicKey
-                            Dashboard.sentMessage(messageId, endpoint, sender, recipient, data.size, delay)
+                            outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, messageIdBytes, packet.data, node, packetIdBytes))
                         }
                     }
                 }
@@ -158,7 +154,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val from = slice * allowedDataSize
                     val to = Integer.min(from + allowedDataSize, encodedMessageLength)
                     val data = encodedMessage.sliceArray(from until to)
-                    val packetId = sha256(uuid + data)
+                    val packetId = outgoingMessage.packetId ?: sha256(uuid + data)
 
                     put(packetId)
                     put(outgoingMessage.messageUID)

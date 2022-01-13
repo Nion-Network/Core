@@ -16,5 +16,6 @@ class OutgoingQueuedMessage(
     val transmissionType: TransmissionType,
     val messageUID: ByteArray,
     val message: ByteArray,
-    val recipient: Node
+    val recipient: Node,
+    val packetId: ByteArray? = null
 )
