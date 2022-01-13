@@ -87,7 +87,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val shuffled = validatorSet.shuffled(messageRandom)
                     val k = 6
                     val index = shuffled.indexOf(localNode.publicKey)
-                    val broadcastNodes = mutableListOf<String>()
+                    val broadcastNodes = mutableSetOf<String>()
                     if (index != -1) {
                         val depth = TreeUtils.computeDepth(k, index)
                         val totalNodesAtDepth = TreeUtils.computeTotalNodesOnDepth(k, depth)
@@ -104,7 +104,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         Logger.error("[${shuffled.size}] [$index] [$children] Neighbour: ${shuffled.indexOf(neighbour)} ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                     }
                     broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
-                    Logger.error("We have to retransmit to [${shuffled.size}] =.= [$index] -> ${broadcastNodes.size} nodes.")
+                    // Logger.error("We have to retransmit to [${shuffled.size}] =.= [$index] -> ${broadcastNodes.size} nodes.")
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {

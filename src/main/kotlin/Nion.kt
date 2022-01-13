@@ -1,4 +1,5 @@
 import chain.ChainBuilder
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
@@ -42,7 +43,6 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         attemptInclusion()
     }
 
-    /** Acts accordingly to the [Endpoint] on how to process the received [Message]. */
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
