@@ -103,8 +103,14 @@ object Dashboard {
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
-            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
-            addField("previousHash", blockData.precedentHash.asHex)
+            addField(
+                "blockProducer",
+                if (blockData.blockProducer == "SKIPBLOCK") blockData.blockProducer else sha256(blockData.blockProducer).asHex
+            ) // TODO: Add sha256 encoding after skip block implementation.
+            addField(
+                "previousHash",
+                blockData.precedentHash.asHex
+            )
             addField("hash", blockData.hash.asHex)
             addField("votes", blockData.votes)
         }
