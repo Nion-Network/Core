@@ -77,8 +77,7 @@ open class Kademlia(configuration: Configuration) {
         val bucket = tree[position]?.getNodes() ?: emptySet()
         val missing = needed - bucket.size
         if (missing <= 0) return bucket
-        val closestPosition = if (position == 0) 256
-        else tree.keys.filter { it < position }.maxOrNull() ?: return bucket
+        val closestPosition = tree.keys.filter { it < position }.maxOrNull() ?: 256
         if (closestPosition == startedIn) {
             Logger.error("We went around.")
             return bucket
@@ -181,7 +180,9 @@ open class Kademlia(configuration: Configuration) {
                 Logger.error("LOOKUP SIZE for ${identifier.take(5)} IS 0 SOMEHOW!")
                 printTree()
             }
-        }.filter { it.identifier != localNode.identifier }.random()
+        }.filter { it.identifier != localNode.identifier }.randomOrNull().apply {
+            if (this == null) Dashboard.reportException(Exception("Bootstrapped: $isBootstrapped"))
+        } ?: return
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0, action = block) }
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
