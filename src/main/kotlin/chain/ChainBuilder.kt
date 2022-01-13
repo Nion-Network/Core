@@ -31,18 +31,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         if (chain.addBlocks(block)) {
             validatorSet.inclusionChanges(block)
             if (!validatorSet.isInValidatorSet) requestInclusion()
+
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
+            val ourMigrationPlan = block.migrations[localNode.publicKey]
 
-            if (isTrustedNode) {
-                query(nextTask.blockProducer) {
-                    Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, it.ip)
-                }
-            }
-
-            block.migrations[localNode.publicKey]?.apply {
-                migrateContainer(this, block)
-            }
+            if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
 
             sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
@@ -78,6 +72,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
                         send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
+                        val newTasks = validatorSet.computeNextTask(newBlock, configuration.committeeSize)
+                        query(newTasks.blockProducer) {
+                            Dashboard.newBlockProduced(newBlock, totalKnownNodes, validatorSet.validatorCount, it.ip)
+                        }
                     }
                 }
                 SlotDuty.COMMITTEE -> {

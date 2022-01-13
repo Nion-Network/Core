@@ -23,7 +23,7 @@ import kotlin.concurrent.withLock
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
 
     private val networkLock = ReentrantLock(true)
-    private val networkStatistics = ConcurrentHashMap<Long, MutableList<DockerStatistics>>()
+    private val networkStatistics = ConcurrentHashMap<Long, MutableSet<DockerStatistics>>()
 
     init {
         Thread(::listenForDockerStatistics).start()
@@ -33,7 +33,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     private fun addNetworkStatistics(vararg statistics: DockerStatistics) {
         networkLock.withLock {
             statistics.forEach { dockerStatistics ->
-                val list = networkStatistics.computeIfAbsent(dockerStatistics.slot) { mutableListOf() }
+                val list = networkStatistics.computeIfAbsent(dockerStatistics.slot) { mutableSetOf() }
                 list.add(dockerStatistics)
             }
             Logger.info("Added ${statistics.size} statistics...")
