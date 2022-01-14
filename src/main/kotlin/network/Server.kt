@@ -217,7 +217,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
         val seed = BigInteger(message.uid).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val messageRandom = Random(seed)
-        val validators = validatorSet.shuffled(messageRandom)
+        val validators = validatorSet.activeValidators.sorted()
 
         val x: (Node) -> Unit = {
             Logger.info("Sending [$endpoint] message to $it.ip")
