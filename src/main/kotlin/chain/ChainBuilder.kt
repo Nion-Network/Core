@@ -40,6 +40,9 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
             sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
+            if (isTrustedNode) query(nextTask.blockProducer) {
+                Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, it.ip)
+            }
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
                     Dashboard.logCluster(block, nextTask, clusters)
@@ -72,10 +75,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
                         send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
-                        val newTasks = validatorSet.computeNextTask(newBlock, configuration.committeeSize)
-                        query(newTasks.blockProducer) {
-                            Dashboard.newBlockProduced(newBlock, totalKnownNodes, validatorSet.validatorCount, it.ip)
-                        }
                     }
                 }
                 SlotDuty.COMMITTEE -> {
