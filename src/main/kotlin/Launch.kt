@@ -1,6 +1,5 @@
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import logging.Dashboard
 import logging.Logger
 import utils.tryAndReport
 import java.io.File
@@ -14,7 +13,6 @@ fun main() {
     System.setProperty("kotlinx.coroutines.scheduler", "off")
     val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
     Logger.toggleLogging(configuration.loggingEnabled)
-    Dashboard.toString()
     tryAndReport {
         Nion(configuration).apply {
             if (!isTrustedNode) bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)

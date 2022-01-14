@@ -167,7 +167,8 @@ object Dashboard {
     }
 
     /** Reports that an exception was caught */
-    fun reportException(e: Exception) {
+    fun reportException(e: Throwable) {
+        Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
             .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")

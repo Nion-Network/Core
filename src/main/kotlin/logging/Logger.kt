@@ -57,7 +57,7 @@ object Logger {
         isLoggingEnabled = enable
     }
 
-    fun reportException(e: Exception) {
+    fun reportException(e: Throwable) {
         val sw = StringWriter()
         e.printStackTrace(PrintWriter(sw))
         error(sw.toString())

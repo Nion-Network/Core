@@ -14,7 +14,6 @@ import java.io.File
  */
 class KademliaTest {
 
-    private val kademlia = Kademlia(Json.decodeFromString(File("./config.json").readText()))
 
     @Test
     fun lookup() {
