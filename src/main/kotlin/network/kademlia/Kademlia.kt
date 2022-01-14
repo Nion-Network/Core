@@ -186,7 +186,10 @@ open class Kademlia(configuration: Configuration) {
         queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0, action = block) }
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
         runAfter(5000) {
-            if (!knownNodes.contains(identifier)) sendFindRequest(identifier, recipient, block)
+            if (!knownNodes.contains(identifier)) {
+                Logger.info("Re running after 5 seconds.")
+                addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
+            }
         }
         Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)}.")
     }
