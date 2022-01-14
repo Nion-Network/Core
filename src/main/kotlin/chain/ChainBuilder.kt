@@ -74,7 +74,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             migrations = migrations
                         )
                         Logger.chain("Broadcasting out block ${newBlock.slot}.")
-                        send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock, *committeeMembers)
+                        send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
                     }
                 }
                 SlotDuty.COMMITTEE -> {
