@@ -220,6 +220,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val validators = validatorSet.shuffled(messageRandom)
 
         val x: (Node) -> Unit = {
+            Logger.info("Sending [$endpoint] message to $it.ip")
             outgoingQueue.put(OutgoingQueuedMessage(transmissionType, encodedMessage, endpoint, message.uid, it))
         }
         // TODO: properly cleanup the next few lines of code.
