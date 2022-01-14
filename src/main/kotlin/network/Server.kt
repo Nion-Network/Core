@@ -110,9 +110,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {
+                    val packetData = packet.data.clone()
                     messageBuilder.nodes.forEach { publicKey ->
                         query(publicKey) { node ->
-                            val packetData = packet.data.clone()
                             outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
                         }
                     }
