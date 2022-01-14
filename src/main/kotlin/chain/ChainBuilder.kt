@@ -80,6 +80,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 }
                 SlotDuty.COMMITTEE -> {
                     send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
+                    /*
                     runAfter(configuration.slotDuration * 3) {
                         val skipVDF = verifiableDelay.computeProof(block.difficulty, block.hash)
                         val skipBlock = Block(
@@ -97,7 +98,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             Dashboard.reportException(Exception("Sending out skip block [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
                             send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
                         }
-                    }
+                     }
+                   */
                 }
                 SlotDuty.VALIDATOR -> {}
             }

@@ -40,7 +40,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val processingQueue = LinkedBlockingQueue<MessageBuilder>()
-    private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
+    private val outgoingQueue = LinkedBlockingQueue<Outgoing>()
 
     private val messageHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<String, MessageBuilder>()
@@ -112,7 +112,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 if (transmissionType == TransmissionType.Broadcast) {
                     messageBuilder.nodes.forEach { publicKey ->
                         query(publicKey) { node ->
-                            outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, messageIdBytes, packet.data, node, packetIdBytes))
+                            val packetData = packet.data.clone()
+                            outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
                         }
                     }
                 }
@@ -133,53 +134,57 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private fun sendUDP() {
         val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
         while (true) tryAndReport {
-            val outgoingMessage = outgoingQueue.take()
-            val encodedMessage = outgoingMessage.message
-            /* Header length total 78B = 32B + 32B + 1B + 1B + 4B + 4B + 4B
-            *   packetId: 32B
-            *   messageId: 32B
-            *   broadcastByte: 1B
-            *   endpointByte: 1B
-            *   slicesNeeded: 4B
-            *   currentSlice: 4B
-            *   dataLength: 4B
-            */
-            val encodedMessageLength = encodedMessage.size
-            val allowedDataSize = configuration.packetSplitSize - 78
-            val slicesNeeded = encodedMessageLength / allowedDataSize + 1
+            val outgoing = outgoingQueue.take()
             dataBuffer.apply {
-                (0 until slicesNeeded).forEach { slice ->
-                    clear()
-                    val uuid = "$${UUID.randomUUID()}".toByteArray()
-                    val from = slice * allowedDataSize
-                    val to = Integer.min(from + allowedDataSize, encodedMessageLength)
-                    val data = encodedMessage.sliceArray(from until to)
-                    val packetId = outgoingMessage.packetId ?: sha256(uuid + data)
+                clear()
+                when (outgoing) {
+                    is OutgoingQueuedMessage -> {
+                        val encodedMessage = outgoing.message
+                        /* Header length total 78B = 32B + 32B + 1B + 1B + 4B + 4B + 4B
+                        *   packetId: 32B
+                        *   messageId: 32B
+                        *   broadcastByte: 1B
+                        *   endpointByte: 1B
+                        *   slicesNeeded: 4B
+                        *   currentSlice: 4B
+                        *   dataLength: 4B
+                        */
+                        val encodedMessageLength = encodedMessage.size
+                        val allowedDataSize = configuration.packetSplitSize - 78
+                        val slicesNeeded = encodedMessageLength / allowedDataSize + 1
+                        (0 until slicesNeeded).forEach { slice ->
+                            clear()
+                            val uuid = "$${UUID.randomUUID()}".toByteArray()
+                            val from = slice * allowedDataSize
+                            val to = Integer.min(from + allowedDataSize, encodedMessageLength)
+                            val data = encodedMessage.sliceArray(from until to)
+                            val packetId = sha256(uuid + data)
 
-                    put(packetId)
-                    put(outgoingMessage.messageUID)
-                    put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                    put(outgoingMessage.endpoint.identification)
-                    putInt(slicesNeeded)
-                    putInt(slice)
-                    putInt(data.size)
-                    put(data)
-
-                    val packet = DatagramPacket(array(), 0, position())
-                    val started = System.currentTimeMillis()
-                    val recipientNode = outgoingMessage.recipient
-                    val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
-                    packet.socketAddress = recipientAddress
-                    udpSocket.send(packet)
-                    val delay = System.currentTimeMillis() - started
-                    val sender = localNode.publicKey
-                    val recipient = recipientNode.publicKey
-                    Dashboard.sentMessage(outgoingMessage.messageUID.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
-                    // Logger.trace("Sent to ${outgoingMessage.endpoint}...")
+                            put(packetId)
+                            put(outgoing.messageUID)
+                            put(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                            put(outgoing.endpoint.identification)
+                            putInt(slicesNeeded)
+                            putInt(slice)
+                            putInt(data.size)
+                            put(data)
+                        }
+                    }
+                    is OutgoingQueuedPacket -> {
+                        put(outgoing.data)
+                    }
                 }
-
+                val packet = DatagramPacket(array(), 0, position())
+                val started = System.currentTimeMillis()
+                val recipientNode = outgoing.recipient
+                val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
+                packet.socketAddress = recipientAddress
+                udpSocket.send(packet)
+                val delay = System.currentTimeMillis() - started
+                val sender = localNode.publicKey
+                val recipient = recipientNode.publicKey
+                Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
             }
-            Logger.debug("Server sent UDP packet to ${outgoingMessage.endpoint} @ ${outgoingMessage.recipient.identifier.take(5)}")
         }
     }
 
@@ -214,24 +219,20 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val messageRandom = Random(seed)
         val validators = validatorSet.shuffled(messageRandom)
 
+        val x: (Node) -> Unit = {
+            outgoingQueue.put(OutgoingQueuedMessage(transmissionType, encodedMessage, endpoint, message.uid, it))
+        }
         // TODO: properly cleanup the next few lines of code.
         if (publicKeys.isNotEmpty()) {
             publicKeys.forEach { key ->
                 val identifier = sha256(key).asHex.take(5)
                 Logger.info("Looking for $identifier to send a message to $endpoint.")
-                query(key) {
-                    Logger.info("Found the one i was looking for!")
-                    outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-                }
+                query(key, x)
             }
         } else {
             if (validators.isEmpty()) pickRandomNodes().map { it.publicKey }.forEach {
-                query(it) {
-                    outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-                }
-            } else query(validators[0]) {
-                outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-            }
+                query(it, x)
+            } else query(validators[0], x)
         }
     }
 
