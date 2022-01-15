@@ -10,21 +10,34 @@
     </a>
     <a href="https://twitter.com/NetworkNion">
         <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white"/>
-    </a> 
+    </a>
     <br>
     <a href="#">
         <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Nion-Network/Core?color=e"/>
     </a>
     <br>
     <a href="#">
-        <img alt="LOC" src="https://img.shields.io/tokei/lines/github/nion-network/core"/>
+        <img alt="PR" src="https://img.shields.io/github/issues-pr/Nion-Network/Core?color=%235352ed"/>
+    </a>
+    <br>
+    <a href="#">
+        <img alt="Issues" src="https://img.shields.io/github/issues/Nion-Network/Core?color=violet"/>
     </a>
     <br>
     <a href="#">
         <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"/>
-    </a><br>
+    </a>
+    <br>
     <a href="#">
         <img alt="Website" src="https://img.shields.io/website?url=https%3A%2F%2Fnion.network"/>
+    </a>
+    <br>
+    <a href="#">
+        <img alt="LOC" src="https://img.shields.io/tokei/lines/github/nion-network/core?label=LOC"/>
+    </a>
+    <br>
+    <a href="#">
+        <img alt="Stars" src="https://img.shields.io/github/stars/Nion-Network/Core?color=%23a29bfe"/>
     </a>
 </div>
 
