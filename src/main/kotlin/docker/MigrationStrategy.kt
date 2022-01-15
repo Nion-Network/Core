@@ -34,7 +34,8 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
         val arguments = if (configuration.useCriu) arrayOf("-c", container) else arrayOf(container)
-        ProcessBuilder("bash", "SaveContainer.sh", *arguments).start().waitFor()
+        val process = ProcessBuilder("bash", "SaveContainer.sh", *arguments).start()
+        process.waitFor()
         return File("/tmp/$container.tar")
     }
 
@@ -52,6 +53,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             Socket(receiver.ip, configuration.port + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
+                    // TODO: Write image of the container. With length.
                     write(encoded)
                     writeLong(file.length())
                     file.inputStream().use { it.transferTo(this) }
@@ -64,7 +66,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     }
 
     /** Reads and executes migration from [socket] sent by another node. */
-    private fun executeMigration(socket: Socket) {
+    private fun runMigratedContainer(socket: Socket) {
         DataInputStream(socket.getInputStream()).use { dataInputStream ->
             val encodedLength = dataInputStream.readInt()
             val migrationData = dataInputStream.readNBytes(encodedLength)
@@ -105,11 +107,11 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     /** Starts the thread listening on socket for receiving migrations. */
     private fun startListeningForMigrations() {
         while (true) tryAndReport {
-            executeMigration(tcpSocket.accept())
+            runMigratedContainer(tcpSocket.accept())
         }
     }
 
-
+    /** Computes which migrations should happen based on provided docker statistics. */
     protected fun computeMigrations(dockerStatistics: List<DockerStatistics>): Map<String, MigrationPlan> {
         val migrations = mutableMapOf<String, MigrationPlan>()
         val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
