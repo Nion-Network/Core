@@ -53,6 +53,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     val computationDuration = System.currentTimeMillis() - computationStart
                     Logger.info("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
+                        Logger.chain("Running producing of the block after time...")
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
                             Logger.info("Total length: $size")
                             Logger.info("Distinct: ${distinctBy { it.publicKey }.size}")
