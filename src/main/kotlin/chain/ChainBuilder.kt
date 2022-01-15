@@ -78,8 +78,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     }
                 }
                 SlotDuty.COMMITTEE -> {
-                    send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
-                    /*
+                    /* send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
                     runAfter(configuration.slotDuration * 3) {
                         val skipVDF = verifiableDelay.computeProof(block.difficulty, block.hash)
                         val skipBlock = Block(
@@ -124,11 +123,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
-            if (isEnoughToStart && !sentGenesis.get()) {
+            if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
                 val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
                 send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
-                sentGenesis.set(true)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
         }
@@ -144,7 +142,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val syncRequest = message.decodeAs<SyncRequest>()
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
-        send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
+        if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
     }
 
     /** Attempt to add blocks received from the random node. */
@@ -161,12 +159,14 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val syncRequest = SyncRequest(localNode, ourSlot)
-        send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
+        val randomValidator = validatorSet.activeValidators.randomOrNull()
+        if (randomValidator != null) send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, randomValidator)
+        else send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
         Logger.error("Requesting synchronization from $ourSlot.")
     }
 
     /** Requests inclusion into the validator set. */
-    internal fun requestInclusion() {
+    private fun requestInclusion() {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)

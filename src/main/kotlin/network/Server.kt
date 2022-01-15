@@ -135,6 +135,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
         while (true) tryAndReport {
             val outgoing = outgoingQueue.take()
+            val recipientNode = outgoing.recipient
+            val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
             dataBuffer.apply {
                 clear()
                 when (outgoing) {
@@ -168,22 +170,22 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             putInt(slice)
                             putInt(data.size)
                             put(data)
+
+                            val packet = DatagramPacket(array(), 0, position(), recipientAddress)
+                            val started = System.currentTimeMillis()
+                            udpSocket.send(packet)
+                            val delay = System.currentTimeMillis() - started
+                            val sender = localNode.publicKey
+                            val recipient = recipientNode.publicKey
+                            Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
                         }
                     }
                     is OutgoingQueuedPacket -> {
                         put(outgoing.data)
+                        val packet = DatagramPacket(array(), 0, position(), recipientAddress)
+                        udpSocket.send(packet)
                     }
                 }
-                val packet = DatagramPacket(array(), 0, position())
-                val started = System.currentTimeMillis()
-                val recipientNode = outgoing.recipient
-                val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
-                packet.socketAddress = recipientAddress
-                udpSocket.send(packet)
-                val delay = System.currentTimeMillis() - started
-                val sender = localNode.publicKey
-                val recipient = recipientNode.publicKey
-                Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
             }
         }
     }
@@ -217,10 +219,10 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     fun send(endpoint: Endpoint, transmissionType: TransmissionType, message: Message, encodedMessage: ByteArray, vararg publicKeys: String) {
         val seed = BigInteger(message.uid).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val messageRandom = Random(seed)
-        val validators = validatorSet.activeValidators.sorted()
+        val validators = validatorSet.shuffled(messageRandom)
 
         val x: (Node) -> Unit = {
-            Logger.info("Sending [$endpoint] message to $it.ip")
+            Logger.debug("Sending [$endpoint] message to $it.ip")
             outgoingQueue.put(OutgoingQueuedMessage(transmissionType, encodedMessage, endpoint, message.uid, it))
         }
         // TODO: properly cleanup the next few lines of code.
