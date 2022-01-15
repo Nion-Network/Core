@@ -49,9 +49,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     Logger.chain("Producing block ${block.slot + 1}...")
                     val computationStart = System.currentTimeMillis()
                     val proof = verifiableDelay.computeProof(block.difficulty, block.hash)
-                    val committeeMembers = nextTask.committee.toTypedArray()
                     val computationDuration = System.currentTimeMillis() - computationStart
-                    Logger.info("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
+                    Logger.chain("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     runAfter(max(0, configuration.slotDuration - computationDuration)) {
                         Logger.chain("Running producing of the block after time...")
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
@@ -78,28 +77,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
                     }
                 }
-                SlotDuty.COMMITTEE -> {
-                    /* send(Endpoint.NewBlock, TransmissionType.Unicast, block, nextTask.blockProducer)
-                    runAfter(configuration.slotDuration * 3) {
-                        val skipVDF = verifiableDelay.computeProof(block.difficulty, block.hash)
-                        val skipBlock = Block(
-                            block.slot + 1,
-                            block.difficulty,
-                            "SKIPBLOCK",
-                            emptyList(),
-                            skipVDF,
-                            System.currentTimeMillis(),
-                            block.hash,
-                            mapOf(nextTask.blockProducer to false),
-                            votes = 69
-                        )
-                        if (chain.getLastBlock()?.slot == block.slot) {
-                            Dashboard.reportException(Exception("Sending out skip block [${chain.getLastBlock()?.slot}] vs [${block.slot}]!"))
-                            send(Endpoint.NewBlock, TransmissionType.Broadcast, skipBlock)
-                        }
-                     }
-                   */
-                }
+                SlotDuty.COMMITTEE -> {}
                 SlotDuty.VALIDATOR -> {}
             }
         } else {
@@ -120,6 +98,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) validatorSet.scheduleChange(inclusionRequest.publicKey, true)
+
         if (isTrustedNode && chain.getLastBlock() == null) {
             Logger.debug("Received inclusion request! ")
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
@@ -149,7 +128,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     /** Attempt to add blocks received from the random node. */
     fun synchronizationReply(message: Message) {
         val blocks = message.decodeAs<Array<Block>>()
-        Logger.info("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
+        Logger.chain("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
         val synchronizationSuccess = chain.addBlocks(*blocks)
         if (synchronizationSuccess) validatorSet.inclusionChanges(*blocks)
         Logger.chain("Synchronization has been successful $synchronizationSuccess.")
@@ -163,7 +142,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val randomValidator = validatorSet.activeValidators.randomOrNull()
         if (randomValidator != null) send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, randomValidator)
         else send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
-        Logger.error("Requesting synchronization from $ourSlot.")
+        Logger.chain("Requesting synchronization from $ourSlot.")
     }
 
     /** Requests inclusion into the validator set. */
@@ -172,6 +151,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
         send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
-        Logger.info("Requesting inclusion with $ourSlot.")
+        Logger.chain("Requesting inclusion with $ourSlot.")
     }
 }
