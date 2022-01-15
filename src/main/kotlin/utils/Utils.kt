@@ -54,7 +54,9 @@ fun sha256(data: String) = sha256(data.encodeToByteArray())
 /** Executes [block] after [delay in milliseconds][delay]. */
 fun runAfter(delay: Long, block: () -> Unit) {
     launchCoroutine {
+        Logger.chain("Running Before $delay")
         delay(delay)
+        Logger.chain("Running After $delay")
         block()
     }
 }
