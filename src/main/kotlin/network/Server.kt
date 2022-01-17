@@ -165,7 +165,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             put(packetId)
                             put(outgoing.messageUID)
                             put(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                            put(outgoing.endpoint.identification)
+                            put(outgoing.endpoint.ordinal.toByte())
                             putInt(slicesNeeded)
                             putInt(slice)
                             putInt(data.size)

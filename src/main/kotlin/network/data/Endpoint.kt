@@ -5,23 +5,23 @@ package network.data
  * on 15/10/2020 at 14:44
  * using IntelliJ IDEA
  */
-enum class Endpoint(val identification: Byte, val processing: MessageProcessing) {
-    Ping(0, MessageProcessing.Queued),
-    JoinRequest(1, MessageProcessing.Queued),
-    InclusionRequest(2, MessageProcessing.Queued),
-    NodeQuery(3, MessageProcessing.Immediate),
-    QueryReply(4, MessageProcessing.Immediate),
-    Welcome(5, MessageProcessing.Queued),
-    Vote(6, MessageProcessing.Immediate),
-    NewBlock(7, MessageProcessing.Queued),
-    SyncReply(8, MessageProcessing.Queued),
-    SyncRequest(9, MessageProcessing.Immediate),
-    VoteRequest(10, MessageProcessing.Immediate),
-    NodeStatistics(12, MessageProcessing.Immediate)
+enum class Endpoint(val processing: MessageProcessing) {
+    Ping(MessageProcessing.Queued),
+    JoinRequest(MessageProcessing.Queued),
+    InclusionRequest(MessageProcessing.Immediate),
+    NodeQuery(MessageProcessing.Immediate),
+    QueryReply(MessageProcessing.Immediate),
+    Welcome(MessageProcessing.Queued),
+    Vote(MessageProcessing.Immediate),
+    NewBlock(MessageProcessing.Queued),
+    SyncReply(MessageProcessing.Queued),
+    SyncRequest(MessageProcessing.Immediate),
+    VoteRequest(MessageProcessing.Immediate),
+    NodeStatistics(MessageProcessing.Immediate)
     ;
 
     companion object {
-        private val cache = values().associateBy { it.identification }
+        private val cache = values().associateBy { it.ordinal.toByte() }
 
         fun byId(id: Byte) = cache[id]
     }
