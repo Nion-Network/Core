@@ -30,11 +30,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val block = message.decodeAs<Block>()
         if (chain.addBlocks(block)) {
             validatorSet.inclusionChanges(block)
-            if (!validatorSet.isInValidatorSet) requestInclusion()
 
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
             val ourMigrationPlan = block.migrations[localNode.publicKey]
+
+            if (!validatorSet.isInValidatorSet) requestInclusion(nextTask.blockProducer)
 
             if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
 
@@ -146,11 +147,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     }
 
     /** Requests inclusion into the validator set. */
-    private fun requestInclusion() {
+    private fun requestInclusion(nextProducer: String? = null) {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
-        send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
+        if (nextProducer == null) send(Endpoint.InclusionRequest, TransmissionType.Broadcast, inclusionRequest)
+        else send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest, nextProducer)
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
 }
