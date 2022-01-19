@@ -29,12 +29,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     fun blockReceived(message: Message) {
         val block = message.decodeAs<Block>()
         if (chain.addBlocks(block)) {
-            validatorSet.inclusionChanges(block)
-
+            if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
             val ourMigrationPlan = block.migrations[localNode.publicKey]
 
+            if (block.slot > 2) validatorSet.inclusionChanges(block)
             if (!validatorSet.isInValidatorSet) requestInclusion(nextTask.blockProducer)
 
             if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
