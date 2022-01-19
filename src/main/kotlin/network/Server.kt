@@ -89,7 +89,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
                     val messageRandom = Random(seed)
                     val shuffled = validatorSet.shuffled(messageRandom)
-                    val k = 6
+                    val k = 3
                     val index = shuffled.indexOf(localNode.publicKey)
                     val broadcastNodes = mutableSetOf<String>()
                     if (index != -1) {
@@ -105,7 +105,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         broadcastNodes.addAll(childrenKeys)
                         broadcastNodes.addAll(shuffled.drop(neighbourChildren.first).take(k))
                         if (neighbour != localNode.publicKey) broadcastNodes.add(neighbour)
-                        Logger.error("[${shuffled.size}] [$index] [$children] Neighbour: ${shuffled.indexOf(neighbour)} ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                        Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                     }
                     broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
                     // Logger.error("We have to retransmit to [${shuffled.size}] =.= [$index] -> ${broadcastNodes.size} nodes.")
