@@ -44,7 +44,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     private val messageHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<String, MessageBuilder>()
-    private val udpSocket = DatagramSocket(configuration.port)
+    private val udpSocket = DatagramSocket(configuration.port).apply {
+        receiveBufferSize = 10_000
+    }
     protected val tcpSocket = ServerSocket(configuration.port + 1)
     private var started = false
 
