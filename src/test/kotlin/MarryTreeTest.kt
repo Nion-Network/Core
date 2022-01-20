@@ -54,8 +54,8 @@ class MarryTreeTest {
 
     @Test
     fun outputTreeConnections() {
-        val k = 5
-        val depth = 2
+        val k = 2
+        val depth = 5
         val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
         val tree = (0 until maximumNodes)
         val stringBuilder = StringBuilder()
@@ -73,18 +73,19 @@ class MarryTreeTest {
             } else {
                 val children = TreeUtils.findChildren(k, index)
                 val median = children.sumOf { distances[it]!! } / k
+                val childrenConnections = children.joinToString("\n") { "$index -> $it" }
                 distances[index] = median
-                children.forEach { child ->
-                    stringBuilder.append("$index -> $child\n")
-                }
+                stringBuilder.append(childrenConnections + "\n")
             }
             val ourDistance = distances[index]!!
             val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex).filter { it <= maximumNodes - 1 }
-            neighbourChildren.forEach { child ->
-                stringBuilder.append("$index -> $child[color=\"red\"]\n")
+            val neighbourChildrenConnections = neighbourChildren.joinToString("\n") { "$index -> $it[color=\"red\"]" }
+
+            stringBuilder.apply {
+                append(neighbourChildrenConnections + "\n")
+                append("$index -> $neighbourIndex [color=\"green\"]\n")
+                append("$index [pos=\"$ourDistance,-$currentDepth!\"]\n")
             }
-            // stringBuilder.append("$index -> $neighbourIndex [color=\"green\"]\n")
-            stringBuilder.append("$index [pos=\"$ourDistance,-$currentDepth!\"]\n")
         }
         Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
     }
