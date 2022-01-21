@@ -11,10 +11,8 @@ import java.net.ServerSocket
  */
 open class SocketHolder(config: Configuration) {
 
-    protected val udpSocket: DatagramSocket = DatagramSocket(0).apply {
-        println("Bind to port: $port")
-    }
+    protected val udpSocket: DatagramSocket = DatagramSocket()
     protected val tcpSocket: ServerSocket = ServerSocket(0)
-    protected val kademliaSocket: DatagramSocket = if (config.passedPort != -1) DatagramSocket(config.passedPort) else DatagramSocket(0)
+    protected val kademliaSocket: DatagramSocket = if (config.passedPort != -1) DatagramSocket(config.passedPort) else DatagramSocket()
 
 }
