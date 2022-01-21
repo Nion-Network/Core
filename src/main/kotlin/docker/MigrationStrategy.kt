@@ -50,7 +50,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, receiver.port + 1).use { socket ->
+            Socket(receiver.ip, receiver.udpPort + 1).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     // TODO: Write image of the container. With length.

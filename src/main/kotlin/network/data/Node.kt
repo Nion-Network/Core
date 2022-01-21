@@ -14,7 +14,7 @@ import utils.sha256
  * Stores information of some Node in the network.
  */
 @Serializable
-data class Node(val ip: String, val port: Int, val publicKey: String) {
+data class Node(val ip: String, val udpPort: Int, val publicKey: String) {
 
     @Transient
     val identifier = sha256(publicKey).asHex

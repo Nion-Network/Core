@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock
  * on 01/12/2021 at 13:10
  * using IntelliJ IDEA
  */
-open class Kademlia(configuration: Configuration) : SocketHolder() {
+open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
@@ -191,7 +191,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder() {
     private fun addToQueue(receiver: Node, endpoint: KademliaEndpoint, data: ByteArray) {
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
-        val queueMessage = QueueMessage(receiver.ip, receiver.port + 2, encodedOutgoing)
+        val queueMessage = QueueMessage(receiver.ip, receiver.udpPort + 2, encodedOutgoing)
         outgoingQueue.put(queueMessage)
     }
 
