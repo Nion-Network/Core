@@ -19,7 +19,6 @@ fun main(args: Array<String>) {
     }
     tryAndReport {
         Nion(configuration).apply {
-            if (!isTrustedNode) bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
             launch()
         }
     }

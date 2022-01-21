@@ -113,10 +113,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         }
                     }
                 }
-                if (!isBootstrapped) {
-                    bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
-                    return@tryAndReport
-                }
+                if (!isBootstrapped) return@tryAndReport
                 if (messageBuilder.addPart(currentSlice, data)) {
                     messageBuilders.remove(messageId)
                     processingQueue.put(messageBuilder)
