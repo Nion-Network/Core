@@ -29,8 +29,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
-        Logger.myInfo = "$ip:$udpPort"
-        Dashboard.reportException(Exception(Logger.myInfo))
+        Logger.myInfo = "$ip:$kademliaPort"
     }
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
