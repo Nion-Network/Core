@@ -3,7 +3,6 @@ package logging
 import kotlinx.serialization.Serializable
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.net.InetAddress
 import java.net.http.HttpClient
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -18,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue
  */
 object Logger {
 
-    private val myIP: String = InetAddress.getLocalHost().hostAddress
+    lateinit var myInfo: String
 
     @Serializable
     data class Log(val type: DebugType, val log: String, val ip: String, val timestamp: Long)
@@ -49,7 +48,7 @@ object Logger {
             val output = "$color$typeString$reset$message"
             println(output)
         }
-        Dashboard.log(debugType, message, myIP)
+        Dashboard.log(debugType, message, myInfo)
     }
 
     /** Enables or disables software logging.  */

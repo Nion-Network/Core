@@ -42,7 +42,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
             if (isTrustedNode) query(nextTask.blockProducer) {
-                Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, it.ip)
+                Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, "${it.ip}:${it.udpPort}")
             }
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
