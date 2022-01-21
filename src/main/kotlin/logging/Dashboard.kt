@@ -52,7 +52,6 @@ object Dashboard {
             val influxDB = InfluxDBClientFactory.create(options)
             val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
             Thread { while (true) writeApi.writePoint(queue.take()) }.start()
-            if (influxDB.ping()) Logger.info("InfluxDB connection successful")
         } else Logger.info("Dashboard is disabled.")
 
     }
