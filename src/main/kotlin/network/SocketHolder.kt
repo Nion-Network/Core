@@ -1,5 +1,6 @@
 package network
 
+import logging.Logger
 import java.net.DatagramSocket
 import java.net.ServerSocket
 
@@ -28,6 +29,7 @@ open class SocketHolder {
             udpSocket = DatagramSocket(port)
             tcpSocket = ServerSocket(port + 1)
             kademliaSocket = DatagramSocket(port + 2)
+            Logger.info("We're using ports: $port ... ${port + 2}")
         } catch (_: Exception) {
             setup(port + 3)
         }
