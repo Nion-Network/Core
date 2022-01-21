@@ -48,7 +48,7 @@ object Logger {
             val output = "$color$typeString$reset$message"
             println(output)
         }
-        Dashboard.log(debugType, message, myInfo)
+        if (this::myInfo.isInitialized) Dashboard.log(debugType, message, myInfo)
     }
 
     /** Enables or disables software logging.  */
