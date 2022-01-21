@@ -53,6 +53,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
 
     open fun launch() {
+        Logger.info("Our IP is $localAddress")
         if (isTrustedNode) Logger.info("We're the trusted node.")
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
