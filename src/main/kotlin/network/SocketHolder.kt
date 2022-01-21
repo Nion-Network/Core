@@ -1,5 +1,6 @@
 package network
 
+import logging.Dashboard
 import logging.Logger
 import java.net.DatagramSocket
 import java.net.ServerSocket
@@ -30,7 +31,8 @@ open class SocketHolder {
             tcpSocket = ServerSocket(port + 1)
             kademliaSocket = DatagramSocket(port + 2)
             Logger.info("We're using ports: $port ... ${port + 2}")
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Dashboard.reportException(e)
             setup(port + 3)
         }
     }

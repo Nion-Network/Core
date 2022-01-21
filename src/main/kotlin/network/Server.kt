@@ -34,7 +34,9 @@ import kotlin.random.Random
  */
 abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
 
-    val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
+    val isTrustedNode by lazy {
+        localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
+    }
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val processingQueue = LinkedBlockingQueue<MessageBuilder>()
@@ -47,8 +49,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
 
     open fun launch() {
-        Logger.info("Our IP is $localAddress")
-        if (isTrustedNode) Logger.info("We're the trusted node.")
+        Logger.info("We're the trusted node: $isTrustedNode | $localAddress.")
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
         Thread(this::listenForUDP).start()
