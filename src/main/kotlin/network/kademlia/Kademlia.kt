@@ -6,12 +6,12 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
+import network.SocketHolder
 import network.data.Node
 import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.DatagramPacket
-import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -24,7 +24,7 @@ import java.util.concurrent.locks.ReentrantLock
  * on 01/12/2021 at 13:10
  * using IntelliJ IDEA
  */
-open class Kademlia(configuration: Configuration) {
+open class Kademlia(configuration: Configuration) : SocketHolder() {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
@@ -36,7 +36,6 @@ open class Kademlia(configuration: Configuration) {
     private val tree = ConcurrentHashMap<Int, Bucket>()
     private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
-    private val datagramSocket = DatagramSocket(configuration.port + 2)
     private val queryStorage = ConcurrentHashMap<String, KademliaQuery>()
     private val bucketSize = 5
     private val testLock = ReentrantLock(true)
@@ -107,7 +106,7 @@ open class Kademlia(configuration: Configuration) {
         val packet = DatagramPacket(pureArray, pureArray.size)
         while (true) tryAndReport {
             inputStream.reset()
-            datagramSocket.receive(packet)
+            kademliaSocket.receive(packet)
             val dataLength = inputStream.readInt()
             val data = inputStream.readNBytes(dataLength)
             val kademliaMessage = ProtoBuf.decodeFromByteArray<KademliaMessage>(data)
@@ -165,7 +164,7 @@ open class Kademlia(configuration: Configuration) {
                 putInt(outgoing.data.size)
                 put(outgoing.data)
                 val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position(), InetSocketAddress(outgoing.ip, outgoing.port))
-                datagramSocket.send(packet)
+                kademliaSocket.send(packet)
             }
         }
     }

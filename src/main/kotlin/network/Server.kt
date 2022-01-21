@@ -18,9 +18,7 @@ import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.math.BigInteger
 import java.net.DatagramPacket
-import java.net.DatagramSocket
 import java.net.InetSocketAddress
-import java.net.ServerSocket
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -44,10 +42,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     private val messageHistory = ConcurrentHashMap<String, Long>()
     private val messageBuilders = mutableMapOf<String, MessageBuilder>()
-    private val udpSocket = DatagramSocket(configuration.port).apply {
-        receiveBufferSize = 10_000
-    }
-    protected val tcpSocket = ServerSocket(configuration.port + 1)
     private var started = false
 
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
