@@ -34,9 +34,10 @@ import kotlin.random.Random
  */
 abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
 
-    val isTrustedNode by lazy {
-        localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
+    val isTrustedNode get() = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }.apply {
+        Logger.info("Setup trusted node variable.")
     }
+
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val processingQueue = LinkedBlockingQueue<MessageBuilder>()
