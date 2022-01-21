@@ -49,6 +49,7 @@ object Logger {
             println(output)
         }
         if (this::myInfo.isInitialized) Dashboard.log(debugType, message, myInfo)
+        else Dashboard.log(debugType, message, "UNKNOWN")
     }
 
     /** Enables or disables software logging.  */
