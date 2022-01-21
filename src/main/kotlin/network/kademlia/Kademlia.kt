@@ -28,7 +28,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder() {
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(localAddress.hostAddress, configuration.port, crypto.publicKey)
+    val localNode = Node(localAddress.hostAddress, udpSocket.port, crypto.publicKey)
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
     val totalKnownNodes get() = knownNodes.size
