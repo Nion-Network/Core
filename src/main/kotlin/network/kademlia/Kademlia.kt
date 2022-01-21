@@ -28,7 +28,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
-    val localNode = Node(localAddress.hostAddress, udpSocket.port, crypto.publicKey)
+    val localNode = Node(localAddress.hostAddress, udpSocket.port, tcpSocket.localPort, kademliaSocket.port, crypto.publicKey)
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
     val totalKnownNodes get() = knownNodes.size
@@ -52,7 +52,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
     fun bootstrap(ip: String, port: Int, block: ((Node) -> Unit)? = null) {
         Logger.info("Bootstrapping Kademlia!")
-        sendFindRequest(localNode.identifier, Node(ip, port, "BOOTSTRAP"), block)
+        sendFindRequest(localNode.identifier, Node(ip, port, port, port, "BOOTSTRAP"), block)
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
@@ -191,7 +191,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun addToQueue(receiver: Node, endpoint: KademliaEndpoint, data: ByteArray) {
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
-        val queueMessage = QueueMessage(receiver.ip, receiver.udpPort + 2, encodedOutgoing)
+        val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
         outgoingQueue.put(queueMessage)
     }
 
