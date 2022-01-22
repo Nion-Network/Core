@@ -96,7 +96,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         val children = TreeUtils.findChildren(k, index)
                         val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
                         val childrenKeys = shuffled.drop(children.first).take(k)
-                        broadcastNodes.add(neighbour)
+                        broadcastNodes.add(neighbour);
                         broadcastNodes.addAll(childrenKeys)
                         broadcastNodes.addAll(shuffled.drop(neighbourChildren.first).take(k))
                         Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
