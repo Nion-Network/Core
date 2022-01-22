@@ -29,7 +29,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     val crypto = Crypto(".")
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
-        Logger.myInfo = "$ip:$kademliaPort"
+        Dashboard.myInfo = "$ip:$kademliaPort"
     }
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
@@ -63,7 +63,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             val identifier = sha256(publicKey).asHex
             val knownNode = knownNodes[identifier]
             if (knownNode == null) sendFindRequest(identifier, block = action)
-            else if (action != null) launchCoroutine { action(knownNode) }
+            else if (action != null) action(knownNode)
         }
     }
 

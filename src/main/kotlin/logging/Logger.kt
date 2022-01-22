@@ -17,8 +17,6 @@ import java.util.concurrent.LinkedBlockingQueue
  */
 object Logger {
 
-    lateinit var myInfo: String
-
     @Serializable
     data class Log(val type: DebugType, val log: String, val ip: String, val timestamp: Long)
 
@@ -48,8 +46,7 @@ object Logger {
             val output = "$color$typeString$reset$message"
             println(output)
         }
-        if (this::myInfo.isInitialized) Dashboard.log(debugType, message, myInfo)
-        else Dashboard.log(debugType, message, "UNKNOWN")
+        Dashboard.log(debugType, message)
     }
 
     /** Enables or disables software logging.  */

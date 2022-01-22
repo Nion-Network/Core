@@ -18,7 +18,6 @@ import network.data.Endpoint
 import utils.asHex
 import utils.sha256
 import java.io.File
-import java.net.InetAddress
 import java.time.Instant
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -28,7 +27,8 @@ object Dashboard {
     private val configurationJson = File("./config.json").readText()
     private val configuration: Configuration = Json.decodeFromString(configurationJson)
     private val queue = LinkedBlockingQueue<Point>()
-    private val localAddress = InetAddress.getLocalHost()
+
+    var myInfo: String = "UNSET"
 
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
@@ -128,12 +128,12 @@ object Dashboard {
     }
 
     // TODO: remove
-    fun logQueue(queueSize: Int, publicKey: String) {
+    fun logPacket(endpoint: Endpoint, sender: String, missing: Int) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("queueSize").apply {
-            addField("nodeId", publicKey)
-            addField("queueSize", queueSize)
-        }
+        val point = Point.measurement("queueSize")
+            .addField("from", sender)
+            .addField("endpoint", "$endpoint")
+            .addField("missing", missing)
         queue.put(point)
     }
 
@@ -170,7 +170,7 @@ object Dashboard {
         Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")
+            .addField("cause", "$myInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
 
@@ -248,11 +248,11 @@ object Dashboard {
             .addField("node", sha256(node).asHex)
     }
 
-    fun log(type: DebugType, message: Any, ip: String) {
+    fun log(type: DebugType, message: Any) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("logging")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("ip", ip)
+            .addField("ip", myInfo)
             .addField("type", "${type.ordinal}")
             .addField("log", "$message")
 

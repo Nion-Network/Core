@@ -119,6 +119,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     processingQueue.put(messageBuilder)
                     messageHistory[messageId] = System.currentTimeMillis()
                 }
+                if (endpoint == Endpoint.NewBlock) Logger.trace("Packet [$endpoint] from ${packet.socketAddress} missing ${messageBuilder.missing}")
             }
         }
     }
