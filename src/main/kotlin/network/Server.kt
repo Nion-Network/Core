@@ -216,7 +216,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val validators = validatorSet.shuffled(messageRandom)
 
         val x: (Node) -> Unit = {
-            Logger.debug("Sending [$endpoint] message to $it.ip")
+            Logger.debug("Sending[${outgoingQueue.remainingCapacity()}] [$endpoint] message to ${it.ip}:${it.kademliaPort}.")
             outgoingQueue.put(OutgoingQueuedMessage(transmissionType, encodedMessage, endpoint, message.uid, it))
         }
         // TODO: properly cleanup the next few lines of code.
