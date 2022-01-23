@@ -132,26 +132,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
-                    val lookingFor = closestNodes.lookingFor
-                    closestNodes.nodes.apply { // TODO: clean this
-                        val node = firstOrNull { it.identifier == lookingFor }
-                        forEach { add(it) }
-                        Logger.debug("Adding $size nodes!")
-                        queryStorage[lookingFor]?.apply {
-                            hops++
-                            if (node == null && !knownNodes.contains(lookingFor)) {
-                                shuffle()
-                                // take(3).forEach { sendFindRequest(lookingFor, it) }
-                            } else {
-                                val actions = mutableListOf<(Node) -> Unit>()
-                                queue.drainTo(actions)
-                                Logger.trace("Drained $this into  ${actions.size} actions.")
-                                val duration = System.currentTimeMillis() - start
-                                Logger.trace("Kademlia took ${duration}ms and $hops hops to find ${node!!.identifier}")
-                                Dashboard.reportDHTQuery(node.identifier, hops, duration)
-                            }
-                        }
-                    }
+                    val receivedNodes = closestNodes.nodes
+                    val lookingFor = closestNodes.identifier
+                    val nodeLookingFor = receivedNodes.any { it.identifier == lookingFor }
+                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. Contains: $nodeLookingFor")
+                    closestNodes.nodes.forEach { add(it) }
                 }
             }
         }
