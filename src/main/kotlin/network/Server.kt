@@ -112,6 +112,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         query(publicKey) { node ->
                             Logger.trace("Query successfull. Adding ${node.ip}:${node.kademliaPort} to queue.")
                             outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
+                            Logger.trace("Added ${node.ip}:${node.kademliaPort} to queue.")
                         }
                     }
                 }
@@ -181,6 +182,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         put(outgoing.data)
                         val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                         udpSocket.send(packet)
+                        Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                     }
                 }
             }
