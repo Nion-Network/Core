@@ -116,6 +116,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 if (!isBootstrapped) return@tryAndReport
                 if (messageBuilder.addPart(currentSlice, data)) {
                     messageBuilders.remove(messageId)
+                    Logger.info("Finished building a packet of [$endpoint]. Adding to queue with capacity: ${processingQueue.remainingCapacity()}")
                     processingQueue.put(messageBuilder)
                     messageHistory[messageId] = System.currentTimeMillis()
                 }
