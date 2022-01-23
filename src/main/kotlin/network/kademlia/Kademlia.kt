@@ -144,7 +144,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         receivedNodes.shuffle()
                         receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
                     } else if (theNode != null && queryHolder != null) {
+                        val actionsToDo = mutableListOf<(Node) -> Unit>()
                         queryStorage.remove(identifier)
+                        val drained = queryHolder.queue.drainTo(actionsToDo)
+                        Logger.trace("Drained $drained actions.")
+                        actionsToDo.forEach { launchCoroutine { it(theNode) } }
                         Dashboard.reportDHTQuery(identifier, queryHolder?.hops ?: -1, queryHolder?.let { System.currentTimeMillis() - it.start } ?: -2)
                     }
                 }
