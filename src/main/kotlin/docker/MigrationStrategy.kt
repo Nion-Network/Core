@@ -28,7 +28,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     protected val imageMappings = ConcurrentHashMap<String, String>()
 
     init {
-        Thread(::startListeningForMigrations).start()
+        // Thread(::startListeningForMigrations).start() ToDo: Turn on.
     }
 
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
