@@ -194,7 +194,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
-        Logger.trace("Adding to kademlia queue [$endpoint]  with capacity: ${outgoingQueue.remainingCapacity()}")
         outgoingQueue.put(queueMessage)
     }
 

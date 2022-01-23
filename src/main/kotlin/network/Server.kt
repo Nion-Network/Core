@@ -106,7 +106,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {
-                    val packetData = packet.data.clone()
+                    val packetData = packet.data.copyOf()
                     messageBuilder.nodes.forEach { publicKey ->
                         query(publicKey) { node ->
                             outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
@@ -116,7 +116,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 if (!isBootstrapped) return@tryAndReport
                 if (messageBuilder.addPart(currentSlice, data)) {
                     messageBuilders.remove(messageId)
-                    Logger.info("Finished building a packet of [$endpoint]. Adding to queue with capacity: ${processingQueue.remainingCapacity()}")
                     processingQueue.put(messageBuilder)
                     messageHistory[messageId] = System.currentTimeMillis()
                 }
