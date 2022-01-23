@@ -138,26 +138,24 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
                         val query = queryStorage[lookingFor]
-                        if (query == null) {
-                            Logger.trace("Query for ${lookingFor.take(5)} is null...")
-                            return@apply
-                        }
-                        query.hops++
                         if (node == null) {
+                            query?.apply { hops++ }
                             shuffle()
                             take(3).forEach { sendFindRequest(lookingFor, it) }
                         } else {
                             val actions = mutableListOf<(Node) -> Unit>()
-                            query.queue.drainTo(actions)
-                            Logger.chain("Drained ${actions.size} actions.")
+                            query?.queue?.drainTo(actions)
+                            Logger.trace("Drained $query into  ${actions.size} actions.")
                             actions.forEach { action ->
                                 launchCoroutine {
                                     action(node)
                                 }
                             }
-                            val duration = System.currentTimeMillis() - query.start
-                            Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")
-                            Dashboard.reportDHTQuery(node.identifier, query.hops, duration)
+                            if (query != null) {
+                                val duration = System.currentTimeMillis() - query.start
+                                Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")
+                                Dashboard.reportDHTQuery(node.identifier, query.hops, duration)
+                            }
                         }
                     }
                 }
