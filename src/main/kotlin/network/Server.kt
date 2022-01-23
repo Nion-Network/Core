@@ -78,6 +78,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val dataLength = readInt()
                 val data = readNBytes(dataLength)
 
+                Logger.trace("Received packet on endpoint: $endpoint")
+
                 // TODO: Cleanup of the next few lines of code.
                 val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
                     val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
