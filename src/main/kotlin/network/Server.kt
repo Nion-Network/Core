@@ -63,6 +63,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
         while (true) tryAndReport {
             inputStream.reset()
+            Logger.trace("Waiting for a packet!")
             udpSocket.receive(packet)
             Logger.trace("Received packet!")
             val packetIdBytes = inputStream.readNBytes(32)
