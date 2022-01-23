@@ -134,22 +134,25 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
                     val receivedNodes = closestNodes.nodes
                     val identifier = closestNodes.identifier
-                    val theNode = receivedNodes.firstOrNull { it.identifier == identifier }
-                    val queryHolder = queryStorage[identifier]
                     receivedNodes.forEach { add(it) }
-                    queryHolder?.apply { hops++ }
-                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. Contains: $theNode")
 
-                    if (theNode == null && queryHolder != null) {
-                        receivedNodes.shuffle()
-                        receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
-                    } else if (theNode != null && queryHolder != null) {
-                        val actionsToDo = mutableListOf<(Node) -> Unit>()
-                        queryStorage.remove(identifier)
-                        val drained = queryHolder.queue.drainTo(actionsToDo)
-                        Logger.trace("Drained $drained actions.")
-                        actionsToDo.forEach { launchCoroutine { it(theNode) } }
-                        Dashboard.reportDHTQuery(identifier, queryHolder?.hops ?: -1, queryHolder?.let { System.currentTimeMillis() - it.start } ?: -2)
+                    Logger.trace("Received back ${closestNodes.nodes.size} nodes.")
+                    val searchedNode = knownNodes[identifier]
+                    val queryHolder = if (searchedNode != null) queryStorage.remove(identifier) else queryStorage[identifier]
+                    queryHolder?.apply { hops++ }
+                    when {
+                        searchedNode == null -> {
+                            receivedNodes.shuffle()
+                            receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
+                        }
+                        queryHolder != null -> {
+                            val actionsToDo = mutableListOf<(Node) -> Unit>()
+                            val drained = queryHolder.queue.drainTo(actionsToDo)
+                            Logger.trace("Drained $drained actions.")
+                            actionsToDo.forEach { launchCoroutine { it(searchedNode) } }
+                            Dashboard.reportDHTQuery(identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
+
+                        }
                     }
                 }
             }
