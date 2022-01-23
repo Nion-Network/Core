@@ -134,12 +134,12 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
                     val receivedNodes = closestNodes.nodes
                     val identifier = closestNodes.identifier
+                    val queryHolder = queryStorage[identifier]
                     receivedNodes.forEach { add(it) }
+                    queryHolder?.apply { hops++ }
 
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes.")
                     val searchedNode = knownNodes[identifier]
-                    val queryHolder = if (searchedNode != null) queryStorage.remove(identifier) else queryStorage[identifier]
-                    queryHolder?.apply { hops++ }
                     when {
                         searchedNode == null -> {
                             receivedNodes.shuffle()
@@ -151,8 +151,9 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             Logger.trace("Drained $drained actions.")
                             actionsToDo.forEach { launchCoroutine { it(searchedNode) } }
                             Dashboard.reportDHTQuery(identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
-
+                            queryStorage.remove(identifier)
                         }
+                        else -> {}
                     }
                 }
             }
