@@ -119,11 +119,10 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             }
             MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
         }
-        if (transmissionType == TransmissionType.Broadcast) {
-            messageBuilder.nodes.forEach { publicKey ->
-                query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(data, endpoint, messageIdArray, it)) }
-            }
+        messageBuilder.nodes.forEach { publicKey ->
+            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(data, endpoint, messageIdArray, it)) }
         }
+
         // if (!isBootstrapped) return@tryAndReport
         if (messageBuilder.addPart(currentSlice, data)) {
             messageBuilders.remove(messageId)
@@ -247,7 +246,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     /** Processes received messages from [processingQueue] using [onMessageReceived] function.*/
     private fun processReceivedMessages() {
-        while (true) {
+        while (true) tryAndReport {
             val messageBuilder = processingQueue.take()
             onMessageReceived(messageBuilder.endpoint, messageBuilder.gluedData())
         }
