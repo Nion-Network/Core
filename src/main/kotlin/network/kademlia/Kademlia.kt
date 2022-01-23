@@ -137,7 +137,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         val node = firstOrNull { it.identifier == lookingFor }
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
-                        val query = (if (node == null) queryStorage[lookingFor] else queryStorage.remove(lookingFor)) ?: return@apply
+                        val query = queryStorage[lookingFor]
+                        if (query == null) {
+                            Logger.trace("Query for ${lookingFor.take(5)} is null...")
+                            return@apply
+                        }
                         query.hops++
                         if (node == null) {
                             shuffle()
@@ -145,7 +149,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         } else {
                             val actions = mutableListOf<(Node) -> Unit>()
                             query.queue.drainTo(actions)
-                            Logger.trace("Drained ${actions.size} actions.")
+                            Logger.chain("Drained ${actions.size} actions.")
                             actions.forEach { action ->
                                 launchCoroutine {
                                     action(node)
@@ -191,9 +195,9 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         } ?: return
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0) }
-        if (block != null) query.queue.add(block)
+        if (block != null) query.queue.put(block)
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
-        Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)}.")
+        Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)} with $block (size: ${query.queue.size}).")
     }
 
     /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
