@@ -31,7 +31,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         if (chain.addBlocks(block)) {
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
-            val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
+            // val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
             val ourMigrationPlan = block.migrations[localNode.publicKey]
 
             if (block.slot > 2) validatorSet.inclusionChanges(block)
@@ -39,14 +39,14 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
             if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
 
-            sendDockerStatistics(block, nextTask.blockProducer, clusters)
+            // sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
             if (isTrustedNode) query(nextTask.blockProducer) {
                 Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, "${it.ip}:${it.kademliaPort}")
             }
             when (nextTask.myTask) {
                 SlotDuty.PRODUCER -> {
-                    Dashboard.logCluster(block, nextTask, clusters)
+                    // Dashboard.logCluster(block, nextTask, clusters)
                     Logger.chain("Producing block ${block.slot + 1}...")
                     val computationStart = System.currentTimeMillis()
                     val proof = verifiableDelay.computeProof(block.difficulty, block.hash)
