@@ -59,12 +59,10 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
     fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
-        testLock.tryWithLock {
-            val identifier = sha256(publicKey).asHex
-            val knownNode = knownNodes[identifier]
-            if (knownNode == null) sendFindRequest(identifier, block = action)
-            else if (action != null) launchCoroutine { action(knownNode) }
-        }
+        val identifier = sha256(publicKey).asHex
+        val knownNode = knownNodes[identifier]
+        if (knownNode == null) sendFindRequest(identifier, block = action)
+        else if (action != null) launchCoroutine { action(knownNode) }
     }
 
     /** Retrieves [amount] of the closest nodes. */
