@@ -82,12 +82,12 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val currentSlice = readInt()
                 val dataLength = readInt()
                 val data = readNBytes(dataLength)
-                processReceivedData(endpoint, transmissionType, totalSlices, messageIdBytes, data, currentSlice)
+                processReceivedData(endpoint, transmissionType, totalSlices, messageIdBytes, packet.data.copyOf(), data, currentSlice)
             }
         }
     }
 
-    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, data: ByteArray, currentSlice: Int = 0) {
+    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, message: ByteArray, data: ByteArray, currentSlice: Int = 0) {
         // TODO: Cleanup of the next few lines of code.
         val messageId = messageIdArray.asHex
         val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
@@ -120,7 +120,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
         }
         messageBuilder.nodes.forEach { publicKey ->
-            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(data, endpoint, messageIdArray, it)) }
+            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(message, endpoint, messageIdArray, it)) }
         }
 
         // if (!isBootstrapped) return@tryAndReport
@@ -200,8 +200,10 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
             socket.use {
-                DataInputStream(it.getInputStream()).use { stream ->
+                DataInputStream(it.getInputStream()).use { dis ->
                     Logger.trace("Reading from TCP socket!")
+                    val fullData = dis.readAllBytes()
+                    val stream = DataInputStream(ByteArrayInputStream(fullData))
                     val messageIdBytes = stream.readNBytes(32)
                     val messageId = messageIdBytes.asHex
                     if (messageHistory.containsKey(messageId)) return@tryAndReport
@@ -211,7 +213,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val dataSize = stream.readInt()
                     val data = stream.readNBytes(dataSize)
                     Logger.trace("Message received on $endpoint.")
-                    processReceivedData(endpoint, transmissionType, 1, messageIdBytes, data)
+                    processReceivedData(endpoint, transmissionType, 1, fullData, messageIdBytes, data)
                 }
             }
         }
