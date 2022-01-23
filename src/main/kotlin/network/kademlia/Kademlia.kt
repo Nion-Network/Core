@@ -137,19 +137,18 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         val node = firstOrNull { it.identifier == lookingFor }
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
-                        val query = queryStorage[lookingFor]
-                        if (node == null && !knownNodes.contains(lookingFor)) {
-                            query?.apply { hops++ }
-                            shuffle()
-                            take(3).forEach { sendFindRequest(lookingFor, it) }
-                        } else if (node != null) {
-                            val actions = mutableListOf<(Node) -> Unit>()
-                            query?.queue?.drainTo(actions)
-                            Logger.trace("Drained $query into  ${actions.size} actions.")
-                            if (query != null) {
-                                val duration = System.currentTimeMillis() - query.start
-                                Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")
-                                Dashboard.reportDHTQuery(node.identifier, query.hops, duration)
+                        queryStorage[lookingFor]?.apply {
+                            hops++
+                            if (node == null && !knownNodes.contains(lookingFor)) {
+                                shuffle()
+                                take(3).forEach { sendFindRequest(lookingFor, it) }
+                            } else {
+                                val actions = mutableListOf<(Node) -> Unit>()
+                                queue.drainTo(actions)
+                                Logger.trace("Drained $this into  ${actions.size} actions.")
+                                val duration = System.currentTimeMillis() - start
+                                Logger.trace("Kademlia took ${duration}ms and $hops hops to find ${node!!.identifier}")
+                                Dashboard.reportDHTQuery(node.identifier, hops, duration)
                             }
                         }
                     }
