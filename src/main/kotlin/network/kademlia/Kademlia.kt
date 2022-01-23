@@ -86,11 +86,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Adds the node to the appropriate bucket, if there is enough space. */
     private fun add(node: Node) {
+        knownNodes.computeIfAbsent(node.identifier) { node }
         val bits = node.bitSet.apply { xor(localNode.bitSet) }
         val position = bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
         val bucket = tree.computeIfAbsent(position) { Bucket(bucketSize) }
         bucket.add(node)
-        knownNodes.computeIfAbsent(node.identifier) { node }
     }
 
     /** Calculates the XOR distance between our [localNode] and [identifier]. */
@@ -138,8 +138,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     receivedNodes.forEach { add(it) }
                     queryHolder?.apply { hops++ }
 
-                    Logger.trace("Received back ${closestNodes.nodes.size} nodes.")
                     val searchedNode = knownNodes[identifier]
+                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
                     when {
                         searchedNode == null -> {
                             receivedNodes.shuffle()
