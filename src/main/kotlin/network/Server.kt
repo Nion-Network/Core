@@ -248,6 +248,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private fun processReceivedMessages() {
         while (true) tryAndReport {
             val messageBuilder = processingQueue.take()
+            Logger.info("Gluing data of message builder on ${messageBuilder.endpoint}!")
             onMessageReceived(messageBuilder.endpoint, messageBuilder.gluedData())
         }
     }
