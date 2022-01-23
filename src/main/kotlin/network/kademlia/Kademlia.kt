@@ -143,7 +143,13 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             shuffle()
                             take(3).forEach { sendFindRequest(lookingFor, it) }
                         } else {
-                            query.action?.apply { executeOnFound(this, node) }
+                            val actions = mutableListOf<(Node) -> Unit>()
+                            query.queue.drainTo(actions)
+                            actions.forEach { action ->
+                                launchCoroutine {
+                                    action(node)
+                                }
+                            }
                             val duration = System.currentTimeMillis() - query.start
                             Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")
                             Dashboard.reportDHTQuery(node.identifier, query.hops, duration)
@@ -183,7 +189,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             if (this == null) Dashboard.reportException(Exception("Bootstrapped: $isBootstrapped"))
         } ?: return
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
-        queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0, action = block) }
+        val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0) }
+        if (block != null) query.queue.add(block)
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
         Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)}.")
     }
@@ -195,13 +202,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
         Logger.trace("Kademlia added to queue [$endpoint].")
         outgoingQueue.put(queueMessage)
-    }
-
-    /**Launches the queued action from [queryStorage]. */
-    private fun executeOnFound(action: ((Node) -> Unit), node: Node) {
-        launchCoroutine {
-            action(node)
-        }
     }
 
     /** Debugs the built kademlia tree [development purposes only]. */
