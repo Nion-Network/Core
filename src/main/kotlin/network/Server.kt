@@ -213,7 +213,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val dataSize = stream.readInt()
                     val data = stream.readNBytes(dataSize)
                     Logger.trace("Message received on $endpoint.")
-                    processReceivedData(endpoint, transmissionType, 1, fullData, messageIdBytes, data)
+                    processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
                 }
             }
         }
