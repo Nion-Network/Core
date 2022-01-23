@@ -83,30 +83,32 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
                 // TODO: Cleanup of the next few lines of code.
                 val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
-                    val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
-                    val messageRandom = Random(seed)
-                    val shuffled = validatorSet.shuffled(messageRandom)
-                    val k = 3
-                    val index = shuffled.indexOf(localNode.publicKey)
                     val broadcastNodes = mutableSetOf<String>()
-                    if (index != -1) {
-                        val currentDepth = TreeUtils.computeDepth(k, index)
-                        val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
-                        val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
-                        val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
-                        val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
-                        val children = TreeUtils.findChildren(k, index)
-                        val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
-                        val neighbour = shuffled[neighbourIndex]
-                        val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
-                        val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
-                        broadcastNodes.add(neighbour)
-                        broadcastNodes.addAll(childrenKeys)
-                        broadcastNodes.addAll(neighbourChildrenKeys)
-                        Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                    if (transmissionType == TransmissionType.Broadcast) {
+                        val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+                        val messageRandom = Random(seed)
+                        val shuffled = validatorSet.shuffled(messageRandom)
+                        val k = 3
+                        val index = shuffled.indexOf(localNode.publicKey)
+                        if (index != -1) {
+                            val currentDepth = TreeUtils.computeDepth(k, index)
+                            val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+                            val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+                            val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+                            val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
+                            val children = TreeUtils.findChildren(k, index)
+                            val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
+                            val neighbour = shuffled[neighbourIndex]
+                            val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
+                            val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
+                            broadcastNodes.add(neighbour)
+                            broadcastNodes.addAll(childrenKeys)
+                            broadcastNodes.addAll(neighbourChildrenKeys)
+                            Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                        }
+                        broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+                        Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
                     }
-                    broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
-                    Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {
