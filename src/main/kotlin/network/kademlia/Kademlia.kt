@@ -137,7 +137,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         val node = firstOrNull { it.identifier == lookingFor }
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
-                        val query = queryStorage[lookingFor]
+                        val query = if (node == null) queryStorage[lookingFor] else queryStorage.remove(lookingFor)
                         if (node == null) {
                             query?.apply { hops++ }
                             shuffle()
