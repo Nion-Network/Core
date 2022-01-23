@@ -145,6 +145,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         } else {
                             val actions = mutableListOf<(Node) -> Unit>()
                             query.queue.drainTo(actions)
+                            Logger.trace("Drained ${actions.size} actions.")
                             actions.forEach { action ->
                                 launchCoroutine {
                                     action(node)
