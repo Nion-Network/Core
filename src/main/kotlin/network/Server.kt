@@ -95,8 +95,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         val children = TreeUtils.findChildren(k, index)
                         val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
                         val neighbour = shuffled[neighbourIndex]
-                        val childrenKeys = children.mapNotNull { shuffled[it] }
-                        val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled[it] }
+                        val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
+                        val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
                         broadcastNodes.add(neighbour)
                         broadcastNodes.addAll(childrenKeys)
                         broadcastNodes.addAll(neighbourChildrenKeys)
