@@ -152,7 +152,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             launchCoroutine {
                                 actionsToDo.forEach { it.invoke(searchedNode) }
                             }
-                            Dashboard.reportDHTQuery(identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
+                            Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
                             queryStorage.remove(identifier)
                         }
                         else -> {}
