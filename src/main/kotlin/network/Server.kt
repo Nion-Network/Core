@@ -110,6 +110,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val packetData = packet.data.copyOf()
                     messageBuilder.nodes.forEach { publicKey ->
                         query(publicKey) { node ->
+                            Logger.trace("Query successfull. Adding ${node.ip}:${node.kademliaPort} to queue.")
                             outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
                         }
                     }
@@ -172,6 +173,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = recipientNode.publicKey
+                            Logger.info("Sent out packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                             Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
                         }
                     }
