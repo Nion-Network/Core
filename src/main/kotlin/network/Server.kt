@@ -197,9 +197,11 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     private fun readTCP() {
         while (true) tryAndReport {
+            Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
             socket.use {
                 DataInputStream(it.getInputStream()).use { stream ->
+                    Logger.trace("Reading from TCP socket!")
                     val messageIdBytes = stream.readNBytes(32)
                     val messageId = messageIdBytes.asHex
                     if (messageHistory.containsKey(messageId)) return@tryAndReport
@@ -208,6 +210,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@tryAndReport
                     val dataSize = stream.readInt()
                     val data = stream.readNBytes(dataSize)
+                    Logger.trace("Message received on $endpoint.")
                     processReceivedData(endpoint, transmissionType, 1, messageIdBytes, data)
                 }
             }
@@ -235,6 +238,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         }
                     }
                     stream.flush()
+                    Logger.trace("TCP flushed.")
                 }
             }
         }
