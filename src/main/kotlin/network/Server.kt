@@ -64,6 +64,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             inputStream.reset()
             udpSocket.receive(packet)
+            Logger.trace("Received packet!")
             val packetIdBytes = inputStream.readNBytes(32)
             val packetId = packetIdBytes.asHex
             val messageIdBytes = inputStream.readNBytes(32)
@@ -73,12 +74,12 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             inputStream.apply {
                 val transmissionType = if (read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
                 val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
+                Logger.trace("Received packet on endpoint: $endpoint")
                 val totalSlices = readInt()
                 val currentSlice = readInt()
                 val dataLength = readInt()
                 val data = readNBytes(dataLength)
 
-                Logger.trace("Received packet on endpoint: $endpoint")
 
                 // TODO: Cleanup of the next few lines of code.
                 val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
