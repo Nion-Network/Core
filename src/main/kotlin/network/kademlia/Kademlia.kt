@@ -63,7 +63,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             val identifier = sha256(publicKey).asHex
             val knownNode = knownNodes[identifier]
             if (knownNode == null) sendFindRequest(identifier, block = action)
-            else if (action != null) action(knownNode)
+            else if (action != null) launchCoroutine { action(knownNode) }
         }
     }
 
@@ -167,6 +167,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 put(outgoing.data)
                 val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position(), InetSocketAddress(outgoing.ip, outgoing.port))
                 kademliaSocket.send(packet)
+                Logger.trace("Kademlia sent a packet to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
@@ -194,6 +195,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
+        Logger.trace("Kademlia added to queue [$endpoint].")
         outgoingQueue.put(queueMessage)
     }
 
