@@ -133,18 +133,19 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 KademliaEndpoint.CLOSEST_NODES -> {
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
                     val receivedNodes = closestNodes.nodes
-                    val lookingFor = closestNodes.identifier
-                    val theNode = receivedNodes.firstOrNull { it.identifier == lookingFor }
-                    val queryHolder = queryStorage[lookingFor]
+                    val identifier = closestNodes.identifier
+                    val theNode = receivedNodes.firstOrNull { it.identifier == identifier }
+                    val queryHolder = queryStorage[identifier]
                     receivedNodes.forEach { add(it) }
+                    queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. Contains: $theNode")
 
-                    if (theNode == null) {
-                        queryHolder?.apply { hops++ }
+                    if (theNode == null && queryHolder != null) {
                         receivedNodes.shuffle()
-                        receivedNodes.take(3).forEach { sendFindRequest(lookingFor, it) }
+                        receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
                     } else {
-                        Dashboard.reportDHTQuery(lookingFor, queryHolder?.hops ?: -1, queryHolder?.let { System.currentTimeMillis() - it.start } ?: -2)
+                        queryStorage.remove(identifier)
+                        Dashboard.reportDHTQuery(identifier, queryHolder?.hops ?: -1, queryHolder?.let { System.currentTimeMillis() - it.start } ?: -2)
                     }
                 }
             }
