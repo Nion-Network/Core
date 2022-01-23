@@ -74,7 +74,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Looks into buckets and retrieves at least [bucketSize] closest nodes. */
     private fun lookup(position: Int, needed: Int = bucketSize, startedIn: Int = position): Set<Node> {
-        Logger.trace("Missing: $needed.")
         val bucket = tree[position]?.getNodes() ?: emptySet()
         val missing = needed - bucket.size
         if (missing <= 0) return bucket
@@ -129,8 +128,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val closestNodes = lookup(distance)
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
-                    addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                     Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                    addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
