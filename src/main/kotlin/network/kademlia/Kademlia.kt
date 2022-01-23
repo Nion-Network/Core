@@ -141,7 +141,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             hops++
                             if (node == null && !knownNodes.contains(lookingFor)) {
                                 shuffle()
-                                take(3).forEach { sendFindRequest(lookingFor, it) }
+                                // take(3).forEach { sendFindRequest(lookingFor, it) }
                             } else {
                                 val actions = mutableListOf<(Node) -> Unit>()
                                 queue.drainTo(actions)
