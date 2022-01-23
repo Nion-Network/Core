@@ -17,7 +17,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
 
     /** Returns the last block in the chain. */
     fun getLastBlock(): Block? {
-        return lock.withLock { blocks.lastOrNull() }
+        return blocks.lastOrNull()
     }
 
     /** Returns max 100 blocks [from slot][fromSlot].*/
