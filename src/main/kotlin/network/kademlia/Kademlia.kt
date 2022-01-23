@@ -143,7 +143,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     if (theNode == null && queryHolder != null) {
                         receivedNodes.shuffle()
                         receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
-                    } else {
+                    } else if (theNode != null && queryHolder != null) {
                         queryStorage.remove(identifier)
                         Dashboard.reportDHTQuery(identifier, queryHolder?.hops ?: -1, queryHolder?.let { System.currentTimeMillis() - it.start } ?: -2)
                     }
