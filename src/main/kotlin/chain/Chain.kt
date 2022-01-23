@@ -2,6 +2,7 @@ package chain
 
 import chain.data.Block
 import logging.Logger
+import utils.tryWithLock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -17,7 +18,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
 
     /** Returns the last block in the chain. */
     fun getLastBlock(): Block? {
-        return blocks.lastOrNull()
+        return lock.withLock { blocks.lastOrNull() }
     }
 
     /** Returns max 100 blocks [from slot][fromSlot].*/
@@ -34,27 +35,27 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             if (!isLegitimate) return false
             previous
         }
-        return lock.withLock {
-            val lastBlock = blocks.lastOrNull()
-            val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
-            val difficulty = lastBlock?.difficulty ?: initialDifficulty
-            val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
-            if (isLegitimate) {
-                blocks.addAll(newBlocks)
-                newBlocks.forEach { Logger.chain("Block[${it.votes}/$committeeSize] added [${it.slot}].") }
-                return@withLock true
-            } else {
-                if (nextBlock.slot > (lastBlock?.slot ?: 0) && !lastHash.contentEquals(nextBlock.hash)) {
-                    Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
-                    Logger.info("Last hash: $lastHash")
-                    Logger.info("Last block: ${lastBlock?.slot}")
-                    Logger.info("New hash: ${nextBlock.hash}")
-                    Logger.info("Precedent hash: ${nextBlock.precedentHash}")
-                    Logger.info("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
-                }
-                return@withLock false
+        val lastBlock = getLastBlock()
+        val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
+        val difficulty = lastBlock?.difficulty ?: initialDifficulty
+        val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
+        if (!isLegitimate) {
+            if (nextBlock.slot > (lastBlock?.slot ?: 0) && !lastHash.contentEquals(nextBlock.hash)) {
+                Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
+                Logger.info("Last hash: $lastHash")
+                Logger.info("Last block: ${lastBlock?.slot}")
+                Logger.info("New hash: ${nextBlock.hash}")
+                Logger.info("Precedent hash: ${nextBlock.precedentHash}")
+                Logger.info("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
             }
+            return false
         }
+        lock.tryWithLock {
+            blocks.addAll(newBlocks)
+            newBlocks.forEach { Logger.chain("Block[${it.votes}/$committeeSize] added [${it.slot}].") }
+        }
+        return true
+
     }
 
 }
