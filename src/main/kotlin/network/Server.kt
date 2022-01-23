@@ -91,7 +91,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
                         val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
                         val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
-                        val neighbourIndex = (index + 1).takeIf { it <= maximumIndex } ?: minimumIndex
+                        val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
                         val children = TreeUtils.findChildren(k, index)
                         val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
                         val neighbour = shuffled[neighbourIndex]
