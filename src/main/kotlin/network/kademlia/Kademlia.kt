@@ -146,11 +146,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             val actions = mutableListOf<(Node) -> Unit>()
                             query?.queue?.drainTo(actions)
                             Logger.trace("Drained $query into  ${actions.size} actions.")
-                            actions.forEach { action ->
-                                launchCoroutine {
-                                    action(node)
-                                }
-                            }
                             if (query != null) {
                                 val duration = System.currentTimeMillis() - query.start
                                 Logger.trace("Kademlia took ${duration}ms and ${query.hops} hops to find ${node.identifier}")
