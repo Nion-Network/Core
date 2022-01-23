@@ -63,7 +63,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val knownNode = knownNodes[identifier]
         Logger.info("Querying for ${identifier.take(5)}: ${knownNode?.ip}")
         if (knownNode == null) sendFindRequest(identifier, block = action)
-        else if (action != null) action(knownNode)
+        else if (action != null) launchCoroutine { action(knownNode) }
     }
 
     /** Retrieves [amount] of the closest nodes. */
@@ -138,7 +138,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         forEach { add(it) }
                         Logger.debug("Adding $size nodes!")
                         val query = queryStorage[lookingFor]
-                        if (node == null) {
+                        if (node == null && !knownNodes.contains(lookingFor)) {
                             query?.apply { hops++ }
                             shuffle()
                             take(3).forEach { sendFindRequest(lookingFor, it) }
