@@ -39,7 +39,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
     private val queryStorage = ConcurrentHashMap<String, KademliaQuery>()
-    private val bucketSize = 5
+    private val bucketSize = 20
     private val testLock = ReentrantLock(true)
 
     init {
