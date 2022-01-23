@@ -114,11 +114,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 if (transmissionType == TransmissionType.Broadcast) {
                     val packetData = packet.data.copyOf()
                     messageBuilder.nodes.forEach { publicKey ->
-                        query(publicKey) { node ->
-                            Logger.trace("Query successfull. Adding ${node.ip}:${node.kademliaPort} to queue.")
-                            outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, node))
-                            Logger.trace("Added ${node.ip}:${node.kademliaPort} to queue.")
-                        }
+                        query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(packetData, endpoint, messageIdBytes, it)) }
                     }
                 }
                 // if (!isBootstrapped) return@tryAndReport
