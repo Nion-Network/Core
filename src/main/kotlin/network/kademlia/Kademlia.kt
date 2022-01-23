@@ -142,7 +142,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             query?.apply { hops++ }
                             shuffle()
                             take(3).forEach { sendFindRequest(lookingFor, it) }
-                        } else {
+                        } else if (node != null) {
                             val actions = mutableListOf<(Node) -> Unit>()
                             query?.queue?.drainTo(actions)
                             Logger.trace("Drained $query into  ${actions.size} actions.")
