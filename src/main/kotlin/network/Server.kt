@@ -87,18 +87,19 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val index = shuffled.indexOf(localNode.publicKey)
                     val broadcastNodes = mutableSetOf<String>()
                     if (index != -1) {
-                        val depth = TreeUtils.computeDepth(k, index)
-                        val totalNodesAtDepth = TreeUtils.computeTotalNodesOnDepth(k, depth)
-                        val minIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodesAtDepth, depth)
-                        val maxIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodesAtDepth)
-                        val neighbourIndex = (index + 1).takeIf { it <= maxIndex && it < shuffled.size } ?: minIndex
-                        val neighbour = shuffled[neighbourIndex]
+                        val currentDepth = TreeUtils.computeDepth(k, index)
+                        val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+                        val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+                        val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+                        val neighbourIndex = (index + 1).takeIf { it <= maximumIndex } ?: minimumIndex
                         val children = TreeUtils.findChildren(k, index)
                         val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
-                        val childrenKeys = shuffled.drop(children.first).take(k)
-                        broadcastNodes.add(neighbour);
+                        val neighbour = shuffled[neighbourIndex]
+                        val childrenKeys = children.mapNotNull { shuffled[it] }
+                        val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled[it] }
+                        broadcastNodes.add(neighbour)
                         broadcastNodes.addAll(childrenKeys)
-                        broadcastNodes.addAll(shuffled.drop(neighbourChildren.first).take(k))
+                        broadcastNodes.addAll(neighbourChildrenKeys)
                         Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                     }
                     broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
