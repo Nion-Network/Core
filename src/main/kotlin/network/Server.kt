@@ -103,7 +103,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                     }
                     broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
-                    // Logger.error("We have to retransmit to [${shuffled.size}] =.= [$index] -> ${broadcastNodes.size} nodes.")
+                    Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
                     MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
                 }
                 if (transmissionType == TransmissionType.Broadcast) {
