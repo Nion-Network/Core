@@ -228,7 +228,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         is OutgoingQueuedMessage -> {
                             val data = outgoing.message
                             stream.write(outgoing.messageUID)
-                            stream.write(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                            stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
                             stream.writeByte(outgoing.endpoint.ordinal)
                             stream.writeInt(data.size)
                             stream.write(data)
