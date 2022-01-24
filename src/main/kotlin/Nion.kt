@@ -42,7 +42,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
     override fun launch() {
         super.launch()
         attemptBootstrap()
-        attemptInclusion()
+        // attemptInclusion()
     }
 
     private fun attemptBootstrap() {
