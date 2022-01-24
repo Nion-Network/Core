@@ -171,7 +171,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 put(outgoing.data)
                 val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position(), InetSocketAddress(outgoing.ip, outgoing.port))
                 kademliaSocket.send(packet)
-                Thread.sleep(Random.nextLong(5, 20))
+                Thread.sleep(Random.nextLong(10, 50))
                 // Logger.trace("Kademlia sent a packet to ${outgoing.ip}:${outgoing.port}")
             }
         }
