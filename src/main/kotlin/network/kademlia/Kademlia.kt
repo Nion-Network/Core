@@ -118,7 +118,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            add(kademliaMessage.sender)
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
@@ -135,12 +134,12 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val receivedNodes = closestNodes.nodes
                     val identifier = closestNodes.identifier
                     val queryHolder = queryStorage[identifier]
-                    val searchedNode = knownNodes[identifier]
-                    queryHolder?.apply { hops++ }
+                    val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier }
                     receivedNodes.forEach { add(it) }
+                    queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
                     when {
-                        searchedNode == null -> {
+                        searchedNode == null && !knownNodes.containsKey(identifier) -> {
                             receivedNodes.shuffle()
                             receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
                         }
@@ -158,6 +157,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     }
                 }
             }
+            add(kademliaMessage.sender)
         }
     }
 
