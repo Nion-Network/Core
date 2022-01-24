@@ -31,6 +31,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     val localAddress = InetAddress.getLocalHost()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
+        println(Dashboard.myInfo)
     }
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.kademliaPort == configuration.trustedNodePort }
 
@@ -143,9 +144,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
                     if (queryHolder != null) {
-                        if (searchedNode == null && !knownNodes.containsKey(identifier)) {
-                            receivedNodes.shuffle()
-                            receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
+                        if (searchedNode == null) {
+                            if (!knownNodes.containsKey(identifier)) {
+                                receivedNodes.shuffle()
+                                receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
+                            }
                         } else {
                             val actionsToDo = mutableListOf<(Node) -> Unit>()
                             val drained = queryHolder.queue.drainTo(actionsToDo)
