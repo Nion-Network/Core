@@ -178,6 +178,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             val started = System.currentTimeMillis()
                             udpSocket.send(packet)
                             Thread.sleep(Random.nextLong(10, 200))
+                            udpSocket.send(packet)
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = recipientNode.publicKey
