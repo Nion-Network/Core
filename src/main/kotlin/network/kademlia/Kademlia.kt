@@ -58,7 +58,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
     fun bootstrap(ip: String, port: Int, block: ((Node) -> Unit)? = null) {
         Logger.info("Bootstrapping Kademlia!")
-        sendFindRequest(localNode.identifier, Node(ip, port, port, port, "BOOTSTRAP"), block)
+        sendFindRequest(localNode.identifier, listOf(Node(ip, port, port, port, "BOOTSTRAP")), block)
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
@@ -147,7 +147,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         if (searchedNode == null) {
                             if (!knownNodes.containsKey(identifier)) {
                                 receivedNodes.shuffle()
-                                receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
+                                sendFindRequest(identifier, receivedNodes.take(3))
                             }
                         } else {
                             val actionsToDo = mutableListOf<(Node) -> Unit>()
@@ -168,37 +168,31 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     /** Sends outgoing [kademlia messages][KademliaMessage] when available (from [outgoingQueue]).*/
     private fun sendOutgoing() {
         val dataBuffer = ByteBuffer.allocate(60_000)
+        val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position())
         while (true) tryAndReport {
             val outgoing = outgoingQueue.take()
             dataBuffer.apply {
                 clear()
                 putInt(outgoing.data.size)
                 put(outgoing.data)
-                val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position(), InetSocketAddress(outgoing.ip, outgoing.port))
+                packet.socketAddress = InetSocketAddress(outgoing.ip, outgoing.port)
+                packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
                 Thread.sleep(Random.nextLong(10, 50))
-                // Logger.trace("Kademlia sent a packet to ${outgoing.ip}:${outgoing.port}")
+                Logger.trace("Kademlia sent a packet $outgoing. to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
 
     /** Sends a FIND_NODE request to the [recipient] or a random closest node (relative to the [identifier]). */
-    private fun sendFindRequest(identifier: String, recipient: Node? = null, block: ((Node) -> Unit)? = null) {
-        if (recipient == localNode) return
+    private fun sendFindRequest(identifier: String, recipients: List<Node> = mutableListOf(), block: ((Node) -> Unit)? = null) {
         val distance = getDistance(identifier)
-        val sendTo = recipient ?: lookup(distance).apply {
-            if (isEmpty()) {
-                Logger.error("LOOKUP SIZE for ${identifier.take(5)} IS 0 SOMEHOW!")
-                printTree()
-            }
-        }.filter { it.identifier != localNode.identifier }.randomOrNull().apply {
-            if (this == null) Dashboard.reportException(Exception("Bootstrapped: $isBootstrapped"))
-        } ?: return
+
+        val possibleRecipients = recipients.ifEmpty { lookup(distance).toMutableList() }.filter { it != localNode }.shuffled().take(3)
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0) }
         if (block != null) query.queue.put(block)
-        addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
-        // Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)} with $block (size: ${query.queue.size}).")
+        possibleRecipients.forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
     }
 
     /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
