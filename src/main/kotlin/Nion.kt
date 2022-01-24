@@ -54,7 +54,6 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
 
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
-        Logger.info("OnMessageReceived called for $endpoint.")
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
         Logger.debug("We received a message on ${message.endpoint} [$verified]")

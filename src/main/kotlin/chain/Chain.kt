@@ -55,7 +55,6 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             newBlocks.forEach { Logger.chain("Block[${it.votes}/$committeeSize] added [${it.slot}].") }
         }
         return true
-
     }
 
 }

@@ -64,9 +64,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
         while (true) tryAndReport {
             inputStream.reset()
-            Logger.trace("Waiting for a packet!")
             udpSocket.receive(packet)
-            Logger.trace("Received packet!")
             val packetIdBytes = inputStream.readNBytes(32)
             val packetId = packetIdBytes.asHex
             val messageIdBytes = inputStream.readNBytes(32)
@@ -76,7 +74,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             inputStream.apply {
                 val transmissionType = if (read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
                 val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
-                Logger.trace("Received packet on endpoint: $endpoint")
                 val totalSlices = readInt()
                 val currentSlice = readInt()
                 val dataLength = readInt()
@@ -114,7 +111,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                 }
                 broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
-                Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
+                // Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
             }
             MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
         }
@@ -127,9 +124,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             messageBuilders.remove(messageId)
             processingQueue.put(messageBuilder)
             messageHistory[messageId] = System.currentTimeMillis()
-            Logger.trace("Added to processing queue: $endpoint")
+            // Logger.trace("Added to processing queue: $endpoint")
         }
-        if (endpoint == Endpoint.NewBlock) Logger.trace("Data [$endpoint] missing ${messageBuilder.missing}")
+        // if (endpoint == Endpoint.NewBlock) Logger.trace("Data [$endpoint] missing ${messageBuilder.missing}")
     }
 
     /**Sends outgoing [Message] from [outgoingQueue]. */
@@ -180,7 +177,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = recipientNode.publicKey
-                            Logger.info("Sent out packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
+                            // Logger.info("Sent out packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                             Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
                         }
                     }
@@ -189,7 +186,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                         udpSocket.send(packet)
                         Thread.sleep(Random.nextLong(10, 100))
-                        Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
+                        // Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                     }
                 }
             }
@@ -198,7 +195,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
 
     private fun listenForTCP() {
         while (true) tryAndReport {
-            Logger.trace("Waiting for TCP connections!")
+            // Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
             socket.use {
                 DataInputStream(it.getInputStream()).use { dis ->
@@ -282,11 +279,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         }
         // TODO: properly cleanup the next few lines of code.
         if (publicKeys.isNotEmpty()) {
-            publicKeys.forEach { key ->
-                val identifier = sha256(key).asHex.take(5)
-                Logger.info("Looking for $identifier to send a message to $endpoint.")
-                query(key, x)
-            }
+            publicKeys.forEach { key -> query(key, x) }
         } else {
             if (validators.isEmpty()) pickRandomNodes().map { it.publicKey }.forEach {
                 query(it, x)
