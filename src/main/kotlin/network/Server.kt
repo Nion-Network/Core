@@ -177,7 +177,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                             val started = System.currentTimeMillis()
                             udpSocket.send(packet)
-                            Thread.sleep(Random.nextLong(50, 100))
+                            Thread.sleep(Random.nextLong(10, 100))
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = recipientNode.publicKey
@@ -189,7 +189,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         put(outgoing.data)
                         val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                         udpSocket.send(packet)
-                        Thread.sleep(Random.nextLong(50, 100))
+                        Thread.sleep(Random.nextLong(10, 100))
                         Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                     }
                 }
