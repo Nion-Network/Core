@@ -87,7 +87,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         }
     }
 
-    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, message: ByteArray, data: ByteArray, currentSlice: Int = 0) {
+    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, wholeData: ByteArray, messageData: ByteArray, currentSlice: Int = 0) {
         // TODO: Cleanup of the next few lines of code.
         val messageId = messageIdArray.asHex
         val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
@@ -120,11 +120,11 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
         }
         messageBuilder.nodes.forEach { publicKey ->
-            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(message, endpoint, messageIdArray, it)) }
+            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(wholeData, endpoint, messageIdArray, it)) }
         }
 
         // if (!isBootstrapped) return@tryAndReport
-        if (messageBuilder.addPart(currentSlice, data)) {
+        if (messageBuilder.addPart(currentSlice, messageData)) {
             messageBuilders.remove(messageId)
             processingQueue.put(messageBuilder)
             messageHistory[messageId] = System.currentTimeMillis()
@@ -201,7 +201,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val socket = tcpSocket.accept()
             socket.use {
                 DataInputStream(it.getInputStream()).use { dis ->
-                    Logger.trace("Reading from TCP socket!")
                     val fullData = dis.readAllBytes()
                     val stream = DataInputStream(ByteArrayInputStream(fullData))
                     val messageIdBytes = stream.readNBytes(32)
@@ -212,7 +211,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@tryAndReport
                     val dataSize = stream.readInt()
                     val data = stream.readNBytes(dataSize)
-                    Logger.trace("Message received on $endpoint.")
                     processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
                 }
             }
@@ -240,7 +238,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         }
                     }
                     stream.flush()
-                    Logger.trace("TCP flushed.")
                 }
             }
         }
@@ -250,7 +247,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private fun processReceivedMessages() {
         while (true) tryAndReport {
             val messageBuilder = processingQueue.take()
-            Logger.info("Gluing data of message builder on ${messageBuilder.endpoint}!")
             onMessageReceived(messageBuilder.endpoint, messageBuilder.gluedData())
         }
     }

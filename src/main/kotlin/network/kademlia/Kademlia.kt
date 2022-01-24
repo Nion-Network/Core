@@ -143,7 +143,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     when {
                         searchedNode == null -> {
                             receivedNodes.shuffle()
-                            receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
+                            receivedNodes.take(1).forEach { sendFindRequest(identifier, it) }
                         }
                         queryHolder != null -> {
                             val actionsToDo = mutableListOf<(Node) -> Unit>()
