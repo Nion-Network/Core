@@ -139,12 +139,11 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     receivedNodes.forEach { add(it) }
                     queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
-                    when {
-                        searchedNode == null && queryHolder != null -> {
+                    if (queryHolder != null) {
+                        if (searchedNode == null) {
                             receivedNodes.shuffle()
                             receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
-                        }
-                        queryHolder != null -> {
+                        } else {
                             val actionsToDo = mutableListOf<(Node) -> Unit>()
                             val drained = queryHolder.queue.drainTo(actionsToDo)
                             Logger.trace("Drained $drained actions.")
@@ -154,7 +153,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                             Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
                             queryStorage.remove(identifier)
                         }
-                        else -> {}
                     }
                 }
             }
