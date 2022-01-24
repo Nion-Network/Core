@@ -32,6 +32,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
     }
+    val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.kademliaPort == configuration.trustedNodePort }
+
     private val knownNodes = ConcurrentHashMap<String, Node>()
 
     val totalKnownNodes get() = knownNodes.size
@@ -48,7 +50,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::sendOutgoing).start()
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
-        add(localNode)
+        if (isTrustedNode) add(localNode)
         printTree()
     }
 
@@ -141,7 +143,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
                     if (queryHolder != null) {
-                        if (searchedNode == null) {
+                        if (searchedNode == null && !knownNodes.containsKey(identifier)) {
                             receivedNodes.shuffle()
                             receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
                         } else {
