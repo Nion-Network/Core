@@ -157,7 +157,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     }
                 }
             }
-            add(kademliaMessage.sender)
+            // add(kademliaMessage.sender)
         }
     }
 
