@@ -190,6 +190,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                         put(outgoing.data)
                         val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                         udpSocket.send(packet)
+                        Thread.sleep(Random.nextLong(10, 200))
+                        udpSocket.send(packet)
                         Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
                     }
                 }
