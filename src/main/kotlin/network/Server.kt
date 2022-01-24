@@ -96,7 +96,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
                 val messageRandom = Random(seed)
                 val shuffled = validatorSet.shuffled(messageRandom)
-                val k = 3
+                val k = 6
                 val index = shuffled.indexOf(localNode.publicKey)
                 if (index != -1) {
                     val currentDepth = TreeUtils.computeDepth(k, index)
