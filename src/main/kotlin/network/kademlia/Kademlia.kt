@@ -128,6 +128,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
                     Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
                     addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
+                    add(kademliaMessage.sender)
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
                     val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
@@ -157,7 +158,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     }
                 }
             }
-            // add(kademliaMessage.sender)
         }
     }
 
