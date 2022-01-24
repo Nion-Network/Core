@@ -170,7 +170,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 put(outgoing.data)
                 val packet = DatagramPacket(dataBuffer.array(), dataBuffer.position(), InetSocketAddress(outgoing.ip, outgoing.port))
                 kademliaSocket.send(packet)
-                Logger.trace("Kademlia sent a packet to ${outgoing.ip}:${outgoing.port}")
+                // Logger.trace("Kademlia sent a packet to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
@@ -191,7 +191,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(hops = 0) }
         if (block != null) query.queue.put(block)
         addToQueue(sendTo, KademliaEndpoint.FIND_NODE, encodedRequest)
-        Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)} with $block (size: ${query.queue.size}).")
+        // Logger.trace("Kademlia sent a FIND_NODE for ${identifier.take(5)} with $block (size: ${query.queue.size}).")
     }
 
     /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
@@ -199,7 +199,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
-        Logger.trace("Kademlia added to queue [$endpoint].")
+        // Logger.trace("Kademlia added to queue [$endpoint].")
         outgoingQueue.put(queueMessage)
     }
 
