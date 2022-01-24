@@ -140,7 +140,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     queryHolder?.apply { hops++ }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
                     when {
-                        searchedNode == null -> {
+                        searchedNode == null && queryHolder != null -> {
                             receivedNodes.shuffle()
                             receivedNodes.take(3).forEach { sendFindRequest(identifier, it) }
                         }
