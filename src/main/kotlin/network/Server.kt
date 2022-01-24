@@ -51,8 +51,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         Logger.info("We're the trusted node: $isTrustedNode | $localAddress:${localNode.udpPort}:${localNode.tcpPort}:${localNode.kademliaPort}.")
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
-        Thread(this::listenForUDP).start()
-        Thread(this::sendUDP).start()
+        Thread(this::listenForTCP).start()
+        Thread(this::sendTCP).start()
         Thread(this::processReceivedMessages).start()
         started = true
     }
