@@ -23,32 +23,25 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
 
     /** Returns max 100 blocks [from slot][fromSlot].*/
     fun getLastBlocks(fromSlot: Long): List<Block> {
-        return blocks.takeLastWhile { it.slot > fromSlot }.take(100)
+        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
     }
 
     /** Attempts to add each block one by one to the chain. */
     fun addBlocks(vararg newBlocks: Block): Boolean {
-        val nextBlock = newBlocks.reduceRight { previous, current ->
-            val lastHash = previous.hash
-            val lastDifficulty = previous.difficulty
-            val isLegitimate = verifiableDelay.verifyProof(lastHash, lastDifficulty, current.vdfProof)
-            if (!isLegitimate) return false
-            previous
-        }
-        val lastBlock = getLastBlock()
-        val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
-        val difficulty = lastBlock?.difficulty ?: initialDifficulty
-        val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
-        if (!isLegitimate) {
-            if (nextBlock.slot > (lastBlock?.slot ?: 0) && !lastHash.contentEquals(nextBlock.hash)) {
+        newBlocks.forEach { nextBlock ->
+            val lastBlock = getLastBlock()
+            val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
+            val difficulty = lastBlock?.difficulty ?: initialDifficulty
+            val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
+            if (!isLegitimate) {
                 Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
                 Logger.info("Last hash: $lastHash")
                 Logger.info("Last block: ${lastBlock?.slot}")
                 Logger.info("New hash: ${nextBlock.hash}")
                 Logger.info("Precedent hash: ${nextBlock.precedentHash}")
                 Logger.info("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
+                return false
             }
-            return false
         }
         lock.tryWithLock {
             blocks.addAll(newBlocks)

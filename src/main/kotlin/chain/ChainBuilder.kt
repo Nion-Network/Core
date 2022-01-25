@@ -25,8 +25,13 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     private val verifiableDelay = VerifiableDelay()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
     private var sentGenesis = AtomicBoolean(false)
+    private val isSyncing = AtomicBoolean(false)
 
     fun blockReceived(message: Message) {
+        if (isSyncing.get()) {
+            Logger.debug("Ignoring new block because we're in the process of syncing.")
+            return
+        }
         val block = message.decodeAs<Block>()
         val blockAdded = chain.addBlocks(block)
         Logger.info("${block.slot} received. Attempt to add it: $blockAdded")
@@ -133,11 +138,16 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
     /** Attempt to add blocks received from the random node. */
     fun synchronizationReply(message: Message) {
+        if (isSyncing.getAndSet(true)) {
+            Logger.debug("Ignoring sync reply because we're in the process of syncing.")
+            return
+        }
         val blocks = message.decodeAs<Array<Block>>()
         Logger.chain("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
         val synchronizationSuccess = chain.addBlocks(*blocks)
         if (synchronizationSuccess) validatorSet.inclusionChanges(*blocks)
         Logger.chain("Synchronization has been successful $synchronizationSuccess.")
+        isSyncing.set(false)
     }
 
     /** Requests synchronization from any random known node. */
