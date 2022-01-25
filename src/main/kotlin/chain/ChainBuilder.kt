@@ -35,7 +35,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
         val block = message.decodeAs<Block>()
         val blockAdded = chain.addBlocks(block)
-        Logger.info("${block.slot} received. Attempt to add it: $blockAdded")
         if (blockAdded) {
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
