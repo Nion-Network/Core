@@ -36,6 +36,6 @@ class Bucket(private val bucketCapacity: Int) {
     fun getNode(identifier: String): Node? = lock.withLock { set.firstOrNull { it.identifier == identifier } }
 
     /** Retrieves all Nodes in this bucket. */
-    fun getNodes(): Set<Node> = set
+    fun getNodes(): Set<Node> = lock.withLock { set.toSet() }
 
 }
