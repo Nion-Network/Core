@@ -11,6 +11,7 @@ import network.data.communication.InclusionRequest
 import network.data.communication.Message
 import network.data.communication.SyncRequest
 import network.data.communication.TransmissionType
+import utils.launchCoroutine
 import utils.runAfter
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
@@ -142,12 +143,14 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             Logger.debug("Ignoring sync reply because we're in the process of syncing.")
             return
         }
-        val blocks = message.decodeAs<Array<Block>>()
-        Logger.chain("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
-        val synchronizationSuccess = chain.addBlocks(*blocks)
-        if (synchronizationSuccess) validatorSet.inclusionChanges(*blocks)
-        Logger.chain("Synchronization has been successful $synchronizationSuccess.")
-        isSyncing.set(false)
+        launchCoroutine {
+            val blocks = message.decodeAs<Array<Block>>()
+            Logger.chain("Received back ${blocks.size} ready for synchronization. ${blocks.firstOrNull()?.slot}\t→\t${blocks.lastOrNull()?.slot} ")
+            val synchronizationSuccess = chain.addBlocks(*blocks)
+            if (synchronizationSuccess) validatorSet.inclusionChanges(*blocks)
+            Logger.chain("Synchronization has been successful $synchronizationSuccess.")
+            isSyncing.set(false)
+        }
     }
 
     /** Requests synchronization from any random known node. */
