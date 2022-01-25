@@ -180,7 +180,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
                 Thread.sleep(Random.nextLong(3, 10))
-                // Logger.trace("Kademlia sent a packet $outgoing. to ${outgoing.ip}:${outgoing.port}")
+                Logger.trace("Kademlia sent a packet $outgoing. to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
