@@ -28,7 +28,9 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
     fun blockReceived(message: Message) {
         val block = message.decodeAs<Block>()
-        if (chain.addBlocks(block)) {
+        val blockAdded = chain.addBlocks(block)
+        Logger.info("${block.slot} received. Attempt to add it: $blockAdded")
+        if (blockAdded) {
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
             // val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
@@ -85,6 +87,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             val lastBlock = chain.getLastBlock()
             val lastSlot = lastBlock?.slot ?: 0
             val slotDifference = block.slot - lastSlot
+            Logger.info("Slot difference: $slotDifference")
             if (slotDifference > 1) {
                 Logger.error("Block ${block.slot} has been rejected. Our last slot is $lastSlot.")
                 requestSynchronization()
