@@ -51,6 +51,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::sendOutgoing).start()
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
+        lookForInactiveQueries()
         if (isTrustedNode) add(localNode)
         printTree()
     }
@@ -111,7 +112,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val packet = DatagramPacket(pureArray, pureArray.size)
         while (true) tryAndReport {
             inputStream.reset()
-            Logger.info("Waiting for kademlia packets!")
             kademliaSocket.receive(packet)
             val dataLength = inputStream.readInt()
             val data = inputStream.readNBytes(dataLength)
@@ -191,6 +191,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val possibleRecipients = recipients.ifEmpty { lookup(distance).toMutableList() }.filter { it != localNode }.shuffled().take(3)
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(identifier) }
+        query.lastUpdate = System.currentTimeMillis()
         if (block != null) query.queue.put(block)
         possibleRecipients.forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
     }
@@ -202,6 +203,13 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val queueMessage = KademliaQueueMessage(endpoint, receiver.ip, receiver.kademliaPort, encodedOutgoing)
         // Logger.trace("Kademlia added to queue [$endpoint].")
         outgoingQueue.put(queueMessage)
+    }
+
+    private fun lookForInactiveQueries() {
+        val inactiveQueries = queryStorage.filterValues { System.currentTimeMillis() - it.lastUpdate > 1000 }
+        inactiveQueries.forEach { (identifier, _) -> sendFindRequest(identifier) }
+        Logger.info("Reviving ${inactiveQueries.size} inactive queries.")
+        runAfter(5000, this::lookForInactiveQueries)
     }
 
     /** Debugs the built kademlia tree [development purposes only]. */
