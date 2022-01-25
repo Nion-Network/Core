@@ -40,7 +40,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
     private val tree = ConcurrentHashMap<Int, Bucket>()
-    private val outgoingQueue = LinkedBlockingQueue<QueueMessage>()
+    private val outgoingQueue = LinkedBlockingQueue<KademliaQueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
     private val queryStorage = ConcurrentHashMap<String, KademliaQuery>()
     private val bucketSize = 20
@@ -143,7 +143,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier }
                     receivedNodes.forEach { add(it) }
                     queryHolder?.apply { hops++ }
-                    // Logger.trace("Received back ${closestNodes.nodes.size} nodes. ${searchedNode == null}")
+                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
                     if (queryHolder != null) {
                         if (searchedNode == null) {
                             if (!knownNodes.containsKey(identifier)) {
@@ -179,8 +179,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 packet.socketAddress = InetSocketAddress(outgoing.ip, outgoing.port)
                 packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
-                Thread.sleep(Random.nextLong(3, 10))
-                Logger.trace("Kademlia sent a packet $outgoing. to ${outgoing.ip}:${outgoing.port}")
+                Thread.sleep(Random.nextLong(5, 10))
+                Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
@@ -200,7 +200,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun addToQueue(receiver: Node, endpoint: KademliaEndpoint, data: ByteArray) {
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
-        val queueMessage = QueueMessage(receiver.ip, receiver.kademliaPort, encodedOutgoing)
+        val queueMessage = KademliaQueueMessage(endpoint, receiver.ip, receiver.kademliaPort, encodedOutgoing)
         // Logger.trace("Kademlia added to queue [$endpoint].")
         outgoingQueue.put(queueMessage)
     }
