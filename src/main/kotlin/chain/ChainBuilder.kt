@@ -121,8 +121,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     /** Respond with blocks between the slot and the end of the chain. */
     fun synchronizationRequested(message: Message) {
         val syncRequest = message.decodeAs<SyncRequest>()
+        Logger.info("Sync request received from ${syncRequest.fromSlot} slot.")
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
+        Logger.info("Sending back sync reply with blocks: ${blocksToSendBack.firstOrNull()?.slot} -> ${blocksToSendBack.lastOrNull()?.slot}")
         if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
     }
 
@@ -144,6 +146,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         if (randomValidator != null) send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, randomValidator)
         else send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
         Logger.chain("Requesting synchronization from $ourSlot.")
+        // TODO add to Dashboard.
     }
 
     /** Requests inclusion into the validator set. */

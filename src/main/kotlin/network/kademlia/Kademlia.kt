@@ -90,7 +90,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Adds the node to the appropriate bucket, if there is enough space. */
     private fun add(node: Node) {
-        knownNodes.computeIfAbsent(node.identifier) { node }
+        if (knownNodes.containsKey(node.identifier)) return
+        knownNodes[node.identifier] = node
         val bits = node.bitSet.apply { xor(localNode.bitSet) }
         val position = bits.nextSetBit(0).takeIf { it >= 0 } ?: bits.size()
         val bucket = tree.computeIfAbsent(position) { Bucket(bucketSize) }

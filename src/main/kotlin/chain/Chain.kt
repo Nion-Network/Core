@@ -23,7 +23,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
 
     /** Returns max 100 blocks [from slot][fromSlot].*/
     fun getLastBlocks(fromSlot: Long): List<Block> {
-        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
+        return blocks.takeLastWhile { it.slot > fromSlot }.take(100)
     }
 
     /** Attempts to add each block one by one to the chain. */
