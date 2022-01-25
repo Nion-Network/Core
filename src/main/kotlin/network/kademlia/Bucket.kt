@@ -19,7 +19,7 @@ class Bucket(private val bucketCapacity: Int) {
     val size get() = set.size
 
     /** Performs a check whether the [node] is in the bucket or not. */
-    fun contains(node: Node) = lock.withLock { set.contains(node) }
+    fun contains(node: Node) = set.contains(node)
 
     /** Adds the [node] to the bucket, or if the [node] is already in the bucket, it's moved to the tail. */
     fun add(node: Node): Boolean {

@@ -111,6 +111,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val packet = DatagramPacket(pureArray, pureArray.size)
         while (true) tryAndReport {
             inputStream.reset()
+            Logger.info("Waiting for kademlia packets!")
             kademliaSocket.receive(packet)
             val dataLength = inputStream.readInt()
             val data = inputStream.readNBytes(dataLength)
