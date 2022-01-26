@@ -134,7 +134,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
                     Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
-                    // addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
+                    addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                     add(kademliaMessage.sender)
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
@@ -204,7 +204,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = KademliaQueueMessage(endpoint, receiver.ip, receiver.kademliaPort, encodedOutgoing)
         Logger.trace("Kademlia added to queue [$endpoint] ==> ${receiver.ip}:${receiver.kademliaPort}.")
-        outgoingQueue.put(queueMessage)
+        // outgoingQueue.put(queueMessage)
     }
 
     private fun lookForInactiveQueries() {
