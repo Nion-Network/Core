@@ -168,6 +168,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                                 "${localNode.ip}:${localNode.kademliaPort}",
                                 localNode.identifier,
                                 queryHolder.hops,
+                                queryHolder.revives,
                                 queryHolder.let { System.currentTimeMillis() - it.start })
                             queryStorage.remove(queryHolder.identifier)
                         }

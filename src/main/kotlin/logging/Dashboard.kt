@@ -56,11 +56,12 @@ object Dashboard {
 
     }
 
-    fun reportDHTQuery(identifier: String, seekerIp:String, seeker: String, hops: Int, duration: Long) {
+    fun reportDHTQuery(identifier: String, seekerIp: String, seeker: String, hops: Int, revives: Int, duration: Long) {
         val point = Point.measurement("dht")
             .addField("hops", hops)
             .addField("ip", seekerIp)
             .addField("duration", duration)
+            .addField("revives", revives)
             .addField("seeker", seeker)
             .addField("identifier", identifier)
         queue.put(point)
