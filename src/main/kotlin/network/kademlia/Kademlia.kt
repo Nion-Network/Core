@@ -116,6 +116,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             val dataLength = inputStream.readInt()
             val data = inputStream.readNBytes(dataLength)
             val kademliaMessage = ProtoBuf.decodeFromByteArray<KademliaMessage>(data)
+            Logger.trace("Added to Kademlia incoming ${kademliaMessage.endpoint} from ${kademliaMessage.sender.ip}:${kademliaMessage.sender.kademliaPort}")
             incomingQueue.put(kademliaMessage)
         }
     }
