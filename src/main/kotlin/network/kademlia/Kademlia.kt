@@ -125,7 +125,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            Logger.trace("Took out another Kademlia message.")
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
@@ -135,7 +134,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
                     Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
-                    addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
+                    // addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                     add(kademliaMessage.sender)
                 }
                 KademliaEndpoint.CLOSEST_NODES -> {
@@ -147,11 +146,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
                     receivedNodes.forEach { add(it) }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
-                    if (searchedNode == null) {
-                        Logger.info("Searched node is null... $identifierQueryHolder")
-                        Logger.info("${identifierQueryHolder?.hops}")
-                        identifierQueryHolder?.hops?.inc()
-                        Logger.info("${identifierQueryHolder?.hops}")
+                    if (searchedNode == null && identifierQueryHolder != null) {
+                        identifierQueryHolder.hops++
                         receivedNodes.shuffle()
                         sendFindRequest(identifier, receivedNodes.take(3))
                     }
