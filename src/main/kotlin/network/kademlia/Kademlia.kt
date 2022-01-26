@@ -51,7 +51,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::sendOutgoing).start()
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
-        // lookForInactiveQueries()
+        lookForInactiveQueries()
         if (isTrustedNode) add(localNode)
         printTree()
     }
@@ -116,7 +116,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             val dataLength = inputStream.readInt()
             val data = inputStream.readNBytes(dataLength)
             val kademliaMessage = ProtoBuf.decodeFromByteArray<KademliaMessage>(data)
-            Logger.trace("Added to Kademlia incoming ${kademliaMessage.endpoint} from ${kademliaMessage.sender.ip}:${kademliaMessage.sender.kademliaPort}")
             incomingQueue.put(kademliaMessage)
         }
     }
@@ -125,7 +124,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            Logger.info("Kademlia incoming size: ${incomingQueue.size}")
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
@@ -134,7 +132,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val closestNodes = lookup(distance)
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
-                    Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                    // Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
                     addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                     add(kademliaMessage.sender)
                 }
@@ -157,7 +155,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         val node = knownNodes[queryHolder.identifier] ?: return@forEach
                         val actionsToDo = mutableListOf<(Node) -> Unit>()
                         val drained = queryHolder.queue.drainTo(actionsToDo)
-                        Logger.trace("Drained $drained actions.")
+                        // Logger.trace("Drained $drained actions.")
                         launchCoroutine {
                             actionsToDo.forEach { it.invoke(node) }
                         }
@@ -183,7 +181,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
                 Thread.sleep(Random.nextLong(5, 10))
-                Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
+                // Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
             }
         }
     }
@@ -204,7 +202,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val outgoingMessage = KademliaMessage(localNode, endpoint, data)
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = KademliaQueueMessage(endpoint, receiver.ip, receiver.kademliaPort, encodedOutgoing)
-        Logger.trace("Kademlia added to queue [$endpoint] ==> ${receiver.ip}:${receiver.kademliaPort}.")
+        // Logger.trace("Kademlia added to queue [$endpoint] ==> ${receiver.ip}:${receiver.kademliaPort}.")
         outgoingQueue.put(queueMessage)
     }
 
