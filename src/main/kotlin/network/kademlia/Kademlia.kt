@@ -125,6 +125,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
+            Logger.info("Kademlia incoming size: ${incomingQueue.size}")
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
@@ -183,7 +184,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 kademliaSocket.send(packet)
                 Thread.sleep(Random.nextLong(5, 10))
                 Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
-                Thread.sleep(1000)
             }
         }
     }
