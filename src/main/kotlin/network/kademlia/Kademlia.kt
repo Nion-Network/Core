@@ -122,47 +122,49 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Takes one queued [KademliaMessage] from [incomingQueue] when available and processes it. */
     private fun processIncoming() {
-        while (true) launchCoroutine {
+        while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            when (kademliaMessage.endpoint) {
-                KademliaEndpoint.PING -> TODO()
-                KademliaEndpoint.FIND_NODE -> {
-                    val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
-                    val distance = getDistance(lookingFor)
-                    val closestNodes = lookup(distance)
-                    val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
-                    val encodedReply = ProtoBuf.encodeToByteArray(reply)
-                    val sender = kademliaMessage.sender
-                    // Logger.info("Closest I could find [${sender.ip}:${sender.kademliaPort}] for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
-                    addToQueue(sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
-                    add(sender)
-                }
-                KademliaEndpoint.CLOSEST_NODES -> {
-                    val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
-                    val receivedNodes = closestNodes.nodes
-                    val queryHolders = receivedNodes.mapNotNull { queryStorage[it.identifier] }
-                    val identifier = closestNodes.identifier
-                    val identifierQueryHolder = queryStorage[identifier]
-                    val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
-                    receivedNodes.forEach { add(it) }
-                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
-                    if (searchedNode == null && identifierQueryHolder != null) {
-                        identifierQueryHolder.hops++
-                        receivedNodes.shuffle()
-                        Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
-                        sendFindRequest(identifier, receivedNodes.take(3))
+            launchCoroutine {
+                when (kademliaMessage.endpoint) {
+                    KademliaEndpoint.PING -> TODO()
+                    KademliaEndpoint.FIND_NODE -> {
+                        val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
+                        val distance = getDistance(lookingFor)
+                        val closestNodes = lookup(distance)
+                        val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
+                        val encodedReply = ProtoBuf.encodeToByteArray(reply)
+                        val sender = kademliaMessage.sender
+                        // Logger.info("Closest I could find [${sender.ip}:${sender.kademliaPort}] for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                        addToQueue(sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
+                        add(sender)
                     }
-                    queryHolders.forEach { queryHolder ->
-                        queryHolder.hops++
-                        val node = knownNodes[queryHolder.identifier] ?: return@forEach
-                        val actionsToDo = mutableListOf<(Node) -> Unit>()
-                        val drained = queryHolder.queue.drainTo(actionsToDo)
-                        // Logger.trace("Drained $drained actions.")
-                        launchCoroutine {
-                            actionsToDo.forEach { it.invoke(node) }
+                    KademliaEndpoint.CLOSEST_NODES -> {
+                        val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
+                        val receivedNodes = closestNodes.nodes
+                        val queryHolders = receivedNodes.mapNotNull { queryStorage[it.identifier] }
+                        val identifier = closestNodes.identifier
+                        val identifierQueryHolder = queryStorage[identifier]
+                        val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
+                        receivedNodes.forEach { add(it) }
+                        Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
+                        if (searchedNode == null && identifierQueryHolder != null) {
+                            identifierQueryHolder.hops++
+                            receivedNodes.shuffle()
+                            Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
+                            sendFindRequest(identifier, receivedNodes.take(3))
                         }
-                        Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
-                        queryStorage.remove(queryHolder.identifier)
+                        queryHolders.forEach { queryHolder ->
+                            queryHolder.hops++
+                            val node = knownNodes[queryHolder.identifier] ?: return@forEach
+                            val actionsToDo = mutableListOf<(Node) -> Unit>()
+                            val drained = queryHolder.queue.drainTo(actionsToDo)
+                            // Logger.trace("Drained $drained actions.")
+                            launchCoroutine {
+                                actionsToDo.forEach { it.invoke(node) }
+                            }
+                            Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
+                            queryStorage.remove(queryHolder.identifier)
+                        }
                     }
                 }
             }
