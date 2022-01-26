@@ -39,7 +39,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private val outgoingQueue = LinkedBlockingQueue<Outgoing>()
 
     private val messageHistory = ConcurrentHashMap<String, Long>()
-    private val messageBuilders = mutableMapOf<String, MessageBuilder>()
+    private val messageBuilders = ConcurrentHashMap<String, MessageBuilder>()
     private var started = false
 
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
