@@ -194,19 +194,21 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             // Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
-            socket.use {
-                DataInputStream(it.getInputStream()).use { dis ->
-                    val fullData = dis.readAllBytes()
-                    val stream = DataInputStream(ByteArrayInputStream(fullData))
-                    val messageIdBytes = stream.readNBytes(32)
-                    val messageId = messageIdBytes.asHex
-                    if (messageHistory.containsKey(messageId)) return@tryAndReport
-                    messageHistory[messageId] = System.currentTimeMillis()
-                    val transmissionType = if (stream.read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
-                    val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@tryAndReport
-                    val dataSize = stream.readInt()
-                    val data = stream.readNBytes(dataSize)
-                    processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
+            launchCoroutine {
+                socket.use {
+                    DataInputStream(it.getInputStream()).use { dis ->
+                        val fullData = dis.readAllBytes()
+                        val stream = DataInputStream(ByteArrayInputStream(fullData))
+                        val messageIdBytes = stream.readNBytes(32)
+                        val messageId = messageIdBytes.asHex
+                        if (messageHistory.containsKey(messageId)) return@use
+                        messageHistory[messageId] = System.currentTimeMillis()
+                        val transmissionType = if (stream.read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
+                        val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@use
+                        val dataSize = stream.readInt()
+                        val data = stream.readNBytes(dataSize)
+                        processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
+                    }
                 }
             }
         }
@@ -220,6 +222,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             launchCoroutine {
                 Socket(recipient.ip, recipient.tcpPort).use {
                     it.tcpNoDelay = true
+                    it.soTimeout = 1000
                     DataOutputStream(it.getOutputStream()).use { stream ->
                         when (outgoing) {
                             is OutgoingQueuedMessage -> {
