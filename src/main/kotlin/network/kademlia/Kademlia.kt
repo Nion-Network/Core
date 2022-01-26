@@ -183,6 +183,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 kademliaSocket.send(packet)
                 Thread.sleep(Random.nextLong(5, 10))
                 Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
+                Thread.sleep(1000)
             }
         }
     }
@@ -204,7 +205,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val encodedOutgoing = ProtoBuf.encodeToByteArray(outgoingMessage)
         val queueMessage = KademliaQueueMessage(endpoint, receiver.ip, receiver.kademliaPort, encodedOutgoing)
         Logger.trace("Kademlia added to queue [$endpoint] ==> ${receiver.ip}:${receiver.kademliaPort}.")
-        // outgoingQueue.put(queueMessage)
+        outgoingQueue.put(queueMessage)
     }
 
     private fun lookForInactiveQueries() {
