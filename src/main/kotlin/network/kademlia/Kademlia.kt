@@ -122,7 +122,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Takes one queued [KademliaMessage] from [incomingQueue] when available and processes it. */
     private fun processIncoming() {
-        while (true) tryAndReport {
+        while (true) launchCoroutine {
             val kademliaMessage = incomingQueue.take()
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
