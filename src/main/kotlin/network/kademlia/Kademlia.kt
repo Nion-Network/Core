@@ -147,6 +147,12 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
                     receivedNodes.forEach { add(it) }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
+                    if (searchedNode == null) {
+                        Logger.info("Searched node is null...")
+                        identifierQueryHolder?.hops?.inc()
+                        receivedNodes.shuffle()
+                        sendFindRequest(identifier, receivedNodes.take(3))
+                    }
                     queryHolders.forEach { queryHolder ->
                         queryHolder.hops++
                         val node = knownNodes[queryHolder.identifier] ?: return@forEach
@@ -158,12 +164,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         }
                         Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
                         queryStorage.remove(queryHolder.identifier)
-                    }
-
-                    if (searchedNode == null) {
-                        identifierQueryHolder?.hops?.inc()
-                        receivedNodes.shuffle()
-                        sendFindRequest(identifier, receivedNodes.take(3))
                     }
                 }
             }
@@ -197,7 +197,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(identifier) }
         query.lastUpdate = System.currentTimeMillis()
         if (block != null) query.queue.put(block)
-        possibleRecipients.take(1).forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
+        possibleRecipients.forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
     }
 
     /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
