@@ -224,7 +224,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
             query.revives++
             sendFindRequest(identifier)
         }
-        Logger.info("Reviving ${inactiveQueries.size} inactive queries.")
+        if (inactiveQueries.isNotEmpty()) Logger.info("Reviving ${inactiveQueries.size} inactive queries.")
         runAfter(5000, this::lookForInactiveQueries)
     }
 
