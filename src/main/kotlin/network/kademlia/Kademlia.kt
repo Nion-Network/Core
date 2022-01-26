@@ -203,6 +203,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(identifier) }
         query.lastUpdate = System.currentTimeMillis()
+        query.start = System.currentTimeMillis()
         if (block != null) query.queue.put(block)
         possibleRecipients.forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
     }
@@ -218,7 +219,10 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     private fun lookForInactiveQueries() {
         val inactiveQueries = queryStorage.filterValues { System.currentTimeMillis() - it.lastUpdate > 1000 }
-        inactiveQueries.forEach { (identifier, _) -> sendFindRequest(identifier) }
+        inactiveQueries.forEach { (identifier, query) ->
+            query.revives++
+            sendFindRequest(identifier)
+        }
         Logger.info("Reviving ${inactiveQueries.size} inactive queries.")
         runAfter(5000, this::lookForInactiveQueries)
     }
