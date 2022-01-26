@@ -124,6 +124,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
+            Logger.trace("Took out another Kademlia message.")
             when (kademliaMessage.endpoint) {
                 KademliaEndpoint.PING -> TODO()
                 KademliaEndpoint.FIND_NODE -> {
