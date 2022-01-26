@@ -164,8 +164,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                                 actionsToDo.forEach { it.invoke(node) }
                             }
                             Dashboard.reportDHTQuery(
-                                "${localNode.ip}:${localNode.kademliaPort}",
                                 identifier,
+                                "${localNode.ip}:${localNode.kademliaPort}",
                                 localNode.identifier,
                                 queryHolder.hops,
                                 queryHolder.let { System.currentTimeMillis() - it.start })
