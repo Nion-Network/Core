@@ -51,7 +51,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::sendOutgoing).start()
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
-        lookForInactiveQueries()
+        // lookForInactiveQueries()
         if (isTrustedNode) add(localNode)
         printTree()
     }
@@ -141,6 +141,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val receivedNodes = closestNodes.nodes
                     val queryHolders = receivedNodes.mapNotNull { queryStorage[it.identifier] }
                     val identifier = closestNodes.identifier
+                    val identifierQueryHolder = queryStorage[identifier]
                     val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
                     receivedNodes.forEach { add(it) }
                     Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
@@ -157,7 +158,6 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         queryStorage.remove(queryHolder.identifier)
                     }
 
-                    val identifierQueryHolder = queryStorage[identifier]
                     if (searchedNode == null) {
                         identifierQueryHolder?.hops?.inc()
                         receivedNodes.shuffle()
@@ -190,7 +190,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     /** Sends a FIND_NODE request to the [recipient] or a random closest node (relative to the [identifier]). */
     private fun sendFindRequest(identifier: String, recipients: List<Node> = mutableListOf(), block: ((Node) -> Unit)? = null) {
         val distance = getDistance(identifier)
-        val possibleRecipients = recipients.ifEmpty { lookup(distance).toMutableList() }.filter { it != localNode }.shuffled().take(3)
+        val possibleRecipients = recipients.ifEmpty { lookup(distance) }.filter { it != localNode }.shuffled().take(3)
         val encodedRequest = ProtoBuf.encodeToByteArray(identifier)
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(identifier) }
         query.lastUpdate = System.currentTimeMillis()
