@@ -148,7 +148,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     if (searchedNode == null && identifierQueryHolder != null) {
                         identifierQueryHolder.hops++
                         receivedNodes.shuffle()
-                        sendFindRequest(identifier, receivedNodes.take(3))
+                        // sendFindRequest(identifier, receivedNodes.take(3))
                     }
                     queryHolders.forEach { queryHolder ->
                         queryHolder.hops++
