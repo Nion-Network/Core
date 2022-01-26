@@ -10,10 +10,7 @@ import network.data.Node
 import network.data.communication.Message
 import network.data.communication.TransmissionType
 import network.kademlia.Kademlia
-import utils.TreeUtils
-import utils.asHex
-import utils.sha256
-import utils.tryAndReport
+import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -220,23 +217,25 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             val outgoing = outgoingQueue.take()
             val recipient = outgoing.recipient
-            Socket(recipient.ip, recipient.tcpPort).use {
-                it.tcpNoDelay = true
-                DataOutputStream(it.getOutputStream()).use { stream ->
-                    when (outgoing) {
-                        is OutgoingQueuedMessage -> {
-                            val data = outgoing.message
-                            stream.write(outgoing.messageUID)
-                            stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                            stream.writeByte(outgoing.endpoint.ordinal)
-                            stream.writeInt(data.size)
-                            stream.write(data)
+            launchCoroutine {
+                Socket(recipient.ip, recipient.tcpPort).use {
+                    it.tcpNoDelay = true
+                    DataOutputStream(it.getOutputStream()).use { stream ->
+                        when (outgoing) {
+                            is OutgoingQueuedMessage -> {
+                                val data = outgoing.message
+                                stream.write(outgoing.messageUID)
+                                stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                                stream.writeByte(outgoing.endpoint.ordinal)
+                                stream.writeInt(data.size)
+                                stream.write(data)
+                            }
+                            is OutgoingQueuedPacket -> {
+                                stream.write(outgoing.data)
+                            }
                         }
-                        is OutgoingQueuedPacket -> {
-                            stream.write(outgoing.data)
-                        }
+                        stream.flush()
                     }
-                    stream.flush()
                 }
             }
         }
