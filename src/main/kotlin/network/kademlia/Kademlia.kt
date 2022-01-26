@@ -157,7 +157,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         identifierQueryHolder.hops++
                         receivedNodes.shuffle()
                         Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
-                        // sendFindRequest(identifier, receivedNodes.take(3))
+                        sendFindRequest(identifier, receivedNodes.take(3))
                     }
                     queryHolders.forEach { queryHolder ->
                         queryHolder.hops++
