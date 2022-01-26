@@ -132,7 +132,15 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     val closestNodes = lookup(distance)
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
-                    Logger.info("Closest I could find for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                    Logger.info(
+                        "Closest I could find [${kademliaMessage.sender.ip}:${kademliaMessage.sender.kademliaPort}] for ${lookingFor.take(5)} was ${
+                            closestNodes.joinToString(",") {
+                                it.identifier.take(
+                                    5
+                                )
+                            }
+                        }"
+                    )
                     addToQueue(kademliaMessage.sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
                     add(kademliaMessage.sender)
                 }
@@ -148,6 +156,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                     if (searchedNode == null && identifierQueryHolder != null) {
                         identifierQueryHolder.hops++
                         receivedNodes.shuffle()
+                        Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
                         // sendFindRequest(identifier, receivedNodes.take(3))
                     }
                     queryHolders.forEach { queryHolder ->
