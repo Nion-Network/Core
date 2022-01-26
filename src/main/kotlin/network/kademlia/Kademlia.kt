@@ -197,7 +197,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         val query = queryStorage.computeIfAbsent(identifier) { KademliaQuery(identifier) }
         query.lastUpdate = System.currentTimeMillis()
         if (block != null) query.queue.put(block)
-        possibleRecipients.forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
+        possibleRecipients.take(1).forEach { addToQueue(it, KademliaEndpoint.FIND_NODE, encodedRequest) }
     }
 
     /** Encodes [KademliaMessage] and puts it into the [outgoingQueue]. */
