@@ -156,7 +156,10 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         Dashboard.reportDHTQuery(identifier, localNode.identifier, queryHolder.hops, queryHolder.let { System.currentTimeMillis() - it.start })
                         queryStorage.remove(queryHolder.identifier)
                     }
+
+                    val identifierQueryHolder = queryStorage[identifier]
                     if (searchedNode == null) {
+                        identifierQueryHolder?.hops?.inc()
                         receivedNodes.shuffle()
                         sendFindRequest(identifier, receivedNodes.take(3))
                     }
