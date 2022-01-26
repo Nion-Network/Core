@@ -66,9 +66,10 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
         val identifier = sha256(publicKey).asHex
         val knownNode = knownNodes[identifier]
-        Logger.info("Querying for ${identifier.take(5)}: ${knownNode?.ip}")
-        if (knownNode == null) sendFindRequest(identifier, block = action)
-        else if (action != null) launchCoroutine { action(knownNode) }
+        if (knownNode == null) {
+            Logger.info("Querying for ${identifier.take(5)}!")
+            sendFindRequest(identifier, block = action)
+        } else if (action != null) launchCoroutine { action(knownNode) }
     }
 
     /** Retrieves [amount] of the closest nodes. */
