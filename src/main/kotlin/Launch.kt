@@ -1,11 +1,8 @@
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import logging.Logger
-import utils.coroutineExceptionHandler
 import utils.tryAndReport
 import java.io.File
 import java.net.ServerSocket
@@ -38,20 +35,6 @@ fun main(args: Array<String>) {
             }
         }
     }
-    runBlocking(coroutineExceptionHandler) {
-        repeat(100_000) { // launch a lot o // f coroutines
-            delay(10)
-            launch {
-                val socket = Socket("127.0.0.1", port)
-                socket.soTimeout = 1000
-                println("Connected[$it] to $socket")
-                queue.add(socket)
-            }
-        }
-    }
-    println("Active sockets: ${queue.count { it.isConnected }}")
-
-    return
     tryAndReport {
         Nion(configuration).apply {
             launch()
