@@ -40,20 +40,25 @@ object Dashboard {
     }
 
     init {
-        if (configuration.dashboardEnabled) {
-            val options = InfluxDBClientOptions.builder()
-                .url(configuration.influxUrl)
-                .authenticateToken(configuration.influxToken.toCharArray())
-                .org("innorenew")
-                // .logLevel(LogLevel.BASIC)
-                .bucket("PROD")
-                .build()
+        try {
 
-            val influxDB = InfluxDBClientFactory.create(options)
-            val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
-            Thread { while (true) writeApi.writePoint(queue.take()) }.start()
-        } else Logger.info("Dashboard is disabled.")
+            if (configuration.dashboardEnabled) {
+                val options = InfluxDBClientOptions.builder()
+                    .url(configuration.influxUrl)
+                    .authenticateToken(configuration.influxToken.toCharArray())
+                    .org("innorenew")
+                    // .logLevel(LogLevel.BASIC)
+                    .bucket("PROD")
+                    .build()
 
+                val influxDB = InfluxDBClientFactory.create(options)
+                val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
+                Thread { while (true) writeApi.writePoint(queue.take()) }.start()
+            } else Logger.info("Dashboard is disabled.")
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun reportDHTQuery(identifier: String, seekerIp: String, seeker: String, hops: Int, revives: Int, duration: Long) {
