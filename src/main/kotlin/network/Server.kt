@@ -194,19 +194,19 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             // Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
-            launchCoroutine {
-                socket.use {
-                    DataInputStream(it.getInputStream()).use { dis ->
-                        val fullData = dis.readAllBytes()
-                        val stream = DataInputStream(ByteArrayInputStream(fullData))
-                        val messageIdBytes = stream.readNBytes(32)
-                        val messageId = messageIdBytes.asHex
-                        if (messageHistory.containsKey(messageId)) return@use
-                        messageHistory[messageId] = System.currentTimeMillis()
-                        val transmissionType = if (stream.read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
-                        val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@use
-                        val dataSize = stream.readInt()
-                        val data = stream.readNBytes(dataSize)
+            socket.use {
+                DataInputStream(it.getInputStream()).use { dis ->
+                    val fullData = dis.readAllBytes()
+                    val stream = DataInputStream(ByteArrayInputStream(fullData))
+                    val messageIdBytes = stream.readNBytes(32)
+                    val messageId = messageIdBytes.asHex
+                    if (messageHistory.containsKey(messageId)) return@use
+                    messageHistory[messageId] = System.currentTimeMillis()
+                    val transmissionType = if (stream.read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
+                    val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@use
+                    val dataSize = stream.readInt()
+                    val data = stream.readNBytes(dataSize)
+                    launchCoroutine {
                         processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
                     }
                 }
@@ -220,9 +220,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val outgoing = outgoingQueue.take()
             val recipient = outgoing.recipient
             launchCoroutine {
-                Logger.trace("Trying to connect to ${recipient.ip}:${recipient.kademliaPort}.")
                 Socket(recipient.ip, recipient.tcpPort).use {
-                    Logger.trace("Connected to connect to ${recipient.ip}:${recipient.kademliaPort}.")
                     DataOutputStream(it.getOutputStream()).use { stream ->
                         when (outgoing) {
                             is OutgoingQueuedMessage -> {
