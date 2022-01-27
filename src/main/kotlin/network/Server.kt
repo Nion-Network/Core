@@ -220,9 +220,8 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val outgoing = outgoingQueue.take()
             val recipient = outgoing.recipient
             launchCoroutine {
+                Logger.trace("Trying to connect to ${recipient.ip}:${recipient.kademliaPort}.")
                 Socket(recipient.ip, recipient.tcpPort).use {
-                    it.tcpNoDelay = true
-                    it.soTimeout = 1000
                     DataOutputStream(it.getOutputStream()).use { stream ->
                         when (outgoing) {
                             is OutgoingQueuedMessage -> {
