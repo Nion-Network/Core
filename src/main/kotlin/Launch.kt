@@ -23,18 +23,7 @@ fun main(args: Array<String>) {
         configuration.passedPort = this
         println("Passed udpPort: $this...")
     }
-    val port = 6969
-    val server = ServerSocket(port)
-    val queue = LinkedBlockingQueue<Socket>()
-    var x = Random.nextBoolean()
-    GlobalScope.launch {
-        while (true) {
-            val socket = server.accept()
-            socket.use {
-                println("Closed a socket.")
-            }
-        }
-    }
+
     tryAndReport {
         Nion(configuration).apply {
             launch()
