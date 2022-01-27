@@ -222,6 +222,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             launchCoroutine {
                 Logger.trace("Trying to connect to ${recipient.ip}:${recipient.kademliaPort}.")
                 Socket(recipient.ip, recipient.tcpPort).use {
+                    Logger.trace("Connected to connect to ${recipient.ip}:${recipient.kademliaPort}.")
                     DataOutputStream(it.getOutputStream()).use { stream ->
                         when (outgoing) {
                             is OutgoingQueuedMessage -> {
