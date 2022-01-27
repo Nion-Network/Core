@@ -193,6 +193,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private fun listenForTCP() {
         while (true) tryAndReport {
             // Logger.trace("Waiting for TCP connections!")
+            tcpSocket.reuseAddress = true
             val socket = tcpSocket.accept()
             socket.use {
                 DataInputStream(it.getInputStream()).use { dis ->
