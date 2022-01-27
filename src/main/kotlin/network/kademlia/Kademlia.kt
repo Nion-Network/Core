@@ -79,6 +79,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     /** Looks into buckets and retrieves at least [bucketSize] closest nodes. */
     private fun lookup(position: Int, needed: Int = bucketSize, startedIn: Int = position): Set<Node> {
+        if (tree.isEmpty()) return emptySet()
         val bucket = tree[position]?.getNodes() ?: emptySet()
         val missing = needed - bucket.size
         if (missing <= 0) return bucket
