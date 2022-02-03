@@ -169,7 +169,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
-        if (nextProducer == null) send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest)
+        val isValidatorSetEmpty = validatorSet.activeValidators.isEmpty()
+        if (nextProducer == null) send(Endpoint.InclusionRequest, if (isValidatorSetEmpty) TransmissionType.Broadcast else TransmissionType.Unicast, inclusionRequest)
         else send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest, nextProducer)
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
