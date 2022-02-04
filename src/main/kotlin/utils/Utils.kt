@@ -1,13 +1,11 @@
 package utils
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import logging.Dashboard
 import logging.Logger
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.locks.Lock
-import kotlin.concurrent.schedule
 import kotlin.concurrent.withLock
 
 /**
@@ -55,20 +53,22 @@ fun sha256(data: String) = sha256(data.encodeToByteArray())
 
 /** Executes [block] after [delay in milliseconds][delay]. */
 fun runAfter(delay: Long, block: () -> Unit) {
-    Timer().schedule(delay) {
-        try {
-            block.invoke()
-        } catch (e: Exception) {
-            Dashboard.reportException(e)
-        }
+    launchCoroutine {
+        delay(delay)
+        block()
     }
 }
 
 /** Launches a coroutine and executes [block] on that coroutine.*/
-fun launchCoroutine(block: () -> Unit) {
-    GlobalScope.launch {
-        tryAndReport(block)
+fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
+    GlobalScope.launch(coroutineExceptionHandler) {
+        block(this)
     }
+}
+
+val coroutineExceptionHandler = CoroutineExceptionHandler { context, exception ->
+    Dashboard.reportException(exception)
+    exception.printStackTrace()
 }
 
 /** Try catch for a [Lock] that reports any exceptions to our [Dashboard]. */
@@ -80,7 +80,6 @@ fun <T> tryAndReport(block: () -> T): T? {
         return block()
     } catch (e: Exception) {
         Dashboard.reportException(e)
-        Logger.reportException(e)
     }
     return null
 }

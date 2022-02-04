@@ -1,6 +1,7 @@
 package docker
 
 import kotlinx.serialization.Serializable
+import utils.CircularList
 
 /**
  * Created by Mihael Valentin Berčič
@@ -13,13 +14,19 @@ import kotlinx.serialization.Serializable
  * @property name
  * @property cpuUsage Expressed in percentages.
  * @property memoryUsage Expressed in percentages.
- * @property pids Number of processes the localContainerIdentifier is running.
+ * @property processes Number of processes the localContainerIdentifier is running.
  */
 @Serializable
 data class DockerContainer(
     val id: String,
-    var cpuUsage: Double,
-    val memoryUsage: Double,
-    val pids: Int,
+    var processes: Int,
+    val memoryUsage: CircularList<Double>,
+    val cpuUsage: CircularList<Double>,
     var updated: Long = System.currentTimeMillis()
-)
+) {
+
+    val averageCpuUsage get(): Double = cpuUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
+
+    val averageMemoryUsage get(): Double = memoryUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
+
+}

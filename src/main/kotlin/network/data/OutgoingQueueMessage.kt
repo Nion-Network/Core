@@ -12,9 +12,22 @@ import network.data.communication.TransmissionType
  * This class stores data ready to be sent through UDP socket in [Server].
  */
 class OutgoingQueuedMessage(
-    val endpoint: Endpoint,
     val transmissionType: TransmissionType,
-    val messageUID: ByteArray,
     val message: ByteArray,
+    override val endpoint: Endpoint,
+    override val messageUID: ByteArray,
+    override val recipient: Node
+) : Outgoing
+
+class OutgoingQueuedPacket(
+    val data: ByteArray,
+    override val endpoint: Endpoint,
+    override val messageUID: ByteArray,
+    override val recipient: Node
+) : Outgoing
+
+interface Outgoing {
+    val endpoint: Endpoint
+    val messageUID: ByteArray
     val recipient: Node
-)
+}

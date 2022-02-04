@@ -18,7 +18,6 @@ import network.data.Endpoint
 import utils.asHex
 import utils.sha256
 import java.io.File
-import java.net.InetAddress
 import java.time.Instant
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -28,7 +27,8 @@ object Dashboard {
     private val configurationJson = File("./config.json").readText()
     private val configuration: Configuration = Json.decodeFromString(configurationJson)
     private val queue = LinkedBlockingQueue<Point>()
-    private val localAddress = InetAddress.getLocalHost()
+
+    var myInfo: String = "UNSET"
 
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
@@ -40,27 +40,34 @@ object Dashboard {
     }
 
     init {
-        if (configuration.dashboardEnabled) {
-            val options = InfluxDBClientOptions.builder()
-                .url(configuration.influxUrl)
-                .authenticateToken(configuration.influxToken.toCharArray())
-                .org("innorenew")
-                // .logLevel(LogLevel.BASIC)
-                .bucket("PROD")
-                .build()
+        try {
 
-            val influxDB = InfluxDBClientFactory.create(options)
-            val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
-            Thread { while (true) writeApi.writePoint(queue.take()) }.start()
-            if (influxDB.ping()) Logger.info("InfluxDB connection successful")
-        } else Logger.info("Dashboard is disabled.")
+            if (configuration.dashboardEnabled) {
+                val options = InfluxDBClientOptions.builder()
+                    .url(configuration.influxUrl)
+                    .authenticateToken(configuration.influxToken.toCharArray())
+                    .org("innorenew")
+                    // .logLevel(LogLevel.BASIC)
+                    .bucket("PROD")
+                    .build()
 
+                val influxDB = InfluxDBClientFactory.create(options)
+                val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
+                Thread { while (true) writeApi.writePoint(queue.take()) }.start()
+            } else Logger.info("Dashboard is disabled.")
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    fun reportDHTQuery(identifier: String, hops: Int, duration: Long) {
+    fun reportDHTQuery(identifier: String, seekerIp: String, seeker: String, hops: Int, revives: Int, duration: Long) {
         val point = Point.measurement("dht")
             .addField("hops", hops)
+            .addField("ip", seekerIp)
             .addField("duration", duration)
+            .addField("revives", revives)
+            .addField("seeker", seeker)
             .addField("identifier", identifier)
         queue.put(point)
     }
@@ -71,19 +78,20 @@ object Dashboard {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
-        var total = 0
+        var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
             Logger.info("$publicKey has ${measurement.containers.size} containers running...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
-                    time(Instant.now().toEpochMilli(), WritePrecision.MS)
+                    time(Instant.now().plusMillis(total), WritePrecision.NS)
                     addField("nodeId", publicKey)
                     addField("containerId", container.id)
-                    addField("cpu", container.cpuUsage)
-                    addField("memory", container.memoryUsage)
+                    addField("cpu", container.averageCpuUsage)
+                    addField("memory", container.averageMemoryUsage)
                     addField("slot", slot)
                 }
+                total++
                 queue.put(point)
             }
         }
@@ -102,8 +110,14 @@ object Dashboard {
             addField("difficulty", blockData.difficulty)
             addField("timestamp", blockData.timestamp)
             addField("ip", ip)
-            addField("blockProducer", (blockData.blockProducer)) // TODO: Add sha256 encoding after skip block implementation.
-            addField("previousHash", blockData.precedentHash.asHex)
+            addField(
+                "blockProducer",
+                if (blockData.blockProducer == "SKIPBLOCK") blockData.blockProducer else sha256(blockData.blockProducer).asHex
+            ) // TODO: Add sha256 encoding after skip block implementation.
+            addField(
+                "previousHash",
+                blockData.precedentHash.asHex
+            )
             addField("hash", blockData.hash.asHex)
             addField("votes", blockData.votes)
         }
@@ -122,12 +136,12 @@ object Dashboard {
     }
 
     // TODO: remove
-    fun logQueue(queueSize: Int, publicKey: String) {
+    fun logPacket(endpoint: Endpoint, sender: String, missing: Int) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("queueSize").apply {
-            addField("nodeId", publicKey)
-            addField("queueSize", queueSize)
-        }
+        val point = Point.measurement("queueSize")
+            .addField("from", sender)
+            .addField("endpoint", "$endpoint")
+            .addField("missing", missing)
         queue.put(point)
     }
 
@@ -145,7 +159,7 @@ object Dashboard {
     ) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("migration").apply {
-            time(Instant.now().toEpochMilli(), WritePrecision.MS)
+            time(Instant.now(), WritePrecision.NS)
             addField("from", sender)
             addField("to", receiver)
             addField("slot", slot)
@@ -160,9 +174,11 @@ object Dashboard {
     }
 
     /** Reports that an exception was caught */
-    fun reportException(e: Exception) {
+    fun reportException(e: Throwable) {
+        Logger.reportException(e)
         val point = Point.measurement("exceptions")
-            .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")
+            .time(Instant.now(), WritePrecision.NS)
+            .addField("cause", "$myInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
 
@@ -182,6 +198,7 @@ object Dashboard {
     fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
+            .time(Instant.now(), WritePrecision.NS)
             .addField("id", id)
             .addField("endpoint", endpoint.name)
             .addField("source", sha256(sender).asHex)
@@ -232,18 +249,18 @@ object Dashboard {
             else -> SlotDuty.VALIDATOR
         }
         return Point.measurement("cluster")
-            .time(Instant.now().toEpochMilli(), WritePrecision.MS)
+            .time(Instant.now(), WritePrecision.NS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
             .addField("node", sha256(node).asHex)
     }
 
-    fun log(type: DebugType, message: Any, ip: String) {
+    fun log(type: DebugType, message: Any) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("logging")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("ip", ip)
+            .addField("ip", myInfo)
             .addField("type", "${type.ordinal}")
             .addField("log", "$message")
 

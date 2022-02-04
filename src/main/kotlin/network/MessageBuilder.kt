@@ -12,6 +12,8 @@ class MessageBuilder(val endpoint: Endpoint, private val numberOfPackets: Int, v
     private var totalAdded = 0
     private val array = arrayOfNulls<ByteArray>(numberOfPackets)
 
+    val missing get() = numberOfPackets - totalAdded
+
     fun addPart(position: Int, data: ByteArray): Boolean {
         array[position] = data
         totalAdded++

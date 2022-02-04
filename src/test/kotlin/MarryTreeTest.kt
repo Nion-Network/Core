@@ -1,6 +1,8 @@
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import utils.TreeUtils
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
 
 /**
  * Created by mihael
@@ -48,5 +50,43 @@ class MarryTreeTest {
         val maxIndex = TreeUtils.computeMaximumIndexAtDepth(totalOnDepth)
         val neighbour = (12 + 1).takeIf { it <= maxIndex } ?: minIndex
         assertEquals(4, neighbour)
+    }
+
+    @Test
+    fun outputTreeConnections() {
+        val k = 2
+        val depth = 5
+        val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
+        val tree = (0 until maximumNodes)
+        val stringBuilder = StringBuilder()
+        val distances = mutableMapOf<Int, Double>()
+        tree.reversed().forEach { index ->
+            val currentDepth = TreeUtils.computeDepth(k, index)
+            val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+            val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+            val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+            val neighbourIndex = (index + 1).takeIf { it <= maximumIndex } ?: minimumIndex
+            if (currentDepth == depth) {
+                val center = (minimumIndex + maximumIndex) / 2.0
+                val distance = index - center
+                distances[index] = distance
+            } else {
+                val children = TreeUtils.findChildren(k, index)
+                val median = children.sumOf { distances[it]!! } / k
+                val childrenConnections = children.joinToString("\n") { "$index -> $it" }
+                distances[index] = median
+                stringBuilder.append(childrenConnections + "\n")
+            }
+            val ourDistance = distances[index]!!
+            val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex).filter { it <= maximumNodes - 1 }
+            val neighbourChildrenConnections = neighbourChildren.joinToString("\n") { "$index -> $it[color=\"red\"]" }
+
+            stringBuilder.apply {
+                append(neighbourChildrenConnections + "\n")
+                append("$index -> $neighbourIndex [color=\"green\"]\n")
+                append("$index [pos=\"$ourDistance,-$currentDepth!\"]\n")
+            }
+        }
+        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
     }
 }

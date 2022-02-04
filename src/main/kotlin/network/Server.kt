@@ -10,17 +10,14 @@ import network.data.Node
 import network.data.communication.Message
 import network.data.communication.TransmissionType
 import network.kademlia.Kademlia
-import utils.TreeUtils
-import utils.asHex
-import utils.sha256
-import utils.tryAndReport
+import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.math.BigInteger
 import java.net.DatagramPacket
-import java.net.DatagramSocket
 import java.net.InetSocketAddress
-import java.net.ServerSocket
+import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -36,26 +33,23 @@ import kotlin.random.Random
  */
 abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
 
-    val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.port == configuration.trustedNodePort }
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val processingQueue = LinkedBlockingQueue<MessageBuilder>()
-    private val outgoingQueue = LinkedBlockingQueue<OutgoingQueuedMessage>()
+    private val outgoingQueue = LinkedBlockingQueue<Outgoing>()
 
     private val messageHistory = ConcurrentHashMap<String, Long>()
-    private val messageBuilders = mutableMapOf<String, MessageBuilder>()
-    private val udpSocket = DatagramSocket(configuration.port)
-    protected val tcpSocket = ServerSocket(configuration.port + 1)
+    private val messageBuilders = ConcurrentHashMap<String, MessageBuilder>()
     private var started = false
 
     abstract fun onMessageReceived(endpoint: Endpoint, data: ByteArray)
 
     open fun launch() {
-        if (isTrustedNode) Logger.info("We're the trusted node.")
+        Logger.info("We're the trusted node: $isTrustedNode | $localAddress:${localNode.udpPort}:${localNode.tcpPort}:${localNode.kademliaPort}.")
         if (started) throw IllegalStateException("Nion has already started.")
         startHistoryCleanup()
-        Thread(this::listenForUDP).start()
-        Thread(this::sendUDP).start()
+        Thread(this::listenForTCP).start()
+        Thread(this::sendTCP).start()
         Thread(this::processReceivedMessages).start()
         started = true
     }
@@ -68,8 +62,10 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             inputStream.reset()
             udpSocket.receive(packet)
-            val packetId = inputStream.readNBytes(32).asHex
-            val messageId = inputStream.readNBytes(32).asHex
+            val packetIdBytes = inputStream.readNBytes(32)
+            val packetId = packetIdBytes.asHex
+            val messageIdBytes = inputStream.readNBytes(32)
+            val messageId = messageIdBytes.asHex
             if (messageHistory.containsKey(packetId) || messageHistory.containsKey(messageId)) return@tryAndReport
             messageHistory[packetId] = System.currentTimeMillis()
             inputStream.apply {
@@ -79,117 +75,178 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val currentSlice = readInt()
                 val dataLength = readInt()
                 val data = readNBytes(dataLength)
-
-                // TODO: Cleanup of the next few lines of code.
-                val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
-                    val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
-                    val messageRandom = Random(seed)
-                    val shuffled = validatorSet.shuffled(messageRandom)
-                    val k = 6
-                    val index = shuffled.indexOf(localNode.publicKey)
-                    val broadcastNodes = mutableListOf<String>()
-                    if (index != -1) {
-                        val depth = TreeUtils.computeDepth(k, index)
-                        val totalNodesAtDepth = TreeUtils.computeTotalNodesOnDepth(k, depth)
-                        val minIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodesAtDepth, depth)
-                        val maxIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodesAtDepth)
-                        val neighbourIndex = (index + 1).takeIf { it <= maxIndex && it < shuffled.size } ?: minIndex
-                        val neighbour = shuffled[neighbourIndex]
-                        val children = TreeUtils.findChildren(k, index)
-                        val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
-                        val childrenKeys = shuffled.drop(children.first).take(k)
-                        broadcastNodes.addAll(childrenKeys)
-                        broadcastNodes.addAll(shuffled.drop(neighbourChildren.first).take(k))
-                        if (neighbour != localNode.publicKey) broadcastNodes.add(neighbour)
-                        Logger.error("[${shuffled.size}] [$index] [$children] Neighbour: ${shuffled.indexOf(neighbour)} ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
-                    }
-                    broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
-                    Logger.error("We have to retransmit to [${shuffled.size}] =.= [$index] -> ${broadcastNodes.size} nodes.")
-                    MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
-                }
-                if (transmissionType == TransmissionType.Broadcast) {
-                    val started = System.currentTimeMillis()
-                    messageBuilder.nodes.forEach { publicKey ->
-                        query(publicKey) { node ->
-                            val newPacket = DatagramPacket(packet.data, 0, packet.length, InetSocketAddress(node.ip, node.port))
-                            udpSocket.send(newPacket)
-                            val delay = System.currentTimeMillis() - started
-                            val sender = localNode.publicKey
-                            val recipient = node.publicKey
-                            Dashboard.sentMessage(messageId, endpoint, sender, recipient, data.size, delay)
-                        }
-                    }
-                }
-                if (!isBootstrapped) {
-                    bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
-                    return@tryAndReport
-                }
-                if (messageBuilder.addPart(currentSlice, data)) {
-                    messageBuilders.remove(messageId)
-                    processingQueue.put(messageBuilder)
-                    messageHistory[messageId] = System.currentTimeMillis()
-                }
+                processReceivedData(endpoint, transmissionType, totalSlices, messageIdBytes, packet.data.copyOf(), data, currentSlice)
             }
         }
+    }
+
+    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, wholeData: ByteArray, messageData: ByteArray, currentSlice: Int = 0) {
+        // TODO: Cleanup of the next few lines of code.
+        val messageId = messageIdArray.asHex
+        val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
+            val broadcastNodes = mutableSetOf<String>()
+            if (transmissionType == TransmissionType.Broadcast) {
+                val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+                val messageRandom = Random(seed)
+                val shuffled = validatorSet.shuffled(messageRandom)
+                val k = 6
+                val index = shuffled.indexOf(localNode.publicKey)
+                if (index != -1) {
+                    val currentDepth = TreeUtils.computeDepth(k, index)
+                    val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+                    val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+                    val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+                    val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
+                    val children = TreeUtils.findChildren(k, index)
+                    val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
+                    val neighbour = shuffled[neighbourIndex]
+                    val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
+                    val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
+                    broadcastNodes.add(neighbour)
+                    broadcastNodes.addAll(childrenKeys)
+                    broadcastNodes.addAll(neighbourChildrenKeys)
+                    Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                }
+                broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+                // Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
+            }
+            MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
+        }
+        messageBuilder.nodes.forEach { publicKey ->
+            query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(wholeData, endpoint, messageIdArray, it)) }
+        }
+
+        // if (!isBootstrapped) return@tryAndReport
+        if (messageBuilder.addPart(currentSlice, messageData)) {
+            messageBuilders.remove(messageId)
+            processingQueue.put(messageBuilder)
+            messageHistory[messageId] = System.currentTimeMillis()
+            // Logger.trace("Added to processing queue: $endpoint")
+        }
+        // if (endpoint == Endpoint.NewBlock) Logger.trace("Data [$endpoint] missing ${messageBuilder.missing}")
     }
 
     /**Sends outgoing [Message] from [outgoingQueue]. */
     private fun sendUDP() {
         val dataBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
         while (true) tryAndReport {
-            val outgoingMessage = outgoingQueue.take()
-            val encodedMessage = outgoingMessage.message
-            /* Header length total 78B = 32B + 32B + 1B + 1B + 4B + 4B + 4B
-            *   packetId: 32B
-            *   messageId: 32B
-            *   broadcastByte: 1B
-            *   endpointByte: 1B
-            *   slicesNeeded: 4B
-            *   currentSlice: 4B
-            *   dataLength: 4B
-            */
-            val encodedMessageLength = encodedMessage.size
-            val allowedDataSize = configuration.packetSplitSize - 78
-            val slicesNeeded = encodedMessageLength / allowedDataSize + 1
+            val outgoing = outgoingQueue.take()
+            val recipientNode = outgoing.recipient
+            val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.udpPort)
             dataBuffer.apply {
-                (0 until slicesNeeded).forEach { slice ->
-                    clear()
-                    val uuid = "$${UUID.randomUUID()}".toByteArray()
-                    val from = slice * allowedDataSize
-                    val to = Integer.min(from + allowedDataSize, encodedMessageLength)
-                    val data = encodedMessage.sliceArray(from until to)
-                    val packetId = sha256(uuid + data)
+                clear()
+                when (outgoing) {
+                    is OutgoingQueuedMessage -> {
+                        val encodedMessage = outgoing.message
+                        /* Header length total 78B = 32B + 32B + 1B + 1B + 4B + 4B + 4B
+                        *   packetId: 32B
+                        *   messageId: 32B
+                        *   broadcastByte: 1B
+                        *   endpointByte: 1B
+                        *   slicesNeeded: 4B
+                        *   currentSlice: 4B
+                        *   dataLength: 4B
+                        */
+                        val encodedMessageLength = encodedMessage.size
+                        val allowedDataSize = configuration.packetSplitSize - 78
+                        val slicesNeeded = encodedMessageLength / allowedDataSize + 1
+                        (0 until slicesNeeded).forEach { slice ->
+                            clear()
+                            val uuid = "$${UUID.randomUUID()}".toByteArray()
+                            val from = slice * allowedDataSize
+                            val to = Integer.min(from + allowedDataSize, encodedMessageLength)
+                            val data = encodedMessage.sliceArray(from until to)
+                            val packetId = sha256(uuid + data)
 
-                    put(packetId)
-                    put(outgoingMessage.messageUID)
-                    put(if (outgoingMessage.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                    put(outgoingMessage.endpoint.identification)
-                    putInt(slicesNeeded)
-                    putInt(slice)
-                    putInt(data.size)
-                    put(data)
+                            put(packetId)
+                            put(outgoing.messageUID)
+                            put(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                            put(outgoing.endpoint.ordinal.toByte())
+                            putInt(slicesNeeded)
+                            putInt(slice)
+                            putInt(data.size)
+                            put(data)
 
-                    val packet = DatagramPacket(array(), 0, position())
-                    val started = System.currentTimeMillis()
-                    val recipientNode = outgoingMessage.recipient
-                    val recipientAddress = InetSocketAddress(recipientNode.ip, recipientNode.port)
-                    packet.socketAddress = recipientAddress
-                    udpSocket.send(packet)
-                    val delay = System.currentTimeMillis() - started
-                    val sender = localNode.publicKey
-                    val recipient = recipientNode.publicKey
-                    Dashboard.sentMessage(outgoingMessage.messageUID.asHex, outgoingMessage.endpoint, sender, recipient, data.size, delay)
-                    // Logger.trace("Sent to ${outgoingMessage.endpoint}...")
+                            val packet = DatagramPacket(array(), 0, position(), recipientAddress)
+                            val started = System.currentTimeMillis()
+                            udpSocket.send(packet)
+                            Thread.sleep(Random.nextLong(10, 100))
+                            val delay = System.currentTimeMillis() - started
+                            val sender = localNode.publicKey
+                            val recipient = recipientNode.publicKey
+                            // Logger.info("Sent out packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
+                            Dashboard.sentMessage(outgoing.messageUID.asHex, outgoing.endpoint, sender, recipient, position(), delay)
+                        }
+                    }
+                    is OutgoingQueuedPacket -> {
+                        put(outgoing.data)
+                        val packet = DatagramPacket(array(), 0, position(), recipientAddress)
+                        udpSocket.send(packet)
+                        Thread.sleep(Random.nextLong(10, 100))
+                        // Logger.info("Sent out queued packet of ${outgoing.endpoint} to ${outgoing.recipient.ip}:${outgoing.recipient.kademliaPort}")
+                    }
                 }
-
             }
-            Logger.debug("Server sent UDP packet to ${outgoingMessage.endpoint} @ ${outgoingMessage.recipient.identifier.take(5)}")
+        }
+    }
+
+    private fun listenForTCP() {
+        while (true) tryAndReport {
+            // Logger.trace("Waiting for TCP connections!")
+            tcpSocket.reuseAddress = true
+            val socket = tcpSocket.accept()
+            socket.reuseAddress = true
+            socket.use {
+                DataInputStream(it.getInputStream()).use { dis ->
+                    val fullData = dis.readAllBytes()
+                    val stream = DataInputStream(ByteArrayInputStream(fullData))
+                    val messageIdBytes = stream.readNBytes(32)
+                    val messageId = messageIdBytes.asHex
+                    if (messageHistory.containsKey(messageId)) return@use
+                    messageHistory[messageId] = System.currentTimeMillis()
+                    val transmissionType = if (stream.read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
+                    val endpoint = Endpoint.byId(stream.read().toByte()) ?: return@use
+                    val dataSize = stream.readInt()
+                    val data = stream.readNBytes(dataSize)
+                    launchCoroutine {
+                        processReceivedData(endpoint, transmissionType, 1, messageIdBytes, fullData, data)
+                    }
+                }
+            }
+        }
+    }
+
+    // ToDo: Reconsider migrations protocol
+    private fun sendTCP() {
+        while (true) tryAndReport {
+            val outgoing = outgoingQueue.take()
+            val recipient = outgoing.recipient
+            launchCoroutine {
+                Socket(recipient.ip, recipient.tcpPort).use {
+                    DataOutputStream(it.getOutputStream()).use { stream ->
+                        when (outgoing) {
+                            is OutgoingQueuedMessage -> {
+                                val data = outgoing.message
+                                stream.write(outgoing.messageUID)
+                                stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                                stream.writeByte(outgoing.endpoint.ordinal)
+                                stream.writeInt(data.size)
+                                stream.write(data)
+                            }
+                            is OutgoingQueuedPacket -> {
+                                stream.write(outgoing.data)
+                            }
+                        }
+                        stream.flush()
+                    }
+                }
+            }
         }
     }
 
     /** Processes received messages from [processingQueue] using [onMessageReceived] function.*/
     private fun processReceivedMessages() {
-        while (true) {
+        while (true) tryAndReport {
             val messageBuilder = processingQueue.take()
             onMessageReceived(messageBuilder.endpoint, messageBuilder.gluedData())
         }
@@ -218,24 +275,17 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val messageRandom = Random(seed)
         val validators = validatorSet.shuffled(messageRandom)
 
+        val x: (Node) -> Unit = {
+            Logger.debug("Sending[Capacity: ${outgoingQueue.remainingCapacity()} | Size: ${outgoingQueue.size}] [$endpoint] message to ${it.ip}:${it.kademliaPort}.")
+            outgoingQueue.put(OutgoingQueuedMessage(transmissionType, encodedMessage, endpoint, message.uid, it))
+        }
         // TODO: properly cleanup the next few lines of code.
         if (publicKeys.isNotEmpty()) {
-            publicKeys.forEach { key ->
-                val identifier = sha256(key).asHex.take(5)
-                Logger.info("Looking for $identifier to send a message to $endpoint.")
-                query(key) {
-                    Logger.info("Found the one i was looking for!")
-                    outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-                }
-            }
+            publicKeys.forEach { key -> query(key, x) }
         } else {
             if (validators.isEmpty()) pickRandomNodes().map { it.publicKey }.forEach {
-                query(it) {
-                    outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-                }
-            } else query(validators[0]) {
-                outgoingQueue.put(OutgoingQueuedMessage(endpoint, transmissionType, message.uid, encodedMessage, it))
-            }
+                query(it, x)
+            } else query(validators[0], x)
         }
     }
 

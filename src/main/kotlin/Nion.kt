@@ -6,8 +6,10 @@ import network.data.Endpoint
 import network.data.MessageProcessing
 import network.data.communication.Message
 import utils.launchCoroutine
+import utils.runAfter
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.random.Random
 
 
 /**
@@ -39,10 +41,18 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
     override fun launch() {
         super.launch()
+        attemptBootstrap()
         attemptInclusion()
     }
 
-    /** Acts accordingly to the [Endpoint] on how to process the received [Message]. */
+    private fun attemptBootstrap() {
+        if (isTrustedNode || isBootstrapped) return
+        Logger.info("Attempting bootstrapping.")
+        bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
+        runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)
+    }
+
+
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)
         val verified = crypto.verify(message.body, message.signature, message.publicKey)

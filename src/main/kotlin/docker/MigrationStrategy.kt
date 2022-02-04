@@ -14,6 +14,7 @@ import java.io.DataOutputStream
 import java.io.File
 import java.net.Socket
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 /**
  * Created by Mihael Valentin Berčič
@@ -27,13 +28,14 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     protected val imageMappings = ConcurrentHashMap<String, String>()
 
     init {
-        Thread(::startListeningForMigrations).start()
+        // Thread(::startListeningForMigrations).start() ToDo: Turn on.
     }
 
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
     private fun saveContainer(container: String): File {
         val arguments = if (configuration.useCriu) arrayOf("-c", container) else arrayOf(container)
-        ProcessBuilder("bash", "SaveContainer.sh", *arguments).start().waitFor()
+        val process = ProcessBuilder("bash", "SaveContainer.sh", *arguments).start()
+        process.waitFor()
         return File("/tmp/$container.tar")
     }
 
@@ -48,9 +50,10 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, configuration.port + 1).use { socket ->
+            Socket(receiver.ip, receiver.tcpPort).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
+                    // TODO: Write image of the container. With length.
                     write(encoded)
                     writeLong(file.length())
                     file.inputStream().use { it.transferTo(this) }
@@ -63,7 +66,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     }
 
     /** Reads and executes migration from [socket] sent by another node. */
-    private fun executeMigration(socket: Socket) {
+    private fun runMigratedContainer(socket: Socket) {
         DataInputStream(socket.getInputStream()).use { dataInputStream ->
             val encodedLength = dataInputStream.readInt()
             val migrationData = dataInputStream.readNBytes(encodedLength)
@@ -104,9 +107,35 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     /** Starts the thread listening on socket for receiving migrations. */
     private fun startListeningForMigrations() {
         while (true) tryAndReport {
-            executeMigration(tcpSocket.accept())
+            runMigratedContainer(tcpSocket.accept())
         }
     }
 
+    /** Computes which migrations should happen based on provided docker statistics. */
+    protected fun computeMigrations(dockerStatistics: List<DockerStatistics>): Map<String, MigrationPlan> {
+        val migrations = mutableMapOf<String, MigrationPlan>()
+        val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
+        val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
 
+        if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
+            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.averageCpuUsage }
+
+            if (leastConsumingApp != null) {
+                val mostUsage = mostUsedNode.totalCPU
+                val leastUsage = leastUsedNode.totalCPU
+                val appUsage = leastConsumingApp.averageCpuUsage
+                val beforeMigration = abs(mostUsage - leastUsage)
+                val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
+                val difference = abs(beforeMigration - afterMigration)
+
+                Dashboard.reportException(Exception("Difference: $difference% \t App: $appUsage"))
+                if (difference > 1) {
+                    val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
+                    migrations[mostUsedNode.publicKey] = migration
+                    Logger.debug(migration)
+                }
+            }
+        }
+        return migrations
+    }
 }

@@ -8,6 +8,7 @@ import network.Cluster
 import network.data.Endpoint
 import network.data.communication.Message
 import network.data.communication.TransmissionType
+import utils.CircularList
 import utils.runAfter
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -22,7 +23,7 @@ import kotlin.concurrent.withLock
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
 
     private val networkLock = ReentrantLock(true)
-    private val networkStatistics = ConcurrentHashMap<Long, MutableList<DockerStatistics>>()
+    private val networkStatistics = ConcurrentHashMap<Long, MutableSet<DockerStatistics>>()
 
     init {
         Thread(::listenForDockerStatistics).start()
@@ -32,7 +33,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     private fun addNetworkStatistics(vararg statistics: DockerStatistics) {
         networkLock.withLock {
             statistics.forEach { dockerStatistics ->
-                val list = networkStatistics.computeIfAbsent(dockerStatistics.slot) { mutableListOf() }
+                val list = networkStatistics.computeIfAbsent(dockerStatistics.slot) { mutableSetOf() }
                 list.add(dockerStatistics)
             }
             Logger.info("Added ${statistics.size} statistics...")
@@ -47,6 +48,10 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     /** Sends (new) local [DockerStatistics] to our representative / block producer (if we're representative).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
         val slot = block.slot
+        val outdated = localContainers.values.filter { System.currentTimeMillis() - it.updated >= configuration.slotDuration }
+        outdated.forEach { container ->
+            localContainers.remove(container.id)
+        }
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
         val ourPublicKey = localNode.publicKey
@@ -70,13 +75,15 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     /** Starts a process of `docker stats` and keeps the [localStatistics] up to date. */
     private fun listenForDockerStatistics() {
+        val numberOfElements = (configuration.slotDuration / 1000).toInt()
+
         val process = ProcessBuilder()
             .command("docker", "stats", "--no-trunc", "--format", "{{.ID}} {{.CPUPerc}} {{.MemPerc}} {{.PIDs}}")
             .redirectErrorStream(true)
             .start()
 
         val buffer = ByteBuffer.allocate(100_000)
-        val escapeSequence = byteArrayOf(0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48)
+        val escapeSequence = byteArrayOf(0x1B, 0x5B, 0x32, 0x4A, 0x1B, 0x5B, 0x48) // Escape sequence of CLI output.
         var escapeIndex = 0
         process.inputStream.use { inputStream ->
             while (true) {
@@ -85,7 +92,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                     if (byte < 0) break
                     buffer.put(byte)
                     if (byte == escapeSequence[escapeIndex]) escapeIndex++ else escapeIndex = 0
-                    if (escapeIndex != escapeSequence.size) continue
+                    if (escapeIndex != escapeSequence.size) continue // If escape sequence was not detected, continue reading data.
                     val length = buffer.position() - escapeSequence.size
                     if (length > 0) String(buffer.array(), 0, length).split("\n").map { line ->
                         if (line.isNotEmpty()) {
@@ -94,9 +101,17 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                             if (fields.none { it.contains("-") || it.isEmpty() }) {
                                 val cpuPercentage = fields[1].trim('%').toDouble()
                                 val memoryPercentage = fields[2].trim('%').toDouble()
-                                val processes = fields[3].toInt()
-                                localContainers[containerId] = DockerContainer(containerId, cpuPercentage, memoryPercentage, processes)
-                            } else localContainers[containerId]?.apply { updated = System.currentTimeMillis() }
+                                val activeProcesses = fields[3].toInt()
+                                val container = localContainers.computeIfAbsent(containerId) {
+                                    DockerContainer(containerId, activeProcesses, CircularList(numberOfElements), CircularList(numberOfElements))
+                                }
+                                container.apply {
+                                    cpuUsage.add(cpuPercentage)
+                                    memoryUsage.add(memoryPercentage)
+                                    updated = System.currentTimeMillis()
+                                    processes = activeProcesses
+                                }
+                            } else localContainers[containerId]?.updated = System.currentTimeMillis()
                         }
                     }
                     buffer.clear()

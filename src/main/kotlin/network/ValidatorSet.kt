@@ -117,6 +117,4 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
             ChainTask(ourRole, blockProducerNode, committee)
         }
     }
-
-    fun hashed() = lock.withLock { sha256(validators.joinToString("")) }
 }
