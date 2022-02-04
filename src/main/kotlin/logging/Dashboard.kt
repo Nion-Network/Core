@@ -18,7 +18,6 @@ import network.data.Endpoint
 import utils.asHex
 import utils.sha256
 import java.io.File
-import java.net.InetAddress
 import java.time.Instant
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -28,7 +27,8 @@ object Dashboard {
     private val configurationJson = File("./config.json").readText()
     private val configuration: Configuration = Json.decodeFromString(configurationJson)
     private val queue = LinkedBlockingQueue<Point>()
-    private val localAddress = InetAddress.getLocalHost()
+
+    var myInfo: String = "UNSET"
 
     private fun formatTime(millis: Long): String {
         val timeDifference = millis / 1000
@@ -40,27 +40,34 @@ object Dashboard {
     }
 
     init {
-        if (configuration.dashboardEnabled) {
-            val options = InfluxDBClientOptions.builder()
-                .url(configuration.influxUrl)
-                .authenticateToken(configuration.influxToken.toCharArray())
-                .org("innorenew")
-                // .logLevel(LogLevel.BASIC)
-                .bucket("PROD")
-                .build()
+        try {
 
-            val influxDB = InfluxDBClientFactory.create(options)
-            val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
-            Thread { while (true) writeApi.writePoint(queue.take()) }.start()
-            if (influxDB.ping()) Logger.info("InfluxDB connection successful")
-        } else Logger.info("Dashboard is disabled.")
+            if (configuration.dashboardEnabled) {
+                val options = InfluxDBClientOptions.builder()
+                    .url(configuration.influxUrl)
+                    .authenticateToken(configuration.influxToken.toCharArray())
+                    .org("innorenew")
+                    // .logLevel(LogLevel.BASIC)
+                    .bucket("PROD")
+                    .build()
 
+                val influxDB = InfluxDBClientFactory.create(options)
+                val writeApi = influxDB.makeWriteApi(WriteOptions.builder().batchSize(2000).flushInterval(1000).build())
+                Thread { while (true) writeApi.writePoint(queue.take()) }.start()
+            } else Logger.info("Dashboard is disabled.")
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    fun reportDHTQuery(identifier: String, hops: Int, duration: Long) {
+    fun reportDHTQuery(identifier: String, seekerIp: String, seeker: String, hops: Int, revives: Int, duration: Long) {
         val point = Point.measurement("dht")
             .addField("hops", hops)
+            .addField("ip", seekerIp)
             .addField("duration", duration)
+            .addField("revives", revives)
+            .addField("seeker", seeker)
             .addField("identifier", identifier)
         queue.put(point)
     }
@@ -129,12 +136,12 @@ object Dashboard {
     }
 
     // TODO: remove
-    fun logQueue(queueSize: Int, publicKey: String) {
+    fun logPacket(endpoint: Endpoint, sender: String, missing: Int) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("queueSize").apply {
-            addField("nodeId", publicKey)
-            addField("queueSize", queueSize)
-        }
+        val point = Point.measurement("queueSize")
+            .addField("from", sender)
+            .addField("endpoint", "$endpoint")
+            .addField("missing", missing)
         queue.put(point)
     }
 
@@ -171,7 +178,7 @@ object Dashboard {
         Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("cause", "${localAddress.hostAddress} ... $e ... ${e.cause}")
+            .addField("cause", "$myInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
 
@@ -249,11 +256,11 @@ object Dashboard {
             .addField("node", sha256(node).asHex)
     }
 
-    fun log(type: DebugType, message: Any, ip: String) {
+    fun log(type: DebugType, message: Any) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("logging")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("ip", ip)
+            .addField("ip", myInfo)
             .addField("type", "${type.ordinal}")
             .addField("log", "$message")
 

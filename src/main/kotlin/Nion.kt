@@ -1,5 +1,4 @@
 import chain.ChainBuilder
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Logger
@@ -7,8 +6,10 @@ import network.data.Endpoint
 import network.data.MessageProcessing
 import network.data.communication.Message
 import utils.launchCoroutine
+import utils.runAfter
 import utils.tryAndReport
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.random.Random
 
 
 /**
@@ -40,8 +41,17 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
     override fun launch() {
         super.launch()
+        attemptBootstrap()
         attemptInclusion()
     }
+
+    private fun attemptBootstrap() {
+        if (isTrustedNode || isBootstrapped) return
+        Logger.info("Attempting bootstrapping.")
+        bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
+        runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)
+    }
+
 
     override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
         val message = ProtoBuf.decodeFromByteArray<Message>(data)

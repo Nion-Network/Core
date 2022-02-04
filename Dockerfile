@@ -27,5 +27,5 @@ COPY stress.tar stress.tar
 RUN chmod 777 Start.sh
 RUN chmod 777 vdf-cli
 RUN mv vdf-cli /usr/bin/vdf-cli
-
-ENTRYPOINT dockerd --experimental & bash Start.sh
+RUN chmod +x Start.sh
+ENTRYPOINT ["./Start.sh"]

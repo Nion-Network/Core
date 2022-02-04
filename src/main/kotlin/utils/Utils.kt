@@ -68,6 +68,7 @@ fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
 
 val coroutineExceptionHandler = CoroutineExceptionHandler { context, exception ->
     Dashboard.reportException(exception)
+    exception.printStackTrace()
 }
 
 /** Try catch for a [Lock] that reports any exceptions to our [Dashboard]. */

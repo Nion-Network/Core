@@ -87,6 +87,6 @@ class MarryTreeTest {
                 append("$index [pos=\"$ourDistance,-$currentDepth!\"]\n")
             }
         }
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
+        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
     }
 }

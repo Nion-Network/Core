@@ -9,14 +9,22 @@ import java.io.File
  * on 06/11/2021 at 19:43
  * using IntelliJ IDEA
  */
-fun main() {
-    System.setProperty("kotlinx.coroutines.scheduler", "off")
-    val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
-    Logger.toggleLogging(configuration.loggingEnabled)
-    tryAndReport {
-        Nion(configuration).apply {
-            if (!isTrustedNode) bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
-            launch()
+fun main(args: Array<String>) {
+    try {
+        System.setProperty("kotlinx.coroutines.scheduler", "off")
+        val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
+        Logger.toggleLogging(configuration.loggingEnabled)
+        args.getOrNull(0)?.toInt()?.apply {
+            configuration.passedPort = this
+            println("Passed udpPort: $this...")
         }
+
+        tryAndReport {
+            Nion(configuration).apply {
+                launch()
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
