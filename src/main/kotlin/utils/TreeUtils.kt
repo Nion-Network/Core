@@ -59,7 +59,9 @@ object TreeUtils {
                 val median = children.sumOf { distances[nodes.indexOf(it)]!! } / k
                 val childrenConnections = children.joinToString("\n") { "\"$key\" -> \"$it\"" }
                 distances[index] = median
-                stringBuilder.append(childrenConnections + "\n")
+                if (childrenConnections.isNotEmpty()) {
+                    stringBuilder.append(childrenConnections + "\n")
+                }
             }
             val ourDistance = distances[index]!!
             val neighbourChildren = findChildren(k, neighbourIndex).filter { it <= nodes.size - 1 }
@@ -67,7 +69,9 @@ object TreeUtils {
 
             stringBuilder.apply {
                 val length = "$key".length
-                append(neighbourChildrenConnections + "\n")
+                if (neighbourChildrenConnections.isNotEmpty()) {
+                    append(neighbourChildrenConnections + "\n")
+                }
                 nodes.getOrNull(neighbourIndex)?.apply {
                     append("\"$key\" -> \"$this\" [color=\"green\"]\n")
                 }
