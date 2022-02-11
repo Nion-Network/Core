@@ -35,7 +35,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     }
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.kademliaPort == configuration.trustedNodePort }
 
-    val knownNodes = ConcurrentHashMap<String, Node>()
+    private val knownNodes = ConcurrentHashMap<String, Node>()
 
     val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
@@ -63,13 +63,14 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
-    fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
+    fun query(publicKey: String, action: ((Node) -> Unit)? = null): Node? {
         val identifier = sha256(publicKey).asHex
         val knownNode = knownNodes[identifier]
         if (knownNode == null) {
             Logger.info("Querying for ${identifier.take(5)}!")
             sendFindRequest(identifier, block = action)
         } else if (action != null) launchCoroutine { action(knownNode) }
+        return knownNode
     }
 
     /** Retrieves [amount] of the closest nodes. */
