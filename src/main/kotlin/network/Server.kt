@@ -85,12 +85,16 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val messageId = messageIdArray.asHex
         val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
             val broadcastNodes = mutableSetOf<String>()
+
             if (transmissionType == TransmissionType.Broadcast) {
                 val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
                 val messageRandom = Random(seed)
                 val shuffled = validatorSet.shuffled(messageRandom)
                 val k = 6
                 val index = shuffled.indexOf(localNode.publicKey)
+                if (isTrustedNode) {
+                    Logger.info(TreeUtils.outputTree(k, shuffled))
+                }
                 if (index != -1) {
                     val currentDepth = TreeUtils.computeDepth(k, index)
                     val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
