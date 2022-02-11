@@ -35,7 +35,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     }
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.kademliaPort == configuration.trustedNodePort }
 
-    private val knownNodes = ConcurrentHashMap<String, Node>()
+    val knownNodes = ConcurrentHashMap<String, Node>()
 
     val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
