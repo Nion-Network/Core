@@ -91,6 +91,6 @@ class MarryTreeTest {
         // print(stringBuilder)
 
         print(TreeUtils.outputTree(k, tree))
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(TreeUtils.outputTree(k, tree)), null)
+        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(TreeUtils.outputTree(k, tree)), null)
     }
 }
