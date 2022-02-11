@@ -93,7 +93,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val k = 6
                 val index = shuffled.indexOf(localNode.publicKey)
                 if (isTrustedNode) {
-                    Logger.info(TreeUtils.outputTree(k, shuffled.mapNotNull { query(it) }.map { "${it.ip}:${it.kademliaPort}" }))
+                    Logger.error(TreeUtils.outputTree(k, shuffled.mapNotNull { query(it) }.map { "${it.ip}:${it.kademliaPort}".padEnd(22) }))
                 }
                 if (index != -1) {
                     val currentDepth = TreeUtils.computeDepth(k, index)
