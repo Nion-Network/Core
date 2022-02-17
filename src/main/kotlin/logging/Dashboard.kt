@@ -128,7 +128,7 @@ object Dashboard {
     fun newVote(vote: Vote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("attestations").apply {
-            addField("blockHash", vote.blockHash)
+            // addField("blockHash", vote.blockHash)
             addField("committeeMember", publicKey)
         }
 
