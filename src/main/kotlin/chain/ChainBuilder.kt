@@ -13,8 +13,10 @@ import network.data.communication.TransmissionType
 import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
+import utils.tryWithLock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.math.max
 
 /**
@@ -187,6 +189,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     }
 
     private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
+    private val voteLock = ReentrantLock(true)
 
     fun voteRequested(message: Message) {
         val request = message.decodeAs<VoteRequest>()
@@ -195,9 +198,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         send(Endpoint.Vote, TransmissionType.Unicast, vote, request.publicKey)
     }
 
+
     fun voteReceived(message: Message) {
         val vote = message.decodeAs<Vote>()
-        val votes = votes.computeIfAbsent(vote.blockHash.asHex) { mutableListOf() }
-        votes.add(vote)
+        voteLock.tryWithLock {
+            val votes = votes.computeIfAbsent(vote.blockHash.asHex) { mutableListOf() }
+            votes.add(vote)
+        }
     }
 }
