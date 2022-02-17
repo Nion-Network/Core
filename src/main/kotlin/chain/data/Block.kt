@@ -21,7 +21,7 @@ class Block(
     val timestamp: Long,
     val precedentHash: ByteArray,
     val validatorChanges: Map<String, Boolean>,
-    val votes: Int = 0,
+    var votes: Int = 0,
     val migrations: Map<String, MigrationPlan> = mutableMapOf(),
     val hash: ByteArray = sha256("$slot$blockProducer$difficulty$precedentHash$validatorChanges")
 ) {

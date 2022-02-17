@@ -1,8 +1,7 @@
 package chain
 
 import Configuration
-import chain.data.Block
-import chain.data.SlotDuty
+import chain.data.*
 import docker.DockerProxy
 import logging.Dashboard
 import logging.Logger
@@ -11,8 +10,10 @@ import network.data.communication.InclusionRequest
 import network.data.communication.Message
 import network.data.communication.SyncRequest
 import network.data.communication.TransmissionType
+import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
@@ -59,7 +60,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     val proof = verifiableDelay.computeProof(block.difficulty, block.hash)
                     val computationDuration = System.currentTimeMillis() - computationStart
                     Logger.chain("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
-                    runAfter(max(0, configuration.slotDuration - computationDuration)) {
+                    val delayThird = configuration.slotDuration * 1 / 3
+                    val startDelay = delayThird - computationDuration
+
+                    runAfter(max(0, delayThird)) {
                         Logger.chain("Running producing of the block after time...")
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
                             Logger.info("Total length: $size")
@@ -81,8 +85,15 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             precedentHash = block.hash,
                             migrations = migrations
                         )
-                        Logger.chain("Broadcasting out block ${newBlock.slot}.")
-                        send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
+                        val voteRequest = VoteRequest(newBlock, localNode.publicKey)
+                        val committeeMembers = nextTask.committee
+                        send(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeMembers.toTypedArray())
+                        runAfter(delayThird * 2) {
+                            val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1
+                            Logger.chain("Broadcasting out block ${newBlock.slot}.")
+                            newBlock.votes = allVotes
+                            send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
+                        }
                     }
                 }
                 SlotDuty.COMMITTEE -> {}
@@ -173,5 +184,20 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         if (nextProducer == null) send(Endpoint.InclusionRequest, if (isValidatorSetEmpty) TransmissionType.Broadcast else TransmissionType.Unicast, inclusionRequest)
         else send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest, nextProducer)
         Logger.chain("Requesting inclusion with $ourSlot.")
+    }
+
+    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
+
+    fun voteRequested(message: Message) {
+        val request = message.decodeAs<VoteRequest>()
+        val block = request.block
+        val vote = Vote(block.hash, VoteType.FOR)
+        send(Endpoint.Vote, TransmissionType.Unicast, vote, request.publicKey)
+    }
+
+    fun voteReceived(message: Message) {
+        val vote = message.decodeAs<Vote>()
+        val votes = votes.computeIfAbsent(vote.blockHash.asHex) { mutableListOf() }
+        votes.add(vote)
     }
 }

@@ -27,7 +27,9 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         Endpoint.NewBlock to ::blockReceived,
         Endpoint.InclusionRequest to ::inclusionRequested,
         Endpoint.SyncRequest to ::synchronizationRequested,
-        Endpoint.SyncReply to ::synchronizationReply
+        Endpoint.SyncReply to ::synchronizationReply,
+        Endpoint.VoteRequest to ::voteRequested,
+        Endpoint.Vote to ::voteReceived
     )
 
     init {
