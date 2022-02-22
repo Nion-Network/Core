@@ -63,7 +63,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                 send(Endpoint.NodeStatistics, TransmissionType.Unicast, arrayOf(localStatistics), ourCluster.representative)
                 Dashboard.statisticSent(localNode.publicKey, localStatistics, ourCluster.representative, block.slot)
             } else addNetworkStatistics(localStatistics)
-        } else runAfter(configuration.slotDuration / 2) {
+        } else runAfter(configuration.slotDuration / 4) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
             send(Endpoint.NodeStatistics, TransmissionType.Unicast, statistics, blockProducer)
             statistics.forEach {
