@@ -256,6 +256,17 @@ object Dashboard {
             .addField("node", sha256(node).asHex)
     }
 
+    fun statisticSent(senderPublicKey: String, dockerStatistics: DockerStatistics, receiverPublicKey: String, slot: Long) {
+        val point = Point.measurement("statistics-data")
+            .time(Instant.now(), WritePrecision.NS)
+            .addField("sender", sha256(senderPublicKey).asHex)
+            .addField("statistics", sha256(dockerStatistics.toString()).asHex)
+            .addField("sentTo", sha256(receiverPublicKey).asHex)
+            .addField("slot", slot)
+
+        queue.put(point)
+    }
+
     fun log(type: DebugType, message: Any) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("logging")
