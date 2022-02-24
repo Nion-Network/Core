@@ -1,6 +1,7 @@
 import chain.ChainBuilder
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
 import network.data.MessageProcessing
@@ -44,6 +45,10 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
     override fun launch() {
         super.launch()
+        if (localAddress.isLoopbackAddress) {
+            Dashboard.reportException(Exception("Local address: $localAddress!"))
+            return
+        }
         attemptBootstrap()
         attemptInclusion()
     }
