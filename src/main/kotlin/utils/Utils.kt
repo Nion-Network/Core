@@ -73,7 +73,13 @@ fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
 fun getLocalAddress(): InetAddress {
     for (networkInterface in NetworkInterface.networkInterfaces()) {
         val addresses = networkInterface.inetAddresses()
-        val ours = addresses.filter { !it.isLinkLocalAddress && !it.isLoopbackAddress && it is Inet4Address }.findFirst()
+        val ours = addresses.filter {
+            println(networkInterface.displayName)
+            !it.isLinkLocalAddress
+                    && it.isReachable(50)
+                    && !it.isLoopbackAddress
+                    && it is Inet4Address
+        }.findFirst()
         if (ours.isPresent) {
             return ours.get()
         }
