@@ -74,7 +74,7 @@ fun getLocalAddress(): InetAddress {
     for (networkInterface in NetworkInterface.networkInterfaces().filter { it.isUp }) {
         val addresses = networkInterface.inetAddresses()
         val ours = addresses.filter {
-            it.isSiteLocalAddress && !it.isLoopbackAddress && it is Inet4Address
+            !it.isSiteLocalAddress && !it.isLoopbackAddress && it is Inet4Address
         }.findFirst()
         if (ours.isPresent) {
             return ours.get()
