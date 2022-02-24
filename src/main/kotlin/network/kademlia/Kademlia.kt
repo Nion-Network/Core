@@ -12,7 +12,6 @@ import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.DatagramPacket
-import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -28,7 +27,7 @@ import kotlin.random.Random
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
 
     val crypto = Crypto(".")
-    val localAddress = InetAddress.getLocalHost()
+    val localAddress = getLocalAddress()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
         println(Dashboard.myInfo)

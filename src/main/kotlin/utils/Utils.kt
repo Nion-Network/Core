@@ -3,10 +3,14 @@ package utils
 import kotlinx.coroutines.*
 import logging.Dashboard
 import logging.Logger
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.locks.Lock
 import kotlin.concurrent.withLock
+
 
 /**
  * Created by Mihael Berčič
@@ -64,6 +68,17 @@ fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
     GlobalScope.launch(coroutineExceptionHandler) {
         block(this)
     }
+}
+
+fun getLocalAddress(): InetAddress {
+    for (networkInterface in NetworkInterface.networkInterfaces()) {
+        val addresses = networkInterface.inetAddresses()
+        val ours = addresses.filter { !it.isLinkLocalAddress && !it.isLoopbackAddress && it is Inet4Address }.findFirst()
+        if (ours.isPresent) {
+            return ours.get()
+        }
+    }
+    throw Exception("Could not find appropriate local address.")
 }
 
 val coroutineExceptionHandler = CoroutineExceptionHandler { context, exception ->
