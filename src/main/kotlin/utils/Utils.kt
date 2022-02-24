@@ -3,9 +3,8 @@ package utils
 import kotlinx.coroutines.*
 import logging.Dashboard
 import logging.Logger
-import java.net.Inet4Address
 import java.net.InetAddress
-import java.net.NetworkInterface
+import java.net.Socket
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.locks.Lock
@@ -71,20 +70,7 @@ fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
 }
 
 fun getLocalAddress(): InetAddress {
-    for (networkInterface in NetworkInterface.networkInterfaces().filter {
-        it.isUp && it.supportsMulticast() && !it.displayName.contains("docker")
-    }) {
-        val addresses = networkInterface.inetAddresses()
-        val ours = addresses.filter {
-            it.isSiteLocalAddress
-                    && !it.isLoopbackAddress
-                    && it is Inet4Address
-        }.findFirst()
-        if (ours.isPresent) {
-            return ours.get()
-        }
-    }
-    throw Exception("Could not find appropriate local address.")
+    return Socket("8.8.8.8", 53).localAddress
 }
 
 val coroutineExceptionHandler = CoroutineExceptionHandler { context, exception ->
