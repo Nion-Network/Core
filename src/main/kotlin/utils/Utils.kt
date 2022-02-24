@@ -71,7 +71,7 @@ fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
 }
 
 fun getLocalAddress(): InetAddress {
-    for (networkInterface in NetworkInterface.networkInterfaces().filter { it.hardwareAddress != null }) {
+    for (networkInterface in NetworkInterface.networkInterfaces().filter { !it.displayName.contains("docker") }) {
         val addresses = networkInterface.inetAddresses()
         val ours = addresses.filter {
             !it.isLoopbackAddress && it is Inet4Address
