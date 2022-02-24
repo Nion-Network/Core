@@ -174,11 +174,11 @@ object Dashboard {
     }
 
     /** Reports that an exception was caught */
-    fun reportException(e: Throwable) {
+    fun reportException(e: Throwable, additionalInfo: String = "") {
         Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("cause", "$myInfo ... $e ... ${e.cause}")
+            .addField("cause", "$myInfo | $additionalInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
 

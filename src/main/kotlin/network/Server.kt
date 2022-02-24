@@ -224,24 +224,28 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val outgoing = outgoingQueue.take()
             val recipient = outgoing.recipient
             launchCoroutine {
-                Socket(recipient.ip, recipient.tcpPort).use {
-                    it.soTimeout = 1000
-                    DataOutputStream(it.getOutputStream()).use { stream ->
-                        when (outgoing) {
-                            is OutgoingQueuedMessage -> {
-                                val data = outgoing.message
-                                stream.write(outgoing.messageUID)
-                                stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
-                                stream.writeByte(outgoing.endpoint.ordinal)
-                                stream.writeInt(data.size)
-                                stream.write(data)
+                try {
+                    Socket(recipient.ip, recipient.tcpPort).use {
+                        it.soTimeout = 1000
+                        DataOutputStream(it.getOutputStream()).use { stream ->
+                            when (outgoing) {
+                                is OutgoingQueuedMessage -> {
+                                    val data = outgoing.message
+                                    stream.write(outgoing.messageUID)
+                                    stream.writeByte(if (outgoing.transmissionType == TransmissionType.Broadcast) 1 else 0)
+                                    stream.writeByte(outgoing.endpoint.ordinal)
+                                    stream.writeInt(data.size)
+                                    stream.write(data)
+                                }
+                                is OutgoingQueuedPacket -> {
+                                    stream.write(outgoing.data)
+                                }
                             }
-                            is OutgoingQueuedPacket -> {
-                                stream.write(outgoing.data)
-                            }
+                            stream.flush()
                         }
-                        stream.flush()
                     }
+                } catch (e: Exception) {
+                    Dashboard.reportException(e, "Trying to send to: ${recipient.ip}:${recipient.tcpPort} (${recipient.kademliaPort})")
                 }
             }
         }
