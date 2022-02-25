@@ -12,12 +12,12 @@ enum class Endpoint(val processing: MessageProcessing) {
     NodeQuery(MessageProcessing.Immediate),
     QueryReply(MessageProcessing.Immediate),
     Welcome(MessageProcessing.Queued),
-    Vote(MessageProcessing.Queued),
+    Vote(MessageProcessing.Immediate),
     NewBlock(MessageProcessing.Queued),
     SyncReply(MessageProcessing.Queued),
     SyncRequest(MessageProcessing.Immediate),
     VoteRequest(MessageProcessing.Immediate),
-    NodeStatistics(MessageProcessing.Immediate)
+    NodeStatistics(MessageProcessing.Queued)
     ;
 
     companion object {
