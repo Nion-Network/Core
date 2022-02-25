@@ -226,7 +226,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             launchCoroutine {
                 // try {
                     Socket(recipient.ip, recipient.tcpPort).use {
-                        it.soTimeout = 5000
+                        it.soTimeout = 10000
                         DataOutputStream(it.getOutputStream()).use { stream ->
                             when (outgoing) {
                                 is OutgoingQueuedMessage -> {
