@@ -80,7 +80,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         }
     }
 
-    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, slices: Int, messageIdArray: ByteArray, wholeData: ByteArray, messageData: ByteArray, currentSlice: Int = 0) {
+    fun processReceivedData(endpoint: Endpoint, transmissionType: TransmissionType, totalSlices: Int, messageIdArray: ByteArray, wholeData: ByteArray, messageData: ByteArray, currentSlice: Int = 0) {
         // TODO: Cleanup of the next few lines of code.
         val messageId = messageIdArray.asHex
         val messageBuilder = messageBuilders.computeIfAbsent(messageId) {
@@ -111,17 +111,23 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     broadcastNodes.addAll(neighbourChildrenKeys)
                     Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
                 }
+                Logger.info("Looking for random nodes!")
                 broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+                Logger.info("Added random nodes!")
                 // Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
             }
-            MessageBuilder(endpoint, slices, broadcastNodes.toTypedArray())
+            MessageBuilder(endpoint, totalSlices, broadcastNodes.toTypedArray())
         }
+        Logger.info("Adding to queue everyone we have to send the message to!")
         messageBuilder.nodes.forEach { publicKey ->
+            Logger.info("Adding ${sha256(publicKey)}!")
             query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(wholeData, endpoint, messageIdArray, it)) }
         }
-
+        Logger.info("Added all to the outgoing queue or sent out queries.")
         // if (!isBootstrapped) return@tryAndReport
-        if (messageBuilder.addPart(currentSlice, messageData)) {
+        if (messageBuilder.addPart(currentSlice, messageData).apply {
+                Logger.info("Added part with success: $this for $currentSlice/$totalSlices")
+            }) {
             messageBuilders.remove(messageId)
             processingQueue.put(messageBuilder)
             messageHistory[messageId] = System.currentTimeMillis()
