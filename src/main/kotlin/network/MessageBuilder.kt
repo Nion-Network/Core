@@ -17,7 +17,7 @@ class MessageBuilder(val endpoint: Endpoint, private val numberOfPackets: Int, v
     fun addPart(position: Int, data: ByteArray): Boolean {
         array[position] = data
         totalAdded++
-        return totalAdded == numberOfPackets
+        return array.none { it == null }
     }
 
     fun gluedData(): ByteArray {
