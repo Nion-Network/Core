@@ -224,7 +224,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val outgoing = outgoingQueue.take()
             val recipient = outgoing.recipient
             launchCoroutine {
-                // try {
+                try {
                     Socket(recipient.ip, recipient.tcpPort).use {
                         it.soTimeout = 1000
                         DataOutputStream(it.getOutputStream()).use { stream ->
@@ -244,9 +244,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             stream.flush()
                         }
                     }
-                // } catch (e: Exception) {
-                   // Dashboard.reportException(e, "Trying to send to: ${recipient.ip}:${recipient.tcpPort} (${recipient.kademliaPort})")
-                // }
+                } catch (e: Exception) {
+                    Dashboard.reportException(e, "Trying to send to: ${recipient.ip}:${recipient.tcpPort} (${recipient.kademliaPort})")
+                }
             }
         }
     }
