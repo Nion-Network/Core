@@ -62,6 +62,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             inputStream.reset()
             udpSocket.receive(packet)
+            Logger.info("Received a packet!")
             val packetIdBytes = inputStream.readNBytes(32)
             val packetId = packetIdBytes.asHex
             val messageIdBytes = inputStream.readNBytes(32)
@@ -71,6 +72,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             inputStream.apply {
                 val transmissionType = if (read() == 1) TransmissionType.Broadcast else TransmissionType.Unicast
                 val endpoint = Endpoint.byId(read().toByte()) ?: return@apply
+                Logger.info("Packet is of type $endpoint")
                 val totalSlices = readInt()
                 val currentSlice = readInt()
                 val dataLength = readInt()
@@ -120,7 +122,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         }
         Logger.info("Adding to queue everyone we have to send the message to!")
         messageBuilder.nodes.forEach { publicKey ->
-            Logger.info("Adding ${sha256(publicKey)}!")
             query(publicKey) { outgoingQueue.put(OutgoingQueuedPacket(wholeData, endpoint, messageIdArray, it)) }
         }
         Logger.info("Added all to the outgoing queue or sent out queries.")
