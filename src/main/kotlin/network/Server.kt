@@ -93,7 +93,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
                 val messageRandom = Random(seed)
                 val shuffled = validatorSet.shuffled(messageRandom)
-                val k = 6
+                val k = 2
                 val index = shuffled.indexOf(localNode.publicKey)
                 if (isTrustedNode) {
                     Logger.error(TreeUtils.outputTree(k, shuffled.mapNotNull { query(it) }.map { "${it.ip}:${it.kademliaPort}".padEnd(22) }))
