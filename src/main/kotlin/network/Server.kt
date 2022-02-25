@@ -125,7 +125,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             messageBuilders.remove(messageId)
             processingQueue.put(messageBuilder)
             messageHistory[messageId] = System.currentTimeMillis()
-            // Logger.trace("Added to processing queue: $endpoint")
+            Logger.trace("Added to processing queue: $endpoint")
         }
         // if (endpoint == Endpoint.NewBlock) Logger.trace("Data [$endpoint] missing ${messageBuilder.missing}")
     }
