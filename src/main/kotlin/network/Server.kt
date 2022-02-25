@@ -61,6 +61,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val packet = DatagramPacket(pureArray, configuration.packetSplitSize)
         while (true) tryAndReport {
             inputStream.reset()
+            Logger.info("Waiting for packet.")
             udpSocket.receive(packet)
             Logger.info("Received a packet!")
             val packetIdBytes = inputStream.readNBytes(32)
@@ -181,7 +182,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                             val packet = DatagramPacket(array(), 0, position(), recipientAddress)
                             val started = System.currentTimeMillis()
                             udpSocket.send(packet)
-                            Thread.sleep(Random.nextLong(10, 100))
+                            Thread.sleep(Random.nextLong(5, 10))
                             val delay = System.currentTimeMillis() - started
                             val sender = localNode.publicKey
                             val recipient = recipientNode.publicKey
