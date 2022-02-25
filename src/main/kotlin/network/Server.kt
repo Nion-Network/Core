@@ -198,6 +198,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             // Logger.trace("Waiting for TCP connections!")
             val socket = tcpSocket.accept()
+            socket.soTimeout = 1000
             socket.use {
                 DataInputStream(it.getInputStream()).use { dis ->
                     val fullData = dis.readAllBytes()
@@ -226,7 +227,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             launchCoroutine {
                 // try {
                     Socket(recipient.ip, recipient.tcpPort).use {
-                        it.soTimeout = 10000
                         DataOutputStream(it.getOutputStream()).use { stream ->
                             when (outgoing) {
                                 is OutgoingQueuedMessage -> {
