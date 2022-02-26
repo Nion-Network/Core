@@ -1,6 +1,7 @@
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import logging.Logger
+import network.data.Endpoint
 import utils.tryAndReport
 import java.io.File
 

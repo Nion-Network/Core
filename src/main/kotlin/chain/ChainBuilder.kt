@@ -89,12 +89,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         )
                         val voteRequest = VoteRequest(newBlock, localNode.publicKey)
                         val committeeMembers = nextTask.committee
-                        send(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeMembers.toTypedArray())
+                        send(Endpoint.VoteRequest, voteRequest, *committeeMembers.toTypedArray())
                         runAfter(delayThird * 2) {
                             val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1
                             Logger.chain("Broadcasting out block ${newBlock.slot}.")
                             newBlock.votes = allVotes
-                            send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
+                            send(Endpoint.NewBlock, newBlock)
                         }
                     }
                 }
@@ -128,7 +128,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
                 val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
-                send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
+                send(Endpoint.NewBlock, genesisBlock)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
         }
@@ -146,7 +146,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
         Logger.info("Sending back sync reply with blocks: ${blocksToSendBack.firstOrNull()?.slot} -> ${blocksToSendBack.lastOrNull()?.slot}")
-        if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
+        if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, blocksToSendBack, requestingNode.publicKey)
     }
 
     /** Attempt to add blocks received from the random node. */
@@ -171,8 +171,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val syncRequest = SyncRequest(localNode, ourSlot)
         val randomValidator = validatorSet.activeValidators.randomOrNull()
-        if (randomValidator != null) send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, randomValidator)
-        else send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
+        if (randomValidator != null) send(Endpoint.SyncRequest,syncRequest, randomValidator)
+        else send(Endpoint.SyncRequest, syncRequest, 1)
         Logger.chain("Requesting synchronization from $ourSlot.")
         // TODO add to Dashboard.
     }
@@ -183,8 +183,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
         val isValidatorSetEmpty = validatorSet.activeValidators.isEmpty()
-        if (nextProducer == null) send(Endpoint.InclusionRequest, if (isValidatorSetEmpty) TransmissionType.Broadcast else TransmissionType.Unicast, inclusionRequest)
-        else send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest, nextProducer)
+        if (nextProducer == null) send(Endpoint.InclusionRequest, inclusionRequest)
+        else send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
 
@@ -195,7 +195,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val request = message.decodeAs<VoteRequest>()
         val block = request.block
         val vote = Vote(block.hash, VoteType.FOR)
-        send(Endpoint.Vote, TransmissionType.Unicast, vote, request.publicKey)
+        send(Endpoint.Vote, vote, request.publicKey)
     }
 
 

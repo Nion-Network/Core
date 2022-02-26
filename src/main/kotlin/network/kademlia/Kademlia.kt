@@ -12,6 +12,7 @@ import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.DatagramPacket
+import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -25,6 +26,8 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
+
+    private val kademliaSocket: DatagramSocket = if (configuration.passedPort != -1) DatagramSocket(configuration.passedPort) else DatagramSocket()
 
     val crypto = Crypto(".")
     val localAddress = getLocalAddress()
@@ -53,6 +56,10 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         lookForInactiveQueries()
         if (isTrustedNode) add(localNode)
         printTree()
+    }
+
+    fun removeArtificialQuery(){
+        queryStorage.remove("BOOTSTRAP")
     }
 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */

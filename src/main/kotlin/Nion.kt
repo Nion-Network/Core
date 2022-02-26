@@ -1,6 +1,4 @@
 import chain.ChainBuilder
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
@@ -24,6 +22,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
     private val processingQueue = LinkedBlockingQueue<() -> Unit>()
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
+        Endpoint.Ping to { Logger.info("We were pinged! ${String(it.body)}") },
         Endpoint.NodeStatistics to ::dockerStatisticsReceived,
         Endpoint.NewBlock to ::blockReceived,
         Endpoint.InclusionRequest to ::inclusionRequested,
@@ -43,8 +42,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         while (true) tryAndReport { processingQueue.take().invoke() }
     }
 
-    override fun launch() {
-        super.launch()
+    fun launch() {
         if (localAddress.isLoopbackAddress) {
             Dashboard.reportException(Exception("Local address: $localAddress!"))
             return
@@ -54,22 +52,25 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
     }
 
     private fun attemptBootstrap() {
-        if (isTrustedNode || isBootstrapped) return
+        if (isTrustedNode || isBootstrapped) {
+            removeArtificialQuery()
+            return
+        }
         Logger.info("Attempting bootstrapping.")
         bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
         runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)
     }
 
-
-    override fun onMessageReceived(endpoint: Endpoint, data: ByteArray) {
-        val message = ProtoBuf.decodeFromByteArray<Message>(data)
+    override fun processMessage(message: Message) {
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
         Logger.debug("We received a message on ${message.endpoint} [$verified]")
         if (verified) {
+            val endpoint = message.endpoint
             val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
             if (endpoint.processing == MessageProcessing.Queued) processingQueue.put { execution(message) }
             else launchCoroutine { execution(message) }
         }
+
     }
 }
 
