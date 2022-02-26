@@ -14,10 +14,7 @@ import network.data.communication.Message
 import network.data.communication.TransmissionLayer
 import network.data.communication.TransmissionType
 import network.kademlia.Kademlia
-import utils.TreeUtils
-import utils.asHex
-import utils.sha256
-import utils.tryAndReport
+import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.math.BigInteger
@@ -114,17 +111,22 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
                     outgoing.data.forEach { write(it) }
                     flush()
                 }
+                socket.close()
             }
         }
     }
 
     private fun listenTCP() {
         while (true) tryAndReport {
-            tcpSocket.accept().use { socket ->
-                val data = socket.getInputStream().readAllBytes()
-                val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                processingQueue.add(message)
-                if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
+            val socket = tcpSocket.accept()
+            launchCoroutine {
+                socket.use { socket ->
+                    Logger.info("Working on a socket!")
+                    val data = socket.getInputStream().readAllBytes()
+                    val message = ProtoBuf.decodeFromByteArray<Message>(data)
+                    processingQueue.add(message)
+                    if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
+                }
             }
         }
     }
