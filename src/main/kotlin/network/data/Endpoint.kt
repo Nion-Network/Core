@@ -15,7 +15,7 @@ import network.data.communication.TransmissionType.Unicast
 enum class Endpoint(val processing: MessageProcessing, val transmissionLayer: TransmissionLayer, val transmissionType: TransmissionType) {
     Ping(MessageProcessing.Queued, UDP, Broadcast),
     JoinRequest(MessageProcessing.Queued, UDP, Unicast),
-    InclusionRequest(MessageProcessing.Immediate, UDP, Broadcast),
+    InclusionRequest(MessageProcessing.Immediate, UDP, Unicast),
     Welcome(MessageProcessing.Queued, UDP, Unicast),
     Vote(MessageProcessing.Immediate, TCP, Unicast),
     NewBlock(MessageProcessing.Queued, TCP, Broadcast),

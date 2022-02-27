@@ -9,7 +9,6 @@ import network.data.Endpoint
 import network.data.communication.InclusionRequest
 import network.data.communication.Message
 import network.data.communication.SyncRequest
-import network.data.communication.TransmissionType
 import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
@@ -136,7 +135,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
     fun attemptInclusion() {
         if (validatorSet.isInValidatorSet) return
-        runAfter(configuration.slotDuration, this::requestInclusion)
+        requestInclusion()
+        runAfter(configuration.slotDuration, ::attemptInclusion)
     }
 
     /** Respond with blocks between the slot and the end of the chain. */
@@ -171,7 +171,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val syncRequest = SyncRequest(localNode, ourSlot)
         val randomValidator = validatorSet.activeValidators.randomOrNull()
-        if (randomValidator != null) send(Endpoint.SyncRequest,syncRequest, randomValidator)
+        if (randomValidator != null) send(Endpoint.SyncRequest, syncRequest, randomValidator)
         else send(Endpoint.SyncRequest, syncRequest, 1)
         Logger.chain("Requesting synchronization from $ourSlot.")
         // TODO add to Dashboard.
