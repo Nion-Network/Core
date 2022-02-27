@@ -5,6 +5,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
+import logging.Dashboard
 import logging.Logger
 import network.MessageBuilder
 import network.ValidatorSet
@@ -71,6 +72,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
     }
 
     fun send(message: Message, vararg recipients: String) {
+        Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
         val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
         when (message.endpoint.transmissionLayer) {
             TransmissionLayer.UDP -> {
@@ -121,8 +123,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
 
     private fun listenTCP() {
         while (true) tryAndReport {
-            val socket = tcpSocket.accept()
-            socket.use { socket ->
+            tcpSocket.accept().use { socket ->
                 Logger.info("Working on a socket!")
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
