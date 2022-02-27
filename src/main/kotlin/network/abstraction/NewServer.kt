@@ -14,7 +14,10 @@ import network.data.communication.Message
 import network.data.communication.TransmissionLayer
 import network.data.communication.TransmissionType
 import network.kademlia.Kademlia
-import utils.*
+import utils.TreeUtils
+import utils.asHex
+import utils.sha256
+import utils.tryAndReport
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.math.BigInteger
@@ -119,14 +122,14 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
     private fun listenTCP() {
         while (true) tryAndReport {
             val socket = tcpSocket.accept()
-            launchCoroutine {
-                socket.use { socket ->
-                    Logger.info("Working on a socket!")
-                    val data = socket.getInputStream().readAllBytes()
-                    val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                    processingQueue.add(message)
-                    if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
-                }
+            socket.use { socket ->
+                Logger.info("Working on a socket!")
+                val data = socket.getInputStream().readAllBytes()
+                val message = ProtoBuf.decodeFromByteArray<Message>(data)
+                val currentMilliseconds = System.currentTimeMillis()
+                if (messageHistory.computeIfAbsent(message.uid.asHex) { currentMilliseconds } < currentMilliseconds) return@tryAndReport
+                processingQueue.add(message)
+                if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
             }
         }
     }
