@@ -71,7 +71,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
     }
 
     fun send(message: Message, vararg recipients: String) {
-        val recipientNodes = recipients.takeIf { it.isNotEmpty() }?.toList() ?: pickRandomNodes().map { it.publicKey }
+        val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
         when (message.endpoint.transmissionLayer) {
             TransmissionLayer.UDP -> {
                 val encodedPackets = encodeToPackets(message)
@@ -108,6 +108,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
         while (true) tryAndReport {
             val outgoing = tcpOutgoingQueue.take()
             val recipient = outgoing.recipient
+            Logger.debug("Trying to connect to ${recipient.ip}:${recipient.kademliaPort}")
             Socket(recipient.ip, recipient.tcpPort).use { socket ->
                 socket.getOutputStream().apply {
                     outgoing.data.forEach { write(it) }
@@ -222,6 +223,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
             val recipientAddress = InetSocketAddress(recipient.ip, recipient.udpPort)
             outgoing.data.forEach {
                 udpSocket.send(DatagramPacket(it, 0, it.size, recipientAddress))
+                Thread.sleep(Random.nextLong(5))
             }
         }
     }
