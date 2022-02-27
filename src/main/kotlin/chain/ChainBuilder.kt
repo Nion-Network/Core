@@ -63,7 +63,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     Logger.chain("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     val delayThird = configuration.slotDuration * 1 / 3
                     val startDelay = delayThird - computationDuration
-
+                    val committeeMembers = nextTask.committee
+                    committeeMembers.forEach { query(it) }
                     runAfter(max(0, startDelay)) {
                         Logger.chain("Running producing of the block after time...")
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
@@ -87,7 +88,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             migrations = migrations
                         )
                         val voteRequest = VoteRequest(newBlock, localNode.publicKey)
-                        val committeeMembers = nextTask.committee
                         send(Endpoint.VoteRequest, voteRequest, *committeeMembers.toTypedArray())
                         runAfter(delayThird * 2) {
                             val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1

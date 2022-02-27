@@ -19,6 +19,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.random.Random
 
 /**
  * Created by mihael
@@ -200,6 +201,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 packet.socketAddress = InetSocketAddress(outgoing.ip, outgoing.port)
                 packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
+                Thread.sleep(Random.nextLong(5))
                 // Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
             }
         }

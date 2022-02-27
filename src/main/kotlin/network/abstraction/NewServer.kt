@@ -77,7 +77,6 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
                 val encodedPackets = encodeToPackets(message)
                 recipientNodes.forEach { publicKey ->
                     query(publicKey) {
-                        Logger.info(sha256(publicKey).asHex)
                         udpOutgoingQueue.add(OutgoingData(it, *encodedPackets))
                     }
                 }
