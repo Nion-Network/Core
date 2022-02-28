@@ -29,6 +29,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
+import kotlin.concurrent.scheduleAtFixedRate
 import kotlin.random.Random
 
 /**
@@ -57,6 +58,13 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
         Thread(::listenTCP).start()
 
         Thread(::clearProcessingQueue).start()
+        Timer().scheduleAtFixedRate(0, 60_000) {
+            val currentTime = System.currentTimeMillis()
+            Logger.trace("Clearing message history...")
+            messageHistory.entries.stream().forEach { (key, value) ->
+                if (currentTime - value > 60_000) messageHistory.remove(key)
+            }
+        }
     }
 
     abstract fun processMessage(message: Message)
