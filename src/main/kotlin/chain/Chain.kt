@@ -44,7 +44,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             }
             lock.tryWithLock {
                 blocks.add(nextBlock)
-                val lastBlocks = blocks.takeLast(100)
+                val lastBlocks = blocks.takeLast(50)
                 blocks.removeAll { !lastBlocks.contains(it) }
             }
             Logger.chain("Block[${nextBlock.votes}/$committeeSize] added [${nextBlock.slot}].")
