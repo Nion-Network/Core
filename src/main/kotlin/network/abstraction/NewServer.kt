@@ -61,9 +61,7 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
         Timer().scheduleAtFixedRate(0, 60_000) {
             val currentTime = System.currentTimeMillis()
             Logger.trace("Clearing message history...")
-            messageHistory.entries.stream().forEach { (key, value) ->
-                if (currentTime - value > 60_000) messageHistory.remove(key)
-            }
+            messageHistory.entries.removeIf { (_, value) -> currentTime - value > 10_000 }
         }
     }
 
