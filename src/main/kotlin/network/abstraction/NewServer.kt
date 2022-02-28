@@ -58,10 +58,12 @@ abstract class NewServer(val configuration: Configuration) : Kademlia(configurat
         Thread(::listenTCP).start()
 
         Thread(::clearProcessingQueue).start()
-        Timer().scheduleAtFixedRate(0, 60_000) {
+        val period = configuration.historyCleaningFrequency * 60_000
+        val maximumAge = configuration.historyMinuteClearance * 60_000
+        Timer().scheduleAtFixedRate(configuration.slotDuration, period) {
             val currentTime = System.currentTimeMillis()
             Logger.trace("Clearing message history...")
-            messageHistory.entries.removeIf { (_, value) -> currentTime - value > 10_000 }
+            messageHistory.entries.removeIf { (_, value) -> currentTime - value > maximumAge }
         }
     }
 
