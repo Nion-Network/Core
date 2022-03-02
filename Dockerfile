@@ -22,7 +22,7 @@ ADD Start.sh Start.sh
 ADD SaveContainer.sh SaveContainer.sh
 ADD RunContainer.sh RunContainer.sh
 
-COPY stress.tar stress.tar
+# COPY stress.tar stress.tar
 
 RUN chmod 777 Start.sh
 RUN chmod 777 vdf-cli
