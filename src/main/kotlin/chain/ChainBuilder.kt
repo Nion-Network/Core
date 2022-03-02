@@ -120,30 +120,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
     }
 
-    /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
-    fun inclusionRequested(message: Message) {
-        if (!validatorSet.isInValidatorSet) return
-        val inclusionRequest = message.decodeAs<InclusionRequest>()
-        val lastBlock = chain.getLastBlock()
-        val ourSlot = lastBlock?.slot ?: 0
-        if (ourSlot == inclusionRequest.currentSlot) {
-            validatorSet.scheduleChange(inclusionRequest.publicKey, true)
-            send(message)
-        }
-        Logger.debug("Received inclusion request! ")
-
-        if (isTrustedNode && lastBlock == null) {
-            val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
-            val isEnoughToStart = scheduledChanges > configuration.committeeSize
-            if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
-                val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
-                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
-                send(Endpoint.NewBlock, genesisBlock)
-                Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
-            }
-        }
-    }
-
     /** Respond with blocks between the slot and the end of the chain. */
     fun synchronizationRequested(message: Message) {
         val syncRequest = message.decodeAs<SyncRequest>()
@@ -205,6 +181,30 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             else -> send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
         }
         Logger.chain("Requesting inclusion with $ourSlot.")
+    }
+
+    /** If the node can be included in the validator set (synchronization status check) add it to future inclusion changes.*/
+    fun inclusionRequested(message: Message) {
+        if (!validatorSet.isInValidatorSet) return
+        val inclusionRequest = message.decodeAs<InclusionRequest>()
+        val lastBlock = chain.getLastBlock()
+        val ourSlot = lastBlock?.slot ?: 0
+        if (ourSlot == inclusionRequest.currentSlot) {
+            validatorSet.scheduleChange(inclusionRequest.publicKey, true)
+            // send(message)
+        }
+        Logger.debug("Received inclusion request! ")
+
+        if (isTrustedNode && lastBlock == null) {
+            val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
+            val isEnoughToStart = scheduledChanges > configuration.committeeSize
+            if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
+                val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
+                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
+                send(Endpoint.NewBlock, genesisBlock)
+                Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
+            }
+        }
     }
 
     /** Verify the block produced and send back your verdict. */
