@@ -5,9 +5,9 @@ import chain.data.Block
 import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
-import network.Cluster
+import chain.data.Cluster
 import network.data.Endpoint
-import network.data.communication.Message
+import network.data.messages.Message
 import utils.CircularList
 import utils.runAfter
 import java.nio.ByteBuffer

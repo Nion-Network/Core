@@ -12,7 +12,7 @@ import java.util.*
 
 class Crypto(private val keystorePath: String) {
 
-    // TODO make immutable, fix public key property.
+    // TODO make immutable, fix public key property, rework.
 
     private var keyPair: KeyPair
     var encodedPublicKey: ByteArray

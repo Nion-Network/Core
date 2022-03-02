@@ -4,7 +4,7 @@ import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
 import network.data.MessageProcessing
-import network.data.communication.Message
+import network.data.messages.Message
 import utils.launchCoroutine
 import utils.runAfter
 import utils.tryAndReport

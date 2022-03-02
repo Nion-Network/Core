@@ -1,11 +1,9 @@
 package network.data
 
-import network.data.communication.TransmissionLayer
-import network.data.communication.TransmissionLayer.TCP
-import network.data.communication.TransmissionLayer.UDP
-import network.data.communication.TransmissionType
-import network.data.communication.TransmissionType.Broadcast
-import network.data.communication.TransmissionType.Unicast
+import network.data.TransmissionLayer.TCP
+import network.data.TransmissionLayer.UDP
+import network.data.TransmissionType.Broadcast
+import network.data.TransmissionType.Unicast
 
 /**
  * Created by Mihael Valentin Berčič

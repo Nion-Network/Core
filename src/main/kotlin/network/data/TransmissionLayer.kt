@@ -1,4 +1,4 @@
-package network.data.communication
+package network.data
 
 /**
  * Created by mihael

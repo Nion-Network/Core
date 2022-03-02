@@ -1,4 +1,4 @@
-package network.abstraction
+package network.messaging
 
 import network.data.Node
 

@@ -1,4 +1,4 @@
-package network
+package network.messaging
 
 /**
  * Created by Mihael Valentin Berčič

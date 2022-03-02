@@ -7,9 +7,9 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
-import network.data.communication.InclusionRequest
-import network.data.communication.Message
-import network.data.communication.SyncRequest
+import network.data.messages.InclusionRequest
+import network.data.messages.Message
+import network.data.messages.SyncRequest
 import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter

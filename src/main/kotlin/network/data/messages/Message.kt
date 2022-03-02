@@ -1,4 +1,4 @@
-package network.data.communication
+package network.data.messages
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray

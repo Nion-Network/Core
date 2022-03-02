@@ -8,7 +8,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import network.abstraction.NewServer
+import network.messaging.Server
 import utils.tryAndReport
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -23,7 +23,7 @@ import kotlin.math.abs
  * using IntelliJ IDEA
  */
 @ExperimentalSerializationApi
-abstract class MigrationStrategy(configuration: Configuration) : NewServer(configuration) {
+abstract class MigrationStrategy(configuration: Configuration) : Server(configuration) {
 
     protected val networkMappings = ConcurrentHashMap<String, String>()
     protected val localContainers = ConcurrentHashMap<String, DockerContainer>()

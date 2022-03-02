@@ -1,4 +1,4 @@
-package network.abstraction
+package network.messaging
 
 import Configuration
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -7,13 +7,12 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import network.MessageBuilder
-import network.ValidatorSet
+import chain.ValidatorSet
 import network.data.Endpoint
 import network.data.Node
-import network.data.communication.Message
-import network.data.communication.TransmissionLayer
-import network.data.communication.TransmissionType
+import network.data.messages.Message
+import network.data.TransmissionLayer
+import network.data.TransmissionType
 import network.kademlia.Kademlia
 import utils.TreeUtils
 import utils.asHex
@@ -38,7 +37,7 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 @ExperimentalSerializationApi
-abstract class NewServer(val configuration: Configuration) : Kademlia(configuration) {
+abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val messageHistory = ConcurrentHashMap<String, Long>()
