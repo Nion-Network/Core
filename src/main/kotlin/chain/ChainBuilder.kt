@@ -191,7 +191,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) {
             validatorSet.scheduleChange(inclusionRequest.publicKey, true)
-            // send(message)
+            send(message)
         }
         Logger.debug("Received inclusion request! ")
 

@@ -86,19 +86,25 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val data: Array<ByteArray>
         val outgoingQueue: LinkedBlockingQueue<OutgoingData>
 
-        when (transmissionLayer) {
-            TransmissionLayer.UDP -> {
-                data = encodeToPackets(message)
-                outgoingQueue = udpOutgoingQueue
-            }
-            else -> {
-                data = arrayOf(ProtoBuf.encodeToByteArray(message))
-                outgoingQueue = tcpOutgoingQueue
-            }
-        }
+        try {
 
-        recipientNodes.forEach { publicKey ->
-            query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
+            when (transmissionLayer) {
+                TransmissionLayer.UDP -> {
+                    data = encodeToPackets(message)
+                    outgoingQueue = udpOutgoingQueue
+                }
+                else -> {
+                    data = arrayOf(ProtoBuf.encodeToByteArray(message))
+                    outgoingQueue = tcpOutgoingQueue
+                }
+            }
+
+            recipientNodes.forEach { publicKey ->
+                query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
+            }
+        } catch (e: Exception) {
+            Dashboard.reportException(e)
+            Logger.info("Exception caught on ${message.endpoint}.")
         }
     }
 
