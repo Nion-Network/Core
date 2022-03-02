@@ -192,8 +192,20 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
         val isValidatorSetEmpty = validatorSet.activeValidators.isEmpty()
-        if (nextProducer == null) send(Endpoint.InclusionRequest, inclusionRequest)
-        else send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
+        when {
+            isValidatorSetEmpty -> {
+                // ToDo: Testing only for faster cold start.
+                getRandomNodes(totalKnownNodes)
+                    .firstOrNull {
+                        it.ip == configuration.trustedNodeIP
+                                && it.kademliaPort == configuration.trustedNodePort
+                    }?.apply {
+                        send(Endpoint.InclusionRequest, inclusionRequest, publicKey)
+                    }
+            }
+            nextProducer == null -> send(Endpoint.InclusionRequest, inclusionRequest)
+            else -> send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
+        }
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
 
