@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.math.max
+import kotlin.random.Random
 
 /**
  * Created by Mihael Valentin Berčič
@@ -144,7 +145,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     fun attemptInclusion() {
         if (validatorSet.isInValidatorSet) return
         requestInclusion()
-        runAfter(configuration.slotDuration, ::attemptInclusion)
+        runAfter(Random.nextLong(configuration.slotDuration, 3 * configuration.slotDuration), ::attemptInclusion)
     }
 
     /** Respond with blocks between the slot and the end of the chain. */
