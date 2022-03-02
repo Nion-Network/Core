@@ -141,7 +141,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 KademliaEndpoint.FIND_NODE -> {
                     val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
                     val distance = getDistance(lookingFor)
-                    val closestNodes = lookup(distance)
+                    val closestNodes = lookup(distance).toMutableSet()
+                    if (isTrustedNode) closestNodes.add(localNode)
                     val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
                     val encodedReply = ProtoBuf.encodeToByteArray(reply)
                     val sender = kademliaMessage.sender

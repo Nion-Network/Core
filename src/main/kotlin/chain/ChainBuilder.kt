@@ -144,13 +144,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
     }
 
-    /** Attempts inclusion every [Configuration.slotDuration] milliseconds. */
-    fun attemptInclusion() {
-        if (validatorSet.isInValidatorSet) return
-        requestInclusion()
-        runAfter(Random.nextLong(configuration.slotDuration, 3 * configuration.slotDuration), ::attemptInclusion)
-    }
-
     /** Respond with blocks between the slot and the end of the chain. */
     fun synchronizationRequested(message: Message) {
         val syncRequest = message.decodeAs<SyncRequest>()
@@ -189,14 +182,26 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         // TODO add to Dashboard.
     }
 
+    /** Attempts inclusion every [Configuration.slotDuration] milliseconds. */
+    fun attemptInclusion() {
+        if (validatorSet.isInValidatorSet) return
+        requestInclusion()
+        runAfter(Random.nextLong(configuration.slotDuration, 3 * configuration.slotDuration), ::attemptInclusion)
+    }
+
     /** Requests inclusion into the validator set. */
     private fun requestInclusion(nextProducer: String? = null) {
         val lastBlock = chain.getLastBlock()
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
         val isValidatorSetEmpty = validatorSet.activeValidators.isEmpty()
-        when (nextProducer) {
-            null -> send(Endpoint.InclusionRequest, inclusionRequest)
+        when {
+            isValidatorSetEmpty -> {
+                val trusted = pickRandomNodes(totalKnownNodes).firstOrNull { it.ip == configuration.trustedNodeIP && it.kademliaPort == configuration.trustedNodePort }
+                if (trusted != null) send(Endpoint.InclusionRequest, inclusionRequest, trusted.publicKey)
+                else Dashboard.reportException(Exception("No trusted node found to join validator set."))
+            }
+            nextProducer == null -> send(Endpoint.InclusionRequest, inclusionRequest)
             else -> send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
         }
         Logger.chain("Requesting inclusion with $ourSlot.")
