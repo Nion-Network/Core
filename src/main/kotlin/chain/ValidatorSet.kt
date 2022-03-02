@@ -3,9 +3,9 @@ package chain
 import Configuration
 import chain.data.Block
 import chain.data.ChainTask
+import chain.data.Cluster
 import chain.data.SlotDuty
 import logging.Logger
-import chain.data.Cluster
 import network.data.Node
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -62,7 +62,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
     /** Schedules a change of validator set to be used in the next block. */
     fun scheduleChange(publicKey: String, add: Boolean) {
         scheduledChanges[publicKey] = add
-        Logger.info("Scheduled inclusion change of ${publicKey.take(5)} to $add.")
+        Logger.info("[Waiting: ${scheduledChanges.size}] Scheduled inclusion change of ${publicKey.take(5)} to $add.")
     }
 
     /** Returns all scheduled changes. */

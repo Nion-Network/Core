@@ -25,7 +25,7 @@ data class Configuration(
     val historyCleaningFrequency: Long,
     val nodesPerCluster: Int,
     val maxIterations: Int,
-    var packetSplitSize: Int,
+    val packetSplitSize: Int,
     val useCriu: Boolean
 ) {
     var passedPort: Int = -1
