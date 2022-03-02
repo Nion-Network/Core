@@ -44,6 +44,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             }
             lock.tryWithLock {
                 blocks.add(nextBlock)
+                // ToDo: Put chain history in some sort of storage instead of keeping in memory.
                 val lastBlocks = blocks.takeLast(50)
                 blocks.removeAll { !lastBlocks.contains(it) }
             }

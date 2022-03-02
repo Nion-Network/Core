@@ -29,7 +29,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
     private var sentGenesis = AtomicBoolean(false)
     private val isSyncing = AtomicBoolean(false)
+    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
+    private val voteLock = ReentrantLock(true)
 
+    /** Compute next task, report statistics and execute your role on arrival of the new block. */
     fun blockReceived(message: Message) {
         if (isSyncing.get()) {
             Logger.debug("Ignoring new block because we're in the process of syncing.")
@@ -37,6 +40,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
         val block = message.decodeAs<Block>()
         val blockAdded = chain.addBlocks(block)
+
+        votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
@@ -133,6 +138,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
     }
 
+    /** Attempts inclusion every [Configuration.slotDuration] milliseconds. */
     fun attemptInclusion() {
         if (validatorSet.isInValidatorSet) return
         requestInclusion()
@@ -188,9 +194,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
 
-    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
-    private val voteLock = ReentrantLock(true)
-
+    /** Verify the block produced and send back your verdict. */
     fun voteRequested(message: Message) {
         val request = message.decodeAs<VoteRequest>()
         val block = request.block
@@ -198,7 +202,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         send(Endpoint.Vote, vote, request.publicKey)
     }
 
-
+    /** Stores received vote in [votes]. */
     fun voteReceived(message: Message) {
         val vote = message.decodeAs<Vote>()
         voteLock.tryWithLock {
