@@ -1,12 +1,12 @@
-package network.data.communication
+package network.data.messages
 
 import kotlinx.serialization.Serializable
 import network.data.Node
 
 /**
  * Created by Mihael Valentin Berčič
- * on 18/04/2020 at 16:33
+ * on 24/10/2021 at 00:45
  * using IntelliJ IDEA
  */
 @Serializable
-data class QueryMessage(val seeker: Node, val publicKeys: Collection<String>)
+data class SyncRequest(val node: Node, val fromSlot: Long)

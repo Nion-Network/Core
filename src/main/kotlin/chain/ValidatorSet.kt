@@ -1,12 +1,12 @@
-package network
+package chain
 
 import Configuration
 import chain.data.Block
 import chain.data.ChainTask
 import chain.data.SlotDuty
 import logging.Logger
+import chain.data.Cluster
 import network.data.Node
-import utils.sha256
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock

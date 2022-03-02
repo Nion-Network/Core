@@ -1,7 +1,6 @@
 package chain.data
 
 import kotlinx.serialization.Serializable
-import network.data.Node
 
 /**
  * Created by Mihael Valentin Berčič
@@ -9,4 +8,4 @@ import network.data.Node
  * using IntelliJ IDEA
  */
 @Serializable
-data class VoteRequest(val block: Block, val producer: Node)
+data class VoteRequest(val block: Block, val publicKey: String)

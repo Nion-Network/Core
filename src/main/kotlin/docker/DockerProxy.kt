@@ -2,17 +2,19 @@ package docker
 
 import Configuration
 import chain.data.Block
+import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
-import network.Cluster
+import chain.data.Cluster
 import network.data.Endpoint
-import network.data.communication.Message
-import network.data.communication.TransmissionType
+import network.data.messages.Message
 import utils.CircularList
 import utils.runAfter
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.scheduleAtFixedRate
 import kotlin.concurrent.withLock
 
 /**
@@ -20,6 +22,7 @@ import kotlin.concurrent.withLock
  * on 18/11/2021 at 12:32
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
 
     private val networkLock = ReentrantLock(true)
@@ -27,6 +30,14 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     init {
         Thread(::listenForDockerStatistics).start()
+
+        val period = configuration.historyCleaningFrequency * 60_000
+        val maximumAge = configuration.historyMinuteClearance * 60_000
+        Timer().scheduleAtFixedRate(configuration.slotDuration, period) {
+            val currentTime = System.currentTimeMillis()
+            Logger.trace("Clearing network history statistics...")
+            networkStatistics.entries.removeIf { (time, _) -> currentTime - time > maximumAge }
+        }
     }
 
     /** Stores all [statistics] into latest [networkStatistics] using [networkLock]. */
@@ -59,11 +70,16 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         val ourCluster = clusters.firstOrNull { it.representative == ourPublicKey || it.nodes.contains(ourPublicKey) }
         Logger.info("Sending docker statistics[$isRepresentative]: ${ourCluster?.nodes?.size ?: 0}")
         if (!isRepresentative) {
-            if (ourCluster != null) send(Endpoint.NodeStatistics, TransmissionType.Unicast, arrayOf(localStatistics), ourCluster.representative)
-            else addNetworkStatistics(localStatistics)
-        } else runAfter(configuration.slotDuration / 2) {
+            if (ourCluster != null) {
+                send(Endpoint.NodeStatistics, arrayOf(localStatistics), ourCluster.representative)
+                Dashboard.statisticSent(localNode.publicKey, localStatistics, ourCluster.representative, block.slot)
+            } else addNetworkStatistics(localStatistics)
+        } else runAfter(configuration.slotDuration / 4) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
-            send(Endpoint.NodeStatistics, TransmissionType.Unicast, statistics, blockProducer)
+            send(Endpoint.NodeStatistics, statistics, blockProducer)
+            statistics.forEach {
+                Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot)
+            }
         }
     }
 

@@ -55,12 +55,12 @@ class MarryTreeTest {
     @Test
     fun outputTreeConnections() {
         val k = 2
-        val depth = 5
+        val depth = 2
         val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
-        val tree = (0 until maximumNodes)
+        val tree = (0 until maximumNodes).toList()
         val stringBuilder = StringBuilder()
         val distances = mutableMapOf<Int, Double>()
-        tree.reversed().forEach { index ->
+        /*̣̣tree.reversed().forEach { index ->
             val currentDepth = TreeUtils.computeDepth(k, index)
             val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
             val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
@@ -87,6 +87,10 @@ class MarryTreeTest {
                 append("$index [pos=\"$ourDistance,-$currentDepth!\"]\n")
             }
         }
-        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
+         */
+        // print(stringBuilder)
+
+        print(TreeUtils.outputTree(k, tree))
+        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(TreeUtils.outputTree(k, tree)), null)
     }
 }

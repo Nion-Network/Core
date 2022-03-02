@@ -2,12 +2,13 @@ package docker
 
 import Configuration
 import chain.data.Block
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import network.Server
+import network.messaging.Server
 import utils.tryAndReport
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -21,6 +22,7 @@ import kotlin.math.abs
  * on 18/11/2021 at 12:31
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 abstract class MigrationStrategy(configuration: Configuration) : Server(configuration) {
 
     protected val networkMappings = ConcurrentHashMap<String, String>()

@@ -13,7 +13,7 @@ import com.influxdb.client.write.Point
 import docker.DockerStatistics
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import network.Cluster
+import chain.data.Cluster
 import network.data.Endpoint
 import utils.asHex
 import utils.sha256
@@ -128,7 +128,7 @@ object Dashboard {
     fun newVote(vote: Vote, publicKey: String) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("attestations").apply {
-            addField("blockHash", vote.blockHash)
+            // addField("blockHash", vote.blockHash)
             addField("committeeMember", publicKey)
         }
 
@@ -174,11 +174,11 @@ object Dashboard {
     }
 
     /** Reports that an exception was caught */
-    fun reportException(e: Throwable) {
+    fun reportException(e: Throwable, additionalInfo: String = "") {
         Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
-            .addField("cause", "$myInfo ... $e ... ${e.cause}")
+            .addField("cause", "$myInfo | $additionalInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
 
@@ -254,6 +254,17 @@ object Dashboard {
             .addField("slot", block.slot)
             .addField("representative", sha256(representative).asHex)
             .addField("node", sha256(node).asHex)
+    }
+
+    fun statisticSent(senderPublicKey: String, dockerStatistics: DockerStatistics, receiverPublicKey: String, slot: Long) {
+        val point = Point.measurement("statistics-data")
+            .time(Instant.now(), WritePrecision.NS)
+            .addField("sender", sha256(senderPublicKey).asHex)
+            .addField("statistics", sha256(dockerStatistics.toString()).asHex)
+            .addField("sentTo", sha256(receiverPublicKey).asHex)
+            .addField("slot", slot)
+
+        queue.put(point)
     }
 
     fun log(type: DebugType, message: Any) {

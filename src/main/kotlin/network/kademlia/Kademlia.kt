@@ -1,6 +1,7 @@
 package network.kademlia
 
 import Configuration
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
@@ -12,7 +13,7 @@ import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.net.DatagramPacket
-import java.net.InetAddress
+import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
@@ -25,10 +26,14 @@ import kotlin.random.Random
  * on 01/12/2021 at 13:10
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
 
     val crypto = Crypto(".")
-    val localAddress = InetAddress.getLocalHost()
+
+    private val kademliaSocket: DatagramSocket = if (configuration.passedPort != -1) DatagramSocket(configuration.passedPort) else DatagramSocket()
+
+    val localAddress = getLocalAddress()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
         println(Dashboard.myInfo)
@@ -39,6 +44,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
+
     private val tree = ConcurrentHashMap<Int, Bucket>()
     private val outgoingQueue = LinkedBlockingQueue<KademliaQueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
@@ -52,6 +58,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
         lookForInactiveQueries()
+
         if (isTrustedNode) add(localNode)
         printTree()
     }
@@ -63,13 +70,14 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
-    fun query(publicKey: String, action: ((Node) -> Unit)? = null) {
+    fun query(publicKey: String, action: ((Node) -> Unit)? = null): Node? {
         val identifier = sha256(publicKey).asHex
         val knownNode = knownNodes[identifier]
         if (knownNode == null) {
             Logger.info("Querying for ${identifier.take(5)}!")
             sendFindRequest(identifier, block = action)
         } else if (action != null) launchCoroutine { action(knownNode) }
+        return knownNode
     }
 
     /** Retrieves [amount] of the closest nodes. */
@@ -126,56 +134,57 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private fun processIncoming() {
         while (true) tryAndReport {
             val kademliaMessage = incomingQueue.take()
-            launchCoroutine {
-                when (kademliaMessage.endpoint) {
-                    KademliaEndpoint.PING -> TODO()
-                    KademliaEndpoint.FIND_NODE -> {
-                        val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
-                        val distance = getDistance(lookingFor)
-                        val closestNodes = lookup(distance)
-                        val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
-                        val encodedReply = ProtoBuf.encodeToByteArray(reply)
-                        val sender = kademliaMessage.sender
-                        // Logger.info("Closest I could find [${sender.ip}:${sender.kademliaPort}] for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
-                        addToQueue(sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
-                        add(sender)
+            // launchCoroutine {
+            when (kademliaMessage.endpoint) {
+                KademliaEndpoint.PING -> TODO()
+                KademliaEndpoint.FIND_NODE -> {
+                    val lookingFor = ProtoBuf.decodeFromByteArray<String>(kademliaMessage.data)
+                    val distance = getDistance(lookingFor)
+                    val closestNodes = lookup(distance)
+                    val reply = ClosestNodes(lookingFor, closestNodes.toTypedArray())
+                    val encodedReply = ProtoBuf.encodeToByteArray(reply)
+                    val sender = kademliaMessage.sender
+                    // Logger.info("Closest I could find [${sender.ip}:${sender.kademliaPort}] for ${lookingFor.take(5)} was ${closestNodes.joinToString(",") { it.identifier.take(5) }}")
+                    addToQueue(sender, KademliaEndpoint.CLOSEST_NODES, encodedReply)
+                    add(sender)
+                }
+                KademliaEndpoint.CLOSEST_NODES -> {
+                    val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
+                    val receivedNodes = closestNodes.nodes
+                    val queryHolders = receivedNodes.mapNotNull { queryStorage[it.identifier] }
+                    val identifier = closestNodes.identifier
+                    val identifierQueryHolder = queryStorage[identifier]
+                    val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
+                    receivedNodes.forEach { add(it) }
+                    Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
+                    if (searchedNode == null && identifierQueryHolder != null) {
+                        identifierQueryHolder.hops++
+                        receivedNodes.shuffle()
+                        Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
+                        sendFindRequest(identifier, receivedNodes.take(3))
                     }
-                    KademliaEndpoint.CLOSEST_NODES -> {
-                        val closestNodes = ProtoBuf.decodeFromByteArray<ClosestNodes>(kademliaMessage.data)
-                        val receivedNodes = closestNodes.nodes
-                        val queryHolders = receivedNodes.mapNotNull { queryStorage[it.identifier] }
-                        val identifier = closestNodes.identifier
-                        val identifierQueryHolder = queryStorage[identifier]
-                        val searchedNode = receivedNodes.firstOrNull { it.identifier == identifier } ?: knownNodes[identifier]
-                        receivedNodes.forEach { add(it) }
-                        Logger.trace("Received back ${closestNodes.nodes.size} nodes. Covers ${queryHolders.size} queries. Found ${identifier.take(5)}️ ${if (searchedNode == null) "💔" else "💚"}")
-                        if (searchedNode == null && identifierQueryHolder != null) {
-                            identifierQueryHolder.hops++
-                            receivedNodes.shuffle()
-                            Logger.info("Received back: ${receivedNodes.joinToString(", ") { it.identifier.take(5) }}")
-                            sendFindRequest(identifier, receivedNodes.take(3))
+                    queryHolders.forEach { queryHolder ->
+                        queryHolder.hops++
+                        val node = knownNodes[queryHolder.identifier] ?: return@forEach
+                        val actionsToDo = mutableListOf<(Node) -> Unit>()
+
+                        queryHolder.queue.drainTo(actionsToDo)
+                        // Logger.trace("Drained $drained actions.")
+                        launchCoroutine {
+                            actionsToDo.forEach { it.invoke(node) }
                         }
-                        queryHolders.forEach { queryHolder ->
-                            queryHolder.hops++
-                            val node = knownNodes[queryHolder.identifier] ?: return@forEach
-                            val actionsToDo = mutableListOf<(Node) -> Unit>()
-                            val drained = queryHolder.queue.drainTo(actionsToDo)
-                            // Logger.trace("Drained $drained actions.")
-                            launchCoroutine {
-                                actionsToDo.forEach { it.invoke(node) }
-                            }
-                            Dashboard.reportDHTQuery(
-                                identifier,
-                                "${localNode.ip}:${localNode.kademliaPort}",
-                                localNode.identifier,
-                                queryHolder.hops,
-                                queryHolder.revives,
-                                queryHolder.let { System.currentTimeMillis() - it.start })
-                            queryStorage.remove(queryHolder.identifier)
-                        }
+                        Dashboard.reportDHTQuery(
+                            identifier,
+                            "${localNode.ip}:${localNode.kademliaPort}",
+                            localNode.identifier,
+                            queryHolder.hops,
+                            queryHolder.revives,
+                            queryHolder.let { System.currentTimeMillis() - it.start })
+                        queryStorage.remove(queryHolder.identifier)
                     }
                 }
             }
+            // }
         }
     }
 
@@ -192,7 +201,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                 packet.socketAddress = InetSocketAddress(outgoing.ip, outgoing.port)
                 packet.length = dataBuffer.position()
                 kademliaSocket.send(packet)
-                Thread.sleep(Random.nextLong(5, 10))
+                Thread.sleep(Random.nextLong(5))
                 // Logger.trace("Kademlia sent a packet [${outgoing.endpoint}] to ${outgoing.ip}:${outgoing.port}")
             }
         }
@@ -238,4 +247,5 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Logger.info("\n\n$string")
         Logger.info("Total nodes known: ${tree.values.sumOf { it.size }} vs $totalKnownNodes")
     }
+
 }

@@ -42,7 +42,12 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
                 Logger.info("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
                 return false
             }
-            lock.tryWithLock { blocks.add(nextBlock) }
+            lock.tryWithLock {
+                blocks.add(nextBlock)
+                // ToDo: Put chain history in some sort of storage instead of keeping in memory.
+                val lastBlocks = blocks.takeLast(50)
+                blocks.removeAll { !lastBlocks.contains(it) }
+            }
             Logger.chain("Block[${nextBlock.votes}/$committeeSize] added [${nextBlock.slot}].")
         }
         return true
