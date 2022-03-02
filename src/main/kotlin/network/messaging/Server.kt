@@ -1,18 +1,18 @@
 package network.messaging
 
 import Configuration
+import chain.ValidatorSet
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import logging.Dashboard
 import logging.Logger
-import chain.ValidatorSet
 import network.data.Endpoint
 import network.data.Node
-import network.data.messages.Message
 import network.data.TransmissionLayer
 import network.data.TransmissionType
+import network.data.messages.Message
 import network.kademlia.Kademlia
 import utils.TreeUtils
 import utils.asHex
@@ -81,23 +81,24 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     fun send(message: Message, vararg recipients: String) {
         Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
         val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
-        when (message.endpoint.transmissionLayer) {
+        val transmissionLayer = message.endpoint.transmissionLayer
+
+        val data: Array<ByteArray>
+        val outgoingQueue: LinkedBlockingQueue<OutgoingData>
+
+        when (transmissionLayer) {
             TransmissionLayer.UDP -> {
-                val encodedPackets = encodeToPackets(message)
-                recipientNodes.forEach { publicKey ->
-                    query(publicKey) {
-                        udpOutgoingQueue.add(OutgoingData(it, *encodedPackets))
-                    }
-                }
+                data = encodeToPackets(message)
+                outgoingQueue = udpOutgoingQueue
             }
-            TransmissionLayer.TCP -> {
-                val encoded = ProtoBuf.encodeToByteArray(message)
-                recipientNodes.forEach { publicKey ->
-                    query(publicKey) {
-                        tcpOutgoingQueue.add(OutgoingData(it, encoded))
-                    }
-                }
+            else -> {
+                data = arrayOf(ProtoBuf.encodeToByteArray(message))
+                outgoingQueue = tcpOutgoingQueue
             }
+        }
+
+        recipientNodes.forEach { publicKey ->
+            query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
         }
     }
 
