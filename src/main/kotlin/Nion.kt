@@ -1,4 +1,5 @@
 import chain.ChainBuilder
+import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
@@ -16,6 +17,7 @@ import kotlin.random.Random
  * on 26/03/2020 12:35
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
     // Perhaps future change of Nion : ChainBuilder...
@@ -52,10 +54,8 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
     }
 
     private fun attemptBootstrap() {
-        if (isTrustedNode || isBootstrapped) {
-            removeArtificialQuery()
-            return
-        }
+        if (isTrustedNode || isBootstrapped) return
+
         Logger.info("Attempting bootstrapping.")
         bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
         runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)

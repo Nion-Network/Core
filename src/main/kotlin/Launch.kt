@@ -1,3 +1,4 @@
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import logging.Logger
@@ -9,6 +10,7 @@ import java.io.File
  * on 06/11/2021 at 19:43
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 fun main(args: Array<String>) {
     tryAndReport {
         System.setProperty("kotlinx.coroutines.scheduler", "off")

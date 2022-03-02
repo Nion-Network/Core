@@ -2,6 +2,7 @@ package docker
 
 import Configuration
 import chain.data.Block
+import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.Cluster
@@ -21,6 +22,7 @@ import kotlin.concurrent.withLock
  * on 18/11/2021 at 12:32
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
 
     private val networkLock = ReentrantLock(true)

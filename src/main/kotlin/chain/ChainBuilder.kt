@@ -3,6 +3,7 @@ package chain
 import Configuration
 import chain.data.*
 import docker.DockerProxy
+import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
@@ -23,6 +24,7 @@ import kotlin.math.max
  * on 06/11/2021 at 13:50
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configuration) {
 
     private val verifiableDelay = VerifiableDelay()

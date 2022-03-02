@@ -29,9 +29,10 @@ import kotlin.random.Random
 @ExperimentalSerializationApi
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
 
+    val crypto = Crypto(".")
+
     private val kademliaSocket: DatagramSocket = if (configuration.passedPort != -1) DatagramSocket(configuration.passedPort) else DatagramSocket()
 
-    val crypto = Crypto(".")
     val localAddress = getLocalAddress()
     val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
@@ -43,6 +44,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     val totalKnownNodes get() = knownNodes.size
     val isBootstrapped get() = totalKnownNodes > 1
+
     private val tree = ConcurrentHashMap<Int, Bucket>()
     private val outgoingQueue = LinkedBlockingQueue<KademliaQueueMessage>()
     private val incomingQueue = LinkedBlockingQueue<KademliaMessage>()
@@ -56,12 +58,9 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Thread(::receiveIncoming).start()
         Thread(::processIncoming).start()
         lookForInactiveQueries()
+
         if (isTrustedNode) add(localNode)
         printTree()
-    }
-
-    fun removeArtificialQuery() {
-        queryStorage.remove("BOOTSTRAP")
     }
 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
@@ -168,7 +167,8 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
                         queryHolder.hops++
                         val node = knownNodes[queryHolder.identifier] ?: return@forEach
                         val actionsToDo = mutableListOf<(Node) -> Unit>()
-                        val drained = queryHolder.queue.drainTo(actionsToDo)
+
+                        queryHolder.queue.drainTo(actionsToDo)
                         // Logger.trace("Drained $drained actions.")
                         launchCoroutine {
                             actionsToDo.forEach { it.invoke(node) }
@@ -247,4 +247,5 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         Logger.info("\n\n$string")
         Logger.info("Total nodes known: ${tree.values.sumOf { it.size }} vs $totalKnownNodes")
     }
+
 }
