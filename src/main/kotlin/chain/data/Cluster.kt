@@ -1,4 +1,4 @@
-package network
+package chain.data
 
 /**
  * Created by Mihael Valentin Berčič

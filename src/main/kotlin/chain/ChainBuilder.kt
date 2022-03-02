@@ -3,13 +3,13 @@ package chain
 import Configuration
 import chain.data.*
 import docker.DockerProxy
+import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
-import network.data.communication.InclusionRequest
-import network.data.communication.Message
-import network.data.communication.SyncRequest
-import network.data.communication.TransmissionType
+import network.data.messages.InclusionRequest
+import network.data.messages.Message
+import network.data.messages.SyncRequest
 import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
@@ -24,13 +24,17 @@ import kotlin.math.max
  * on 06/11/2021 at 13:50
  * using IntelliJ IDEA
  */
+@ExperimentalSerializationApi
 abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configuration) {
 
     private val verifiableDelay = VerifiableDelay()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
     private var sentGenesis = AtomicBoolean(false)
     private val isSyncing = AtomicBoolean(false)
+    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
+    private val voteLock = ReentrantLock(true)
 
+    /** Compute next task, report statistics and execute your role on arrival of the new block. */
     fun blockReceived(message: Message) {
         if (isSyncing.get()) {
             Logger.debug("Ignoring new block because we're in the process of syncing.")
@@ -38,6 +42,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
         val block = message.decodeAs<Block>()
         val blockAdded = chain.addBlocks(block)
+
+        votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
@@ -64,7 +70,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     Logger.chain("$computationDuration ... ${max(0, configuration.slotDuration - computationDuration)}")
                     val delayThird = configuration.slotDuration * 1 / 3
                     val startDelay = delayThird - computationDuration
-
+                    val committeeMembers = nextTask.committee
+                    committeeMembers.forEach { query(it) }
                     runAfter(max(0, startDelay)) {
                         Logger.chain("Running producing of the block after time...")
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
@@ -88,13 +95,12 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             migrations = migrations
                         )
                         val voteRequest = VoteRequest(newBlock, localNode.publicKey)
-                        val committeeMembers = nextTask.committee
-                        send(Endpoint.VoteRequest, TransmissionType.Unicast, voteRequest, *committeeMembers.toTypedArray())
+                        send(Endpoint.VoteRequest, voteRequest, *committeeMembers.toTypedArray())
                         runAfter(delayThird * 2) {
                             val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1
                             Logger.chain("Broadcasting out block ${newBlock.slot}.")
                             newBlock.votes = allVotes
-                            send(Endpoint.NewBlock, TransmissionType.Broadcast, newBlock)
+                            send(Endpoint.NewBlock, newBlock)
                         }
                     }
                 }
@@ -128,15 +134,17 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
                 val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
-                send(Endpoint.NewBlock, TransmissionType.Broadcast, genesisBlock)
+                send(Endpoint.NewBlock, genesisBlock)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
         }
     }
 
+    /** Attempts inclusion every [Configuration.slotDuration] milliseconds. */
     fun attemptInclusion() {
         if (validatorSet.isInValidatorSet) return
-        runAfter(configuration.slotDuration, this::requestInclusion)
+        requestInclusion()
+        runAfter(configuration.slotDuration, ::attemptInclusion)
     }
 
     /** Respond with blocks between the slot and the end of the chain. */
@@ -146,7 +154,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val blocksToSendBack = chain.getLastBlocks(syncRequest.fromSlot)
         val requestingNode = syncRequest.node
         Logger.info("Sending back sync reply with blocks: ${blocksToSendBack.firstOrNull()?.slot} -> ${blocksToSendBack.lastOrNull()?.slot}")
-        if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, TransmissionType.Unicast, blocksToSendBack, requestingNode.publicKey)
+        if (blocksToSendBack.isNotEmpty()) send(Endpoint.SyncReply, blocksToSendBack, requestingNode.publicKey)
     }
 
     /** Attempt to add blocks received from the random node. */
@@ -171,8 +179,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val syncRequest = SyncRequest(localNode, ourSlot)
         val randomValidator = validatorSet.activeValidators.randomOrNull()
-        if (randomValidator != null) send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, randomValidator)
-        else send(Endpoint.SyncRequest, TransmissionType.Unicast, syncRequest, 1)
+        if (randomValidator != null) send(Endpoint.SyncRequest, syncRequest, randomValidator)
+        else send(Endpoint.SyncRequest, syncRequest, 1)
         Logger.chain("Requesting synchronization from $ourSlot.")
         // TODO add to Dashboard.
     }
@@ -183,22 +191,20 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         val inclusionRequest = InclusionRequest(ourSlot, localNode.publicKey)
         val isValidatorSetEmpty = validatorSet.activeValidators.isEmpty()
-        if (nextProducer == null) send(Endpoint.InclusionRequest, if (isValidatorSetEmpty) TransmissionType.Broadcast else TransmissionType.Unicast, inclusionRequest)
-        else send(Endpoint.InclusionRequest, TransmissionType.Unicast, inclusionRequest, nextProducer)
+        if (nextProducer == null) send(Endpoint.InclusionRequest, inclusionRequest)
+        else send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
         Logger.chain("Requesting inclusion with $ourSlot.")
     }
 
-    private val votes = ConcurrentHashMap<String, MutableList<Vote>>()
-    private val voteLock = ReentrantLock(true)
-
+    /** Verify the block produced and send back your verdict. */
     fun voteRequested(message: Message) {
         val request = message.decodeAs<VoteRequest>()
         val block = request.block
         val vote = Vote(block.hash, VoteType.FOR)
-        send(Endpoint.Vote, TransmissionType.Unicast, vote, request.publicKey)
+        send(Endpoint.Vote, vote, request.publicKey)
     }
 
-
+    /** Stores received vote in [votes]. */
     fun voteReceived(message: Message) {
         val vote = message.decodeAs<Vote>()
         voteLock.tryWithLock {

@@ -1,9 +1,10 @@
-package network.data.communication
+package network.data.messages
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import network.data.Endpoint
+import utils.asHex
 import utils.sha256
 import java.util.*
 
@@ -22,4 +23,6 @@ class Message(
     val uid: ByteArray = sha256(UUID.randomUUID().toString())
 ) {
     inline fun <reified T> decodeAs() = ProtoBuf.decodeFromByteArray<T>(body)
+
+    override fun toString(): String = "Message($endpoint, sender = ${sha256(publicKey).asHex}, ID = ${uid.asHex})"
 }

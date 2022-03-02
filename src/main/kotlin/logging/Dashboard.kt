@@ -13,7 +13,7 @@ import com.influxdb.client.write.Point
 import docker.DockerStatistics
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import network.Cluster
+import chain.data.Cluster
 import network.data.Endpoint
 import utils.asHex
 import utils.sha256
