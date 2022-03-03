@@ -30,7 +30,6 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         Endpoint.InclusionRequest to ::inclusionRequested,
         Endpoint.SyncRequest to ::synchronizationRequested,
         Endpoint.SyncReply to ::synchronizationReply,
-        Endpoint.NodeStatistics to ::dockerStatisticsReceived,
         Endpoint.VoteRequest to ::voteRequested,
         Endpoint.Vote to ::voteReceived
     )
