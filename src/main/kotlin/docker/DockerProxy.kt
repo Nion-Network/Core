@@ -54,10 +54,9 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     /** Sends (new) local [DockerStatistics] to our representative / block producer (if we're representative).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
         val slot = block.slot
-        val outdated = localContainers.values.filter { System.currentTimeMillis() - it.updated >= configuration.slotDuration }
-        outdated.forEach { container ->
-            localContainers.remove(container.id)
-        }
+        val currentTime = System.currentTimeMillis()
+        localContainers.entries.removeIf { (id, container) -> currentTime - container.updated >= configuration.slotDuration }
+
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
         val ourPublicKey = localNode.publicKey
@@ -68,7 +67,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             if (ourCluster != null) {
                 send(Endpoint.NodeStatistics, arrayOf(localStatistics), ourCluster.representative)
                 Dashboard.statisticSent(localNode.publicKey, localStatistics, ourCluster.representative, block.slot)
-            }
+            } else Dashboard.reportException(Exception("Our cluster is null and we're not a representative."))
         } else runAfter(configuration.slotDuration / 4) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
             send(Endpoint.NodeStatistics, statistics, blockProducer)
