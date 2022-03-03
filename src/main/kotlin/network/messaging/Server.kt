@@ -46,6 +46,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private val udpWritingBuffer = ByteBuffer.allocate(configuration.packetSplitSize)
     private val messageBuilders = ConcurrentHashMap<String, MessageBuilder>()
 
+    private val outgoingMessageQueue = LinkedBlockingQueue<QueuedMessage>()
     private val udpOutgoingQueue = LinkedBlockingQueue<OutgoingData>()
     private val tcpOutgoingQueue = LinkedBlockingQueue<OutgoingData>()
 
@@ -56,6 +57,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         Thread(::clearOutgoingTCP).start()
         Thread(::listenTCP).start()
 
+        Thread(::sendQueuedMessages).start()
         Thread(::clearProcessingQueue).start()
         val period = configuration.historyCleaningFrequency * 60_000
         val maximumAge = configuration.historyMinuteClearance * 60_000
@@ -79,14 +81,31 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     }
 
     fun send(message: Message, vararg recipients: String) {
-        Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
-        val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
-        val transmissionLayer = message.endpoint.transmissionLayer
+        outgoingMessageQueue.add(QueuedMessage(message, recipients))
+    }
 
-        val data: Array<ByteArray>
-        val outgoingQueue: LinkedBlockingQueue<OutgoingData>
+    inline fun <reified T> buildMessage(endpoint: Endpoint, data: T): Message {
+        val encodedBody = ProtoBuf.encodeToByteArray(data)
+        val signature = crypto.sign(encodedBody)
+        return Message(endpoint, crypto.publicKey, encodedBody, signature)
+    }
 
-        try {
+    /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
+    fun pickRandomNodes(amount: Int = 0): List<Node> {
+        val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
+        return getRandomNodes(toTake).filter { it.identifier != localNode.identifier }
+    }
+
+    private fun sendQueuedMessages() {
+        while (true) {
+            val queuedMessage = outgoingMessageQueue.take()
+            val message = queuedMessage.message
+            val recipients = queuedMessage.recipients
+            val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
+            val transmissionLayer = message.endpoint.transmissionLayer
+
+            val data: Array<ByteArray>
+            val outgoingQueue: LinkedBlockingQueue<OutgoingData>
 
             when (transmissionLayer) {
                 TransmissionLayer.UDP -> {
@@ -102,22 +121,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             recipientNodes.forEach { publicKey ->
                 query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
             }
-        } catch (e: Exception) {
-            Dashboard.reportException(e)
-            Logger.info("Exception caught on ${message.endpoint}.")
+
+            Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
         }
-    }
-
-    inline fun <reified T> buildMessage(endpoint: Endpoint, data: T): Message {
-        val encodedBody = ProtoBuf.encodeToByteArray(data)
-        val signature = crypto.sign(encodedBody)
-        return Message(endpoint, crypto.publicKey, encodedBody, signature)
-    }
-
-    /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
-    fun pickRandomNodes(amount: Int = 0): List<Node> {
-        val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
-        return getRandomNodes(toTake).filter { it.identifier != localNode.identifier }
     }
 
     private fun clearOutgoingTCP() {
@@ -282,4 +288,5 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         return ProtoBuf.decodeFromByteArray(data)
     }
 
+    private class QueuedMessage(val message: Message, val recipients: Array<out String>)
 }
