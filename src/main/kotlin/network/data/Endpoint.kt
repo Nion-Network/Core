@@ -20,7 +20,7 @@ enum class Endpoint(val processing: MessageProcessing, val transmissionLayer: Tr
     SyncReply(MessageProcessing.Queued, TCP, Unicast),
     SyncRequest(MessageProcessing.Immediate, UDP, Unicast),
     VoteRequest(MessageProcessing.Immediate, TCP, Unicast),
-    NodeStatistics(MessageProcessing.Immediate, TCP, Unicast)
+    NodeStatistics(MessageProcessing.Immediate, UDP, Unicast)
     ;
 
     companion object {
