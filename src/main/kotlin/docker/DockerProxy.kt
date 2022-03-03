@@ -2,10 +2,10 @@ package docker
 
 import Configuration
 import chain.data.Block
+import chain.data.Cluster
 import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
-import chain.data.Cluster
 import network.data.Endpoint
 import network.data.messages.Message
 import utils.CircularList
@@ -14,7 +14,6 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.scheduleAtFixedRate
 import kotlin.concurrent.withLock
 
 /**
@@ -30,14 +29,10 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     init {
         Thread(::listenForDockerStatistics).start()
+    }
 
-        val period = configuration.historyCleaningFrequency * 60_000
-        val maximumAge = configuration.historyMinuteClearance * 60_000
-        Timer().scheduleAtFixedRate(configuration.slotDuration, period) {
-            val currentTime = System.currentTimeMillis()
-            Logger.trace("Clearing network history statistics...")
-            networkStatistics.entries.removeIf { (time, _) -> currentTime - time > maximumAge }
-        }
+    protected fun removeOutdatedStatistics(slot: Long) {
+        networkStatistics.remove(slot)
     }
 
     /** Stores all [statistics] into latest [networkStatistics] using [networkLock]. */
