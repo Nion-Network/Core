@@ -2,6 +2,7 @@ package chain
 
 import chain.data.Block
 import logging.Logger
+import utils.asHex
 import utils.tryWithLock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -35,11 +36,11 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             val isLegitimate = nextBlock.slot == (lastBlock?.slot ?: 0) + 1 // verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
             if (!isLegitimate) {
                 Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
-                Logger.info("Last hash: $lastHash")
-                Logger.info("Last block: ${lastBlock?.slot}")
-                Logger.info("New hash: ${nextBlock.hash}")
-                Logger.info("Precedent hash: ${nextBlock.precedentHash}")
-                Logger.info("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
+                Logger.chain("Last hash: ${lastHash.asHex}")
+                Logger.chain("Last block: ${lastBlock?.slot}")
+                Logger.chain("New hash: ${nextBlock.hash.asHex}")
+                Logger.chain("Precedent hash: ${nextBlock.precedentHash.asHex}")
+                Logger.chain("Precedent vs lastBlock ${nextBlock.precedentHash.contentEquals(lastHash)}")
                 return false
             }
             lock.tryWithLock {

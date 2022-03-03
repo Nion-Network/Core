@@ -130,7 +130,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             val outgoing = tcpOutgoingQueue.take()
             val recipient = outgoing.recipient
-            Logger.debug("Trying to connect to ${recipient.ip}:${recipient.kademliaPort}")
             Socket(recipient.ip, recipient.tcpPort).use { socket ->
                 socket.getOutputStream().apply {
                     outgoing.data.forEach { write(it) }
@@ -144,7 +143,6 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
     private fun listenTCP() {
         while (true) tryAndReport {
             tcpSocket.accept().use { socket ->
-                Logger.info("Working on a socket!")
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
                 val currentMilliseconds = System.currentTimeMillis()

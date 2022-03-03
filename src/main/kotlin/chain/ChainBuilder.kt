@@ -175,7 +175,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             isValidatorSetEmpty -> {
                 val trusted = pickRandomNodes(totalKnownNodes).firstOrNull { it.ip == configuration.trustedNodeIP && it.kademliaPort == configuration.trustedNodePort }
                 if (trusted != null) send(Endpoint.InclusionRequest, inclusionRequest, trusted.publicKey)
-                else Dashboard.reportException(Exception("No trusted node found to join validator set."))
             }
             nextProducer == null -> send(Endpoint.InclusionRequest, inclusionRequest)
             else -> send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
@@ -191,7 +190,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         val ourSlot = lastBlock?.slot ?: 0
         if (ourSlot == inclusionRequest.currentSlot) {
             validatorSet.scheduleChange(inclusionRequest.publicKey, true)
-            send(message)
+            // send(message)
         }
         Logger.debug("Received inclusion request! ")
 
