@@ -18,17 +18,8 @@ object ClusterUtils {
         val currentMapping = mutableMapOf<T, Cluster<T>>()
 
         for (iteration in 0..iterations) {
-            if (!changeHappened) break
+            // if (!changeHappened) break
             changeHappened = false
-            elements.forEach {
-                val closestCluster = clusters.minByOrNull { cluster -> distanceComputation(cluster.centroid, it) }
-                if (closestCluster != null) {
-                    val currentCluster = currentMapping[it]
-                    currentCluster?.elements?.remove(it)
-                    closestCluster.elements.add(it)
-                    currentMapping[it] = closestCluster
-                } else Logger.error("Closest centroid does not exist!")
-            }
             clusters.forEach { cluster ->
                 val currentCentroid = cluster.centroid
                 val centerOfElements = cluster.elements.sortedBy { distanceComputation(currentCentroid, it) }
@@ -38,7 +29,18 @@ object ClusterUtils {
                 if (currentCentroid != newCentroid) {
                     changeHappened = true
                     cluster.centroid = newCentroid
+                    println("Switching centroid from $currentCentroid -> $newCentroid")
                 }
+            }
+            elements.forEach {
+                val closestCluster = clusters.minByOrNull { cluster -> distanceComputation(cluster.centroid, it) }
+                if (closestCluster != null) {
+                    val currentCluster = currentMapping[it]
+                    println("Moving: ${currentCluster?.centroid} => ${closestCluster.centroid}")
+                    currentCluster?.elements?.remove(it)
+                    closestCluster.elements.add(it)
+                    currentMapping[it] = closestCluster
+                } else println("Closest centroid does not exist!")
             }
         }
         return currentMapping
