@@ -65,6 +65,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             val clusterRepresentative = ourCluster.centroid
             val isRepresentative = clusterRepresentative == ourPublicKey
             if (!isRepresentative) query(clusterRepresentative) {
+                Dashboard.reportException(Exception("[$slot] Sending to our representative."))
                 send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
             }
             else runAfter(configuration.slotDuration / 4) {

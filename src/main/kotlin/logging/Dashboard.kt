@@ -181,7 +181,6 @@ object Dashboard {
             .addField("cause", "$myInfo | $additionalInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
-
         queue.put(point)
     }
 
