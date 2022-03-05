@@ -55,7 +55,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 centroidBitset.nextSetBit(0)
                 // ToDo: Performance improvement.
             }
-            sendDockerStatistics(block, nextTask.blockProducer, clusters)
+            if (validatorSet.isInValidatorSet) sendDockerStatistics(block, nextTask.blockProducer, clusters)
 
             val ourMigrationPlan = block.migrations[localNode.publicKey]
 
