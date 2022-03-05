@@ -3,16 +3,16 @@ package chain
 import Configuration
 import chain.data.Block
 import chain.data.ChainTask
-import chain.data.Cluster
 import chain.data.SlotDuty
 import logging.Logger
 import network.data.Node
+import network.data.clusters.Cluster
+import network.data.clusters.ClusterUtils
+import utils.asBitSet
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.math.abs
-import kotlin.math.max
 
 /**
  * Created by Mihael Valentin Berčič
@@ -70,35 +70,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         return scheduledChanges
     }
 
-    /** Generates clusters based on k-means algorithm. Note: Distance is randomized at the moment. */
-    fun generateClusters(blockProducer: String, configuration: Configuration, lastBlock: Block): List<Cluster> {
-        return lock.withLock {
-            val random = Random(lastBlock.seed)
-            val nodes = validators.minus(blockProducer)
-            val clusterCount = max(1, nodes.size / configuration.nodesPerCluster)
-            var centroids = nodes.shuffled(random).take(clusterCount).toSet()
-            val clusters = mutableMapOf<String, MutableMap<String, Int>>()
-
-            for (iteration in 0 until configuration.maxIterations) {
-                clusters.clear()
-                nodes.minus(centroids).shuffled(random).forEach { validator ->
-                    val distances = centroids.map { it to random.nextInt() }
-                    val chosenCentroid = distances.minByOrNull { it.second } ?: return@forEach
-                    val publicKey = chosenCentroid.first
-                    val distance = chosenCentroid.second
-                    clusters.computeIfAbsent(publicKey) { mutableMapOf() }[validator] = distance
-                }
-                // TODO compute differences based on geo-sharding.
-                centroids = clusters.values.mapNotNull { distances ->
-                    val averageDistance = distances.values.average()
-                    distances.minByOrNull { (_, distance) -> abs(averageDistance - distance) }?.key
-                }.toSet()
-            }
-            clusters.map { (representative, nodes) -> Cluster(representative, nodes.keys) }
-        }
-    }
-
-    /** Computes the task for the next action creation using current block information. */
+     /** Computes the task for the next action creation using current block information. */
     fun computeNextTask(block: Block, committeeSize: Int): ChainTask {
         return lock.withLock {
             val seed = block.seed

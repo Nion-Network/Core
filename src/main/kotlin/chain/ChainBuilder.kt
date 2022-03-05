@@ -7,13 +7,11 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
+import network.data.clusters.ClusterUtils
 import network.data.messages.InclusionRequest
 import network.data.messages.Message
 import network.data.messages.SyncRequest
-import utils.asHex
-import utils.launchCoroutine
-import utils.runAfter
-import utils.tryWithLock
+import utils.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -49,7 +47,13 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             removeOutdatedStatistics(block.slot)
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
-            val clusters = validatorSet.generateClusters(nextTask.blockProducer, configuration, block)
+
+            val clusters = ClusterUtils.computeClusters(configuration.nodesPerCluster, configuration.maxIterations, validatorSet.activeValidators) { centroid, element ->
+                val elementBitSet = element.asBitSet
+                val centroidBitset = centroid.asBitSet.apply { xor(elementBitSet) }
+                centroidBitset.nextSetBit(0)
+            }
+
             val ourMigrationPlan = block.migrations[localNode.publicKey]
 
             if (block.slot > 2) validatorSet.inclusionChanges(block)

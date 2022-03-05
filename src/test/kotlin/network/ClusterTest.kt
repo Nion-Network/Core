@@ -13,14 +13,14 @@ class ClusterTest {
 
     @Test
     fun computeClusters() {
-        val clusters = ClusterUtils.computeClusters(10, 5, (0..100).toList()) { centroid, element ->
+        val clusters = ClusterUtils.computeClusters(10, 10, (0..100).toList()) { centroid, element ->
             abs(element - centroid)
         }
-        clusters.forEach { (centroid, elements) ->
-            elements.forEach {
-                println("$it -> $centroid")
-            }
-            println("$centroid -> PRODUCER")
+        clusters.forEach { (element, cluster) ->
+            val centroid = cluster.centroid
+            val isRepresentative = element == centroid
+            if (isRepresentative) println("$centroid -> PRODUCER")
+            println("$element -> $centroid")
         }
 
     }

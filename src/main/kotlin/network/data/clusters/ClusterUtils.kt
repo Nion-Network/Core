@@ -9,10 +9,9 @@ import logging.Logger
  */
 object ClusterUtils {
 
-    data class Cluster<T>(var centroid: T, val elements: MutableList<T> = mutableListOf())
-
-    fun <T> computeClusters(perCluster: Int, iterations: Int, elements: Collection<T>, distanceComputation: (centroid: T, element: T) -> Int): List<Cluster<T>> {
-        if (elements.isEmpty()) return emptyList()
+    /** Generates clusters based on [k-mean clustering algorithm](https://en.wikipedia.org/wiki/K-means_clustering). */
+    fun <T> computeClusters(perCluster: Int, iterations: Int, elements: Collection<T>, distanceComputation: (centroid: T, element: T) -> Int): Map<T, Cluster<T>> {
+        if (elements.isEmpty()) return emptyMap()
         val clusterCount = elements.size / perCluster + 1
         val clusters = elements.shuffled().take(clusterCount).map { Cluster(it) }
         var changeHappened = true
@@ -42,7 +41,7 @@ object ClusterUtils {
                 }
             }
         }
-        return clusters
+        return currentMapping
     }
 
 }

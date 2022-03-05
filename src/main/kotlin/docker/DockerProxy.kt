@@ -2,11 +2,11 @@ package docker
 
 import Configuration
 import chain.data.Block
-import chain.data.Cluster
 import kotlinx.serialization.ExperimentalSerializationApi
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
+import network.data.clusters.Cluster
 import network.data.messages.Message
 import utils.CircularList
 import utils.runAfter
@@ -52,29 +52,25 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     }
 
     /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
-    fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
+    fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot
         val currentTime = System.currentTimeMillis()
-        localContainers.entries.removeIf { (id, container) -> currentTime - container.updated >= configuration.slotDuration }
+        localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= configuration.slotDuration }
 
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
         val ourPublicKey = localNode.publicKey
-        val isRepresentative = clusters.any { it.representative == ourPublicKey }
-        val ourCluster = clusters.firstOrNull { it.representative == ourPublicKey || it.nodes.contains(ourPublicKey) }
-        Logger.info("Sending docker statistics[$isRepresentative]: ${ourCluster?.nodes?.size ?: 0}")
-        if (!isRepresentative) {
-            if (ourCluster != null) {
-                send(Endpoint.NodeStatistics, arrayOf(localStatistics), ourCluster.representative)
-                Dashboard.statisticSent(localNode.publicKey, localStatistics, ourCluster.representative, block.slot)
-            } else Dashboard.reportException(Exception("Our cluster is null and we're not a centroid."))
-        } else runAfter(configuration.slotDuration / 4) {
-            val statistics = getNetworkStatistics(slot).plus(localStatistics)
-            send(Endpoint.NodeStatistics, statistics, blockProducer)
-            statistics.forEach {
-                Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot)
+        val ourCluster = clusters[ourPublicKey]
+        if (ourCluster != null) {
+            val clusterRepresentative = ourCluster.centroid
+            val isRepresentative = clusterRepresentative == ourPublicKey
+            if (!isRepresentative) send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
+            else runAfter(configuration.slotDuration / 4) {
+                val networkStatistics = getNetworkStatistics(slot).plus(localStatistics)
+                networkStatistics.forEach { Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot) }
+                send(Endpoint.NodeStatistics, networkStatistics, blockProducer)
             }
-        }
+        } else Dashboard.reportException(Exception("Our cluster does not exist."))
     }
 
     /** On [Endpoint.NodeStatistics] received, all received statistics are added to [networkStatistics] using [networkLock]. */
