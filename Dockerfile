@@ -22,6 +22,8 @@ ADD Start.sh Start.sh
 ADD SaveContainer.sh SaveContainer.sh
 ADD RunContainer.sh RunContainer.sh
 
+ADD stress.sh stress.sh
+
 COPY stress.tar stress.tar
 
 RUN chmod 777 Start.sh

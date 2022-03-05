@@ -13,7 +13,7 @@ echo "Sleeping..."
 sleep $(shuf -i 1-120 -n 1)
 fi
 
-if [ "$1" -e "5005" ]; then
+if [ "$1" -eq 5005 ]; then
   echo "We're trusted. Running stress test."
   bash stress.sh &
 fi
