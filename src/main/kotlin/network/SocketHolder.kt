@@ -13,5 +13,6 @@ open class SocketHolder(config: Configuration) {
 
     protected val udpSocket: DatagramSocket = DatagramSocket()
     protected val tcpSocket: ServerSocket = ServerSocket(0)
+    protected val migrationSocket: ServerSocket = ServerSocket(0)
 
 }

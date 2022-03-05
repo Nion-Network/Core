@@ -30,7 +30,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     protected val imageMappings = ConcurrentHashMap<String, String>()
 
     init {
-        // Thread(::startListeningForMigrations).start() ToDo: Turn on.
+        Thread(::startListeningForMigrations).start() //  ToDo: Turn on.
     }
 
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
@@ -52,7 +52,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, receiver.tcpPort).use { socket ->
+            Socket(receiver.ip, receiver.migrationPort).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     // TODO: Write image of the container. With length.
@@ -109,7 +109,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     /** Starts the thread listening on socket for receiving migrations. */
     private fun startListeningForMigrations() {
         while (true) tryAndReport {
-            runMigratedContainer(tcpSocket.accept())
+            runMigratedContainer(migrationSocket.accept())
         }
     }
 

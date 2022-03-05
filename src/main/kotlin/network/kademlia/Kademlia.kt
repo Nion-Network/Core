@@ -34,7 +34,14 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     private val kademliaSocket: DatagramSocket = if (configuration.passedPort != -1) DatagramSocket(configuration.passedPort) else DatagramSocket()
 
     val localAddress = getLocalAddress()
-    val localNode = Node(localAddress.hostAddress, udpSocket.localPort, tcpSocket.localPort, kademliaSocket.localPort, crypto.publicKey).apply {
+    val localNode = Node(
+        ip = localAddress.hostAddress,
+        udpPort = udpSocket.localPort,
+        tcpPort = tcpSocket.localPort,
+        kademliaPort = kademliaSocket.localPort,
+        migrationPort = migrationSocket.localPort,
+        publicKey = crypto.publicKey
+    ).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
         println(Dashboard.myInfo)
     }
@@ -67,7 +74,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */
     fun bootstrap(ip: String, port: Int, block: ((Node) -> Unit)? = null) {
         Logger.info("Bootstrapping Kademlia!")
-        sendFindRequest(localNode.identifier, listOf(Node(ip, port, port, port, "BOOTSTRAP")), block)
+        sendFindRequest(localNode.identifier, listOf(Node(ip, port, port, port, port, "BOOTSTRAP")), block)
     }
 
     /** Performs the query for the [publicKey] and executes the callback passed. If known, immediately else when found. */
