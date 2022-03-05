@@ -51,7 +51,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         return networkLock.withLock { networkStatistics[slot]?.toList() ?: emptyList() }
     }
 
-    /** Sends (new) local [DockerStatistics] to our representative / block producer (if we're representative).  */
+    /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: List<Cluster>) {
         val slot = block.slot
         val currentTime = System.currentTimeMillis()
@@ -67,7 +67,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             if (ourCluster != null) {
                 send(Endpoint.NodeStatistics, arrayOf(localStatistics), ourCluster.representative)
                 Dashboard.statisticSent(localNode.publicKey, localStatistics, ourCluster.representative, block.slot)
-            } else Dashboard.reportException(Exception("Our cluster is null and we're not a representative."))
+            } else Dashboard.reportException(Exception("Our cluster is null and we're not a centroid."))
         } else runAfter(configuration.slotDuration / 4) {
             val statistics = getNetworkStatistics(slot).plus(localStatistics)
             send(Endpoint.NodeStatistics, statistics, blockProducer)

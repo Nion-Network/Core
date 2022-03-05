@@ -252,7 +252,7 @@ object Dashboard {
             .time(Instant.now(), WritePrecision.NS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
-            .addField("representative", sha256(representative).asHex)
+            .addField("centroid", sha256(representative).asHex)
             .addField("node", sha256(node).asHex)
     }
 
