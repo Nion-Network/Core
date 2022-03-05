@@ -13,7 +13,7 @@ object ClusterUtils {
     fun <T> computeClusters(perCluster: Int, iterations: Int, elements: Collection<T>, distanceComputation: (centroid: T, element: T) -> Int): Map<T, Cluster<T>> {
         if (elements.isEmpty()) return emptyMap()
         val clusterCount = elements.size / perCluster + 1
-        val clusters = elements.shuffled().take(clusterCount).map { Cluster(it) }
+        val clusters = elements.take(clusterCount).map { Cluster(it) }
         var changeHappened = true
         val currentMapping = mutableMapOf<T, Cluster<T>>()
 
@@ -29,18 +29,16 @@ object ClusterUtils {
                 if (currentCentroid != newCentroid) {
                     changeHappened = true
                     cluster.centroid = newCentroid
-                    println("Switching centroid from $currentCentroid -> $newCentroid")
                 }
             }
             elements.forEach {
                 val closestCluster = clusters.minByOrNull { cluster -> distanceComputation(cluster.centroid, it) }
                 if (closestCluster != null) {
                     val currentCluster = currentMapping[it]
-                    println("Moving: ${currentCluster?.centroid} => ${closestCluster.centroid}")
                     currentCluster?.elements?.remove(it)
                     closestCluster.elements.add(it)
                     currentMapping[it] = closestCluster
-                } else println("Closest centroid does not exist!")
+                }
             }
         }
         return currentMapping
