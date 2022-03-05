@@ -64,7 +64,10 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         if (ourCluster != null) {
             val clusterRepresentative = ourCluster.centroid
             val isRepresentative = clusterRepresentative == ourPublicKey
-            if (!isRepresentative) send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
+            if (!isRepresentative) query(clusterRepresentative) {
+                Dashboard.reportException(Exception("[$slot] Found our cluster representative!"))
+                send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
+            }
             else runAfter(configuration.slotDuration / 4) {
                 val networkStatistics = getNetworkStatistics(slot).plus(localStatistics)
                 networkStatistics.forEach { Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot) }

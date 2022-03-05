@@ -54,6 +54,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 centroidBitset.nextSetBit(0)
                 // ToDo: Performance improvement.
             }
+            sendDockerStatistics(block, nextTask.blockProducer, clusters)
 
             val ourMigrationPlan = block.migrations[localNode.publicKey]
 
@@ -62,7 +63,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
             if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
 
-            sendDockerStatistics(block, nextTask.blockProducer, clusters)
             validatorSet.clearScheduledChanges()
             if (isTrustedNode) query(nextTask.blockProducer) {
                 Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, "${it.ip}:${it.kademliaPort}")
