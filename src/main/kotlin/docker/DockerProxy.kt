@@ -69,6 +69,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                 val networkStatistics = getNetworkStatistics(slot).plus(localStatistics)
                 networkStatistics.forEach { Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot) }
                 send(Endpoint.NodeStatistics, networkStatistics, blockProducer)
+                Dashboard.reportException(Exception("[$slot] Sent ${networkStatistics.size} statistics to block producer!"))
             }
         } else Dashboard.reportException(Exception("Our cluster does not exist."))
     }
