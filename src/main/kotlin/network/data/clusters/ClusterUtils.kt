@@ -34,7 +34,7 @@ object ClusterUtils {
                 val centerOfElements = cluster.elements.sortedBy { distanceComputation(currentCentroid, it) }
                 val elementCount = centerOfElements.size
                 val middle = elementCount / 2
-                val newCentroid = centerOfElements[middle + elementCount % 2]
+                val newCentroid = centerOfElements.getOrNull(middle + elementCount % 2) ?: return@forEach
                 if (currentCentroid != newCentroid) {
                     changeHappened = true
                     cluster.centroid = newCentroid

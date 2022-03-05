@@ -49,9 +49,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
 
             val clusters = ClusterUtils.computeClusters(configuration.nodesPerCluster, configuration.maxIterations, validatorSet.activeValidators) { centroid, element ->
-                val elementBitSet = element.asBitSet
-                val centroidBitset = centroid.asBitSet.apply { xor(elementBitSet) }
+                val elementBitSet = sha256(element).asHex.asBitSet
+                val centroidBitset = sha256(centroid).asHex.asBitSet.apply { xor(elementBitSet) }
                 centroidBitset.nextSetBit(0)
+                // ToDo: Performance improvement.
             }
 
             val ourMigrationPlan = block.migrations[localNode.publicKey]

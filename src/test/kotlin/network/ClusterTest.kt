@@ -13,7 +13,7 @@ class ClusterTest {
 
     @Test
     fun computeClusters() {
-        val clusters = ClusterUtils.computeClusters(10, 10, (0..100).toList()) { centroid, element ->
+        val clusters = ClusterUtils.computeClusters(10, 1, (0..100).toList()) { centroid, element ->
             abs(element - centroid)
         }
         clusters.forEach { (element, cluster) ->
