@@ -13,8 +13,8 @@ import com.influxdb.client.write.Point
 import docker.DockerStatistics
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import chain.data.Cluster
 import network.data.Endpoint
+import network.data.clusters.Cluster
 import utils.asHex
 import utils.sha256
 import java.io.File
@@ -181,7 +181,6 @@ object Dashboard {
             .addField("cause", "$myInfo | $additionalInfo ... $e ... ${e.cause}")
             .addField("message", e.message ?: "No message...")
             .addField("trace", e.stackTrace.joinToString("\n"))
-
         queue.put(point)
     }
 
@@ -229,15 +228,12 @@ object Dashboard {
     }
 
     /** Reports clusters and their representatives. */
-    fun logCluster(block: Block, nextTask: ChainTask, clusters: List<Cluster>) {
+    fun logCluster(block: Block, nextTask: ChainTask, clusters: Map<String, Cluster<String>>) {
         if (!configuration.dashboardEnabled) return
         var index = 0
         queue.put(clusterNodePoint(block, nextTask, nextTask.blockProducer, nextTask.blockProducer, index++))
-        clusters.forEach { cluster ->
-            queue.put(clusterNodePoint(block, nextTask, nextTask.blockProducer, cluster.representative, index++))
-            cluster.nodes.forEach { node ->
-                queue.put(clusterNodePoint(block, nextTask, cluster.representative, node, index++))
-            }
+        clusters.forEach { (publicKey, cluster) ->
+            queue.put(clusterNodePoint(block, nextTask, cluster.centroid, publicKey, index++))
         }
     }
 
@@ -252,7 +248,7 @@ object Dashboard {
             .time(Instant.now(), WritePrecision.NS)
             .addField("duty", slotDuty.name)
             .addField("slot", block.slot)
-            .addField("representative", sha256(representative).asHex)
+            .addField("centroid", sha256(representative).asHex)
             .addField("node", sha256(node).asHex)
     }
 
