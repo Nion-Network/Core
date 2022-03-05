@@ -79,7 +79,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val networkContainerIdentifier = migrationInformation.networkContainer
             val localContainerIdentifier = migrationInformation.localContainerIdentifier
 
-            val outputFile = File.createTempFile("nion-", "-migration.tar").apply {
+            val outputFile = File.createTempFile(localContainerIdentifier, ".tar").apply {
                 outputStream().use { dataInputStream.transferTo(it) }
             }
             val filePath = outputFile.absolutePath
