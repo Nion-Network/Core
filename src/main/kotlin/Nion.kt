@@ -20,7 +20,6 @@ import kotlin.random.Random
 @ExperimentalSerializationApi
 class Nion(configuration: Configuration) : ChainBuilder(configuration) {
 
-    // Perhaps future change of Nion : ChainBuilder...
     private val processingQueue = LinkedBlockingQueue<() -> Unit>()
 
     private val endpoints = mutableMapOf<Endpoint, (Message) -> Unit>(
