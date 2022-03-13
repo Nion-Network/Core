@@ -145,12 +145,17 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             tcpSocket.accept().use { socket ->
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                val currentMilliseconds = System.currentTimeMillis()
-                if (messageHistory.computeIfAbsent(message.uid.asHex) { currentMilliseconds } < currentMilliseconds) return@tryAndReport
+                if (alreadySeen(message.uid.asHex)) return@tryAndReport
                 processingQueue.add(message)
                 if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
             }
         }
+    }
+
+    private fun alreadySeen(id: String): Boolean {
+        val currentTime = System.currentTimeMillis()
+        return messageHistory.computeIfAbsent(id) { System.currentTimeMillis() } < currentTime
+
     }
 
     private fun broadcast(transmissionLayer: TransmissionLayer, messageId: String, vararg data: ByteArray) {
@@ -213,9 +218,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val packetId = packetIdBytes.asHex
             val messageIdBytes = inputStream.readNBytes(32)
             val messageId = messageIdBytes.asHex
-            val currentMilliseconds = System.currentTimeMillis()
-            if (messageHistory.computeIfAbsent(packetId) { currentMilliseconds } < currentMilliseconds)
-                return@tryAndReport
+            if (alreadySeen(packetId) || alreadySeen(messageId)) return@tryAndReport
 
             val endpoint = Endpoint.byId(inputStream.read().toByte()) ?: return@tryAndReport
             if (endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.UDP, messageId, packet.data.copyOf())
