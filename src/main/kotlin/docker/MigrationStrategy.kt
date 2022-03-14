@@ -131,11 +131,9 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
                 val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
                 val difference = abs(beforeMigration - afterMigration)
 
-                Dashboard.reportException(Exception("Difference: $difference% \t App: $appUsage"))
                 if (difference > 1) {
                     val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
                     migrations[mostUsedNode.publicKey] = migration
-                    Logger.debug(migration)
                 }
             }
         }

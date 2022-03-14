@@ -44,7 +44,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
         votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
-            removeOutdatedStatistics(block.slot)
+            removeOutdatedStatistics(block.slot - 1)
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
 
