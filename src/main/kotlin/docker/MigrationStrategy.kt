@@ -115,7 +115,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     }
 
     /** Computes which migrations should happen based on provided docker statistics. */
-    protected fun computeMigrations(dockerStatistics: List<DockerStatistics>): Map<String, MigrationPlan> {
+    protected fun computeMigrations(dockerStatistics: Collection<DockerStatistics>): Map<String, MigrationPlan> {
         val migrations = mutableMapOf<String, MigrationPlan>()
         val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
         val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
