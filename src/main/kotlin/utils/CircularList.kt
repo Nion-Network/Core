@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-class CircularList<T>(private val maxCapacity: Int) {
+class CircularList<T : Number>(private val maxCapacity: Int) {
 
     private val elements = ArrayList<T>(maxCapacity)
 
@@ -20,6 +20,8 @@ class CircularList<T>(private val maxCapacity: Int) {
 
     /** Returns all elements in this circular list. */
     fun elements() = elements.toList()
+
+    override fun hashCode(): Int = elements.foldIndexed(0) { index, acc, t -> acc + index * t.toInt() }
 
     override fun toString(): String {
         return elements.toString()
