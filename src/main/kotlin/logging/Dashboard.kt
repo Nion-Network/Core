@@ -81,7 +81,7 @@ object Dashboard {
         var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
-            Logger.info("$publicKey has ${measurement.containers.size} containers running ${sha256("${measurement.publicKey}${measurement.timestamp}${measurement.slot}")}...")
+            Logger.info("$publicKey has ${measurement.containers.size} containers running ${sha256("${measurement.publicKey}${measurement.timestamp}${measurement.slot}").asHex}...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
                     time(Instant.now().plusMillis(total), WritePrecision.NS)
