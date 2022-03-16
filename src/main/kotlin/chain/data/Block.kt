@@ -16,7 +16,7 @@ class Block(
     val slot: Long,
     val difficulty: Int,
     val blockProducer: String,
-    val dockerStatistics: Collection<DockerStatistics>,
+    val dockerStatistics: Set<DockerStatistics>,
     val vdfProof: String = "",
     val timestamp: Long,
     val precedentHash: ByteArray,

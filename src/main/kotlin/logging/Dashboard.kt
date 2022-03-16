@@ -77,7 +77,7 @@ object Dashboard {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
+    fun reportStatistics(statistics: Set<DockerStatistics>, slot: Long) {
         var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
