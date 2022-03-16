@@ -206,7 +206,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
             if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
-                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptyList(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
+                val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptySet(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
                 send(Endpoint.NewBlock, genesisBlock)
                 Logger.chain("Broadcasting genesis block to $scheduledChanges nodes!")
             }
