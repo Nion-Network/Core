@@ -82,6 +82,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                     committeeMembers.forEach { query(it) }
                     runAfter(max(0, startDelay)) {
                         Logger.chain("Running producing of the block after time...")
+
                         val latestStatistics = getNetworkStatistics(block.slot).apply {
                             Logger.info("Total length: $size")
                             Logger.info("Distinct: ${distinctBy { it.publicKey }.size}")
