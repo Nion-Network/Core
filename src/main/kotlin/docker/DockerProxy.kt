@@ -47,8 +47,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     }
 
     /** Retrieves all [DockerStatistics] from [networkStatistics] for the [slot]. */
-    fun getNetworkStatistics(slot: Long): List<DockerStatistics> {
-        return networkLock.withLock { networkStatistics[slot]?.toList() ?: emptyList() }
+    fun getNetworkStatistics(slot: Long): Set<DockerStatistics> {
+        return networkLock.withLock { networkStatistics[slot]?.toSet() ?: emptySet() }
     }
 
     /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
