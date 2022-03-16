@@ -90,7 +90,10 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             Dashboard.reportStatistics(this, block.slot)
                         }
 
-                        val migrations = computeMigrations(latestStatistics)
+                        val previouslyMigratedContainers = chain.getLastBlocks(block.slot - 10)
+                            .flatMap { it.migrations.values }
+                            .map { it.container }
+                        val migrations = computeMigrations(previouslyMigratedContainers, latestStatistics)
 
                         val newBlock = Block(
                             block.slot + 1,

@@ -55,7 +55,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot
         val currentTime = System.currentTimeMillis()
-        localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= configuration.slotDuration }
+        localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= 1000 }
 
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
