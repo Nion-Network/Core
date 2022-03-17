@@ -45,7 +45,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
         query(migrationPlan.to) { receiver ->
-            Dashboard.reportException(Exception("Okay... Querying and found the receiver just now."))
+            Dashboard.reportException(Exception("Okay... Querying... ${localNode.ip}:${localNode.kademliaPort}"))
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
             val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier
