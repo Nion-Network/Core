@@ -66,6 +66,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
 
             validatorSet.clearScheduledChanges()
             if (isTrustedNode) query(nextTask.blockProducer) {
+                Logger.info("Migration plan for ${block.slot} = ${ourMigrationPlan?.copy(from = "", to = "")}")
                 Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, "${it.ip}:${it.kademliaPort}")
             }
             when (nextTask.myTask) {
