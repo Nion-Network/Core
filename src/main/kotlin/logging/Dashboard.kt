@@ -104,6 +104,7 @@ object Dashboard {
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
+            addField("apps", blockData.dockerStatistics.sumOf { it.containers.size })
             addField("statistics", blockData.dockerStatistics.size)
             addField("validatorSet", validatorSize)
             addField("slot", blockData.slot)
