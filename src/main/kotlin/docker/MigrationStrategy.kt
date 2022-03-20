@@ -122,7 +122,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
         val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
 
         if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
-            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.averageCpuUsage }
+            val leastConsumingApp = mostUsedNode.containers.filter { !previouslyMigratedContainers.contains(it.id) }.minByOrNull { it.averageCpuUsage }
 
             if (leastConsumingApp != null) {
                 val mostUsage = mostUsedNode.totalCPU
