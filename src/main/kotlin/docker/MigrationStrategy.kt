@@ -45,7 +45,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
         query(migrationPlan.to) { receiver ->
-            Dashboard.reportException(Exception("Okay... Querying... ${localNode.ip}:${localNode.kademliaPort}"))
+            Dashboard.reportException(Exception("Okay [${block.slot}]... Querying... ${localNode.ip}:${localNode.kademliaPort}"))
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
             val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier
@@ -120,10 +120,8 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
         val migrations = mutableMapOf<String, MigrationPlan>()
         val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
         val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
-
         if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
             val leastConsumingApp = mostUsedNode.containers.filter { !previouslyMigratedContainers.contains(it.id) }.minByOrNull { it.averageCpuUsage }
-
             if (leastConsumingApp != null) {
                 val mostUsage = mostUsedNode.totalCPU
                 val leastUsage = leastUsedNode.totalCPU
