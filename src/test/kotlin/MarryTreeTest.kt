@@ -58,6 +58,6 @@ class MarryTreeTest {
         val depth = 3
         val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
         val tree = (0 until maximumNodes).toList().map { sha256("$it").asHex.substring(50..60) }
-        print(TreeUtils.outputTree(k, tree))
+        val output = TreeUtils.outputTree(k, tree)
     }
 }
