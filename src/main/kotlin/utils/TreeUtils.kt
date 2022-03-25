@@ -87,7 +87,7 @@ object TreeUtils {
             stringBuilder.append("\"$node\" [pos=\"${length * distance},-${length * currentDepth}!\"]\n")
             // stringBuilder.append("\"$node\" [pos=\"${distance},-$currentDepth!\"]\n")
         }
-        Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
+        // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)
         return stringBuilder.toString()
     }
 }
