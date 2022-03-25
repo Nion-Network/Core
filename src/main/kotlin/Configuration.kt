@@ -26,7 +26,9 @@ data class Configuration(
     val nodesPerCluster: Int,
     val maxIterations: Int,
     val packetSplitSize: Int,
-    val useCriu: Boolean
+    val useCriu: Boolean,
+    val useTreeBasedMessageRoutingProtocol: Boolean,
+    val treeChildrenCount: Int
 ) {
     var passedPort: Int = -1
 }

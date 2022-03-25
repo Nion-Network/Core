@@ -122,7 +122,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
             }
 
-            Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
+            if (message.endpoint == Endpoint.NewBlock) {
+                Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.publicKey, message.body.size)
+            }
         }
     }
 
@@ -162,29 +164,36 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val messageRandom = Random(seed)
         val shuffled = validatorSet.shuffled(messageRandom)
-        val k = 2
+        val k = configuration.treeChildrenCount
         val index = shuffled.indexOf(localNode.publicKey)
 
-        val broadcastNodes = mutableSetOf<String>()
-        if (index != -1) {
-            val currentDepth = TreeUtils.computeDepth(k, index)
-            val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
-            val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
-            val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
-            val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
-            val children = TreeUtils.findChildren(k, index)
-            val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
-            val neighbour = shuffled[neighbourIndex]
-            val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
-            val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
-
-            broadcastNodes.add(neighbour)
-            broadcastNodes.addAll(childrenKeys)
-            broadcastNodes.addAll(neighbourChildrenKeys)
-            Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
-
+        if (isTrustedNode) {
+            Logger.debug(TreeUtils.outputTree(k, shuffled))
         }
-        broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+
+        val broadcastNodes = mutableSetOf<String>()
+        when {
+            configuration.useTreeBasedMessageRoutingProtocol && index != -1 -> {
+                val currentDepth = TreeUtils.computeDepth(k, index)
+                val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+                val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+                val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+                val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
+                val children = TreeUtils.findChildren(k, index)
+                val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
+                val neighbour = shuffled[neighbourIndex]
+                val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
+                val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
+
+                broadcastNodes.add(neighbour)
+                broadcastNodes.addAll(childrenKeys)
+                broadcastNodes.addAll(neighbourChildrenKeys)
+                Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+
+            }
+            else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+        }
+
         Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
 
         broadcastNodes.forEach { publicKey ->

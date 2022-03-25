@@ -5,6 +5,7 @@ import logging.Logger
 import network.data.Endpoint
 import network.data.MessageProcessing
 import network.data.messages.Message
+import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
 import utils.tryAndReport
@@ -64,6 +65,12 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         Logger.debug("We received a message on ${message.endpoint} [$verified]")
         if (verified) {
             val endpoint = message.endpoint
+            // TODO remove: is for testing and presentation
+            if (endpoint == Endpoint.NewBlock) {
+                Dashboard.receivedMessage(message.uid.asHex, endpoint, localNode.publicKey, System.currentTimeMillis())
+            }
+
+            // TODO -------------------------------------
             val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
             if (endpoint.processing == MessageProcessing.Queued) processingQueue.put { execution(message) }
             else launchCoroutine { execution(message) }
