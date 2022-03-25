@@ -101,7 +101,15 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val queuedMessage = outgoingMessageQueue.take()
             val message = queuedMessage.message
             val recipients = queuedMessage.recipients
-            val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
+
+            val recipientNodes = recipients.toList().ifEmpty {
+                if (validatorSet.activeValidators.isEmpty() || !configuration.useTreeBasedMessageRoutingProtocol) return@ifEmpty pickRandomNodes().map { it.publicKey }
+                val messageId = message.uid.asHex
+                val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+                val messageRandom = Random(seed)
+                val shuffled = validatorSet.shuffled(messageRandom)
+                shuffled.take(0)
+            }
             val transmissionLayer = message.endpoint.transmissionLayer
 
             val data: Array<ByteArray>
