@@ -194,7 +194,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
         }
 
-        val knownAndNotInSet = knownNodes.keys.filter { !validatorSet.activeValidators.contains(it) }
+        val knownAndNotInSet = knownNodes.values.map(Node::publicKey).filter { !validatorSet.activeValidators.contains(it) }
         broadcastNodes.addAll(knownAndNotInSet)
 
         Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
