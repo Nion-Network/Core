@@ -108,7 +108,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
                 val messageRandom = Random(seed)
                 val shuffled = validatorSet.shuffled(messageRandom)
-                shuffled.take(0)
+                shuffled.take(1)
             }
             val transmissionLayer = message.endpoint.transmissionLayer
 
