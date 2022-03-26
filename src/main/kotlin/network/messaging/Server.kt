@@ -2,6 +2,8 @@ package network.messaging
 
 import Configuration
 import chain.ValidatorSet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -14,10 +16,7 @@ import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
 import network.kademlia.Kademlia
-import utils.TreeUtils
-import utils.asHex
-import utils.sha256
-import utils.tryAndReport
+import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.math.BigInteger
@@ -140,12 +139,15 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             val outgoing = tcpOutgoingQueue.take()
             val recipient = outgoing.recipient
-            Socket(recipient.ip, recipient.tcpPort).use { socket ->
-                socket.getOutputStream().apply {
-                    outgoing.data.forEach { write(it) }
-                    flush()
+            launchCoroutine {
+                withContext(Dispatchers.IO) {
+                    Socket(recipient.ip, recipient.tcpPort).use { socket ->
+                        socket.getOutputStream().apply {
+                            outgoing.data.forEach { write(it) }
+                            flush()
+                        }
+                    }
                 }
-                socket.close()
             }
         }
     }

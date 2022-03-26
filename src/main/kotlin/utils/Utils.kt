@@ -41,9 +41,7 @@ fun runAfter(delay: Long, block: () -> Unit) {
 
 /** Launches a coroutine and executes [block] on that coroutine.*/
 fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
-    GlobalScope.launch(coroutineExceptionHandler) {
-        block(this)
-    }
+    GlobalScope.launch(coroutineExceptionHandler, block = block)
 }
 
 /** Establish a connection with google and find your external address. */
