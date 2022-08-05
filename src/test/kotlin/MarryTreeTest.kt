@@ -1,3 +1,4 @@
+import logging.Logger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import utils.TreeUtils
@@ -54,10 +55,11 @@ class MarryTreeTest {
 
     @Test
     fun outputTreeConnections() {
-        val k = 2
-        val depth = 3
+        val k = 3
+        val depth = 2
         val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
-        val tree = (0 until maximumNodes).toList().map { sha256("$it").asHex.substring(50..60) }
+        val tree = (0 until maximumNodes).toList().map { "$it" }
         val output = TreeUtils.outputTree(k, tree)
+        println(output)
     }
 }
