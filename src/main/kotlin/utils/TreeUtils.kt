@@ -51,8 +51,8 @@ object TreeUtils {
 
         filled.forEachIndexed { i, key ->
             val index = filled.lastIndex - i
-            val currentDepth = TreeUtils.computeDepth(k, index)
-            val nodesOnDepth = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+            val currentDepth = computeDepth(k, index)
+            val nodesOnDepth = computeTotalNodesOnDepth(k, currentDepth)
             val minIndex = computeMinimumIndexAtDepth(k, nodesOnDepth, currentDepth)
             val maxIndex = computeMaximumIndexAtDepth(nodesOnDepth)
 
@@ -85,6 +85,7 @@ object TreeUtils {
             if (neighbourChildrenConnections.isNotEmpty()) stringBuilder.append(neighbourChildrenConnections + "\n")
 
             stringBuilder.append("\"$node\" [pos=\"${length * distance},-${length * currentDepth}!\"]\n")
+            println("$index at depth $depth")
             // stringBuilder.append("\"$node\" [pos=\"${distance},-$currentDepth!\"]\n")
         }
         // Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(stringBuilder.toString()), null)

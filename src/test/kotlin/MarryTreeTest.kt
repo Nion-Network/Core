@@ -58,7 +58,7 @@ class MarryTreeTest {
         val k = 3
         val depth = 2
         val maximumNodes = TreeUtils.computeTotalNodesOnDepth(k, depth)
-        val tree = (0 until maximumNodes).toList().map { "$it" }
+        val tree = (0 until maximumNodes).toList().map { "$it".padStart(2) }
         val output = TreeUtils.outputTree(k, tree)
         println(output)
     }
