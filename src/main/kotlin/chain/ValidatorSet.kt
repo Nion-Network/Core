@@ -1,14 +1,10 @@
 package chain
 
-import Configuration
 import chain.data.Block
 import chain.data.ChainTask
 import chain.data.SlotDuty
 import logging.Logger
 import network.data.Node
-import network.data.clusters.Cluster
-import network.data.clusters.ClusterUtils
-import utils.asBitSet
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -70,7 +66,7 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
         return scheduledChanges
     }
 
-     /** Computes the task for the next action creation using current block information. */
+    /** Computes the task for the next action creation using current block information. */
     fun computeNextTask(block: Block, committeeSize: Int): ChainTask {
         return lock.withLock {
             val seed = block.seed
@@ -80,13 +76,15 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
             val validatorSetCopy = validators.sorted().shuffled(random).toMutableList()
             val blockProducerNode = validatorSetCopy.removeAt(0)
             val committee = validatorSetCopy.take(committeeSize)
+            val quorum = if (block.slot % 10 == 0L) validatorSetCopy.take(committeeSize) else emptyList()
 
             val ourRole = when {
-                blockProducerNode == ourKey -> SlotDuty.PRODUCER
-                committee.contains(ourKey) -> SlotDuty.COMMITTEE
-                else -> SlotDuty.VALIDATOR
+                blockProducerNode == ourKey -> SlotDuty.Producer
+                committee.contains(ourKey) -> SlotDuty.Committee
+                quorum.contains(ourKey) -> SlotDuty.Quorum
+                else -> SlotDuty.Validator
             }
-            ChainTask(ourRole, blockProducerNode, committee)
+            ChainTask(ourRole, blockProducerNode, committee, quorum)
         }
     }
 }

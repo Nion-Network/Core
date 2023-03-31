@@ -51,6 +51,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         return networkLock.withLock { networkStatistics[slot]?.toSet() ?: emptySet() }
     }
 
+    // ToDo: Separate docker statistics to sendInformationToCluster...
     /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot

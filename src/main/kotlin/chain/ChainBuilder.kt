@@ -27,6 +27,7 @@ import kotlin.random.Random
 abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configuration) {
 
     private val verifiableDelay = VerifiableDelay()
+    private val networkContainerState = NetworkContainerState()
     private val chain = Chain(verifiableDelay, configuration.initialDifficulty, configuration.committeeSize)
     private var sentGenesis = AtomicBoolean(false)
     private val isSyncing = AtomicBoolean(false)
@@ -41,6 +42,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         }
         val block = message.decodeAs<Block>()
         val blockAdded = chain.addBlocks(block)
+        val blockRandom = Random(block.seed)
 
         votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
@@ -48,7 +50,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
 
-            val activeValidators = validatorSet.activeValidators.shuffled(Random(block.seed))
+            val activeValidators = validatorSet.activeValidators.shuffled(blockRandom)
             val clusters = ClusterUtils.computeClusters(configuration.nodesPerCluster, configuration.maxIterations, activeValidators) { centroid, element ->
                 val elementBitSet = sha256(element).asHex.asBitSet
                 val centroidBitset = sha256(centroid).asHex.asBitSet.apply { xor(elementBitSet) }
@@ -56,12 +58,11 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 // ToDo: Performance improvement.
             }
             if (validatorSet.isInValidatorSet) sendDockerStatistics(block, nextTask.blockProducer, clusters)
-
             val ourMigrationPlan = block.migrations[localNode.publicKey]
+
 
             if (block.slot > 2) validatorSet.inclusionChanges(block)
             if (!validatorSet.isInValidatorSet) requestInclusion(nextTask.blockProducer)
-
             if (ourMigrationPlan != null) migrateContainer(ourMigrationPlan, block)
 
             validatorSet.clearScheduledChanges()
@@ -69,8 +70,20 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 Logger.info("Migration plan for ${block.slot} = ${ourMigrationPlan?.copy(from = "", to = "")}")
                 Dashboard.newBlockProduced(block, totalKnownNodes, validatorSet.validatorCount, "${it.ip}:${it.kademliaPort}")
             }
+
+
+            block.migrations.values.forEach(networkContainerState::migrationChange)
+            /* ToDo: Every % k == 0 do
+                1. Create snapshots of running containers using CRIU
+                2. Store snapshots as files / folders
+                3. Store snapshot name / identifier
+                4. Submit snapshot identifier to cluster representative
+                5. Cluster representative aggregates proofs and sends back to the block producer
+                6. Block producer includes snapshot information in block
+             */
+
             when (nextTask.myTask) {
-                SlotDuty.PRODUCER -> {
+                SlotDuty.Producer -> {
                     Dashboard.logCluster(block, nextTask, clusters)
                     Logger.chain("Producing block ${block.slot + 1}...")
                     val computationStart = System.currentTimeMillis()
@@ -117,8 +130,13 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                         }
                     }
                 }
-                SlotDuty.COMMITTEE -> {}
-                SlotDuty.VALIDATOR -> {}
+
+                SlotDuty.Committee -> {}
+                SlotDuty.Quorum -> {
+
+                }
+
+                SlotDuty.Validator -> {}
             }
         } else {
             val lastBlock = chain.getLastBlock()
@@ -188,6 +206,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                 val trusted = pickRandomNodes(totalKnownNodes).firstOrNull { it.ip == configuration.trustedNodeIP && it.kademliaPort == configuration.trustedNodePort }
                 if (trusted != null) send(Endpoint.InclusionRequest, inclusionRequest, trusted.publicKey)
             }
+
             nextProducer == null -> send(Endpoint.InclusionRequest, inclusionRequest)
             else -> send(Endpoint.InclusionRequest, inclusionRequest, nextProducer)
         }

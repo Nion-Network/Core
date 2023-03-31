@@ -8,4 +8,4 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val committee: List<String> = emptyList())
+data class ChainTask(val myTask: SlotDuty, val blockProducer: String, val committee: List<String> = emptyList(), val quorum: List<String> = emptyList())

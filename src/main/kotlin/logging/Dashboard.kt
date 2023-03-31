@@ -197,9 +197,9 @@ object Dashboard {
     /** Computes [Point] which is used in [logCluster]. */
     private fun clusterNodePoint(block: Block, task: ChainTask, representative: String, node: String, index: Int): Point {
         val slotDuty = when {
-            task.blockProducer == node -> SlotDuty.PRODUCER
-            task.committee.contains(node) -> SlotDuty.COMMITTEE
-            else -> SlotDuty.VALIDATOR
+            task.blockProducer == node -> SlotDuty.Producer
+            task.committee.contains(node) -> SlotDuty.Committee
+            else -> SlotDuty.Validator
         }
         return Point.measurement("cluster")
             .time(Instant.now(), WritePrecision.NS)
