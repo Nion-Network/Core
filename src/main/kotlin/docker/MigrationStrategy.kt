@@ -10,6 +10,7 @@ import logging.Dashboard
 import logging.Logger
 import network.messaging.Server
 import utils.tryAndReport
+import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -39,6 +40,19 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
         val process = ProcessBuilder("bash", "SaveContainer.sh", *arguments).start()
         process.waitFor()
         return File("/tmp/$container.tar")
+    }
+
+    /**
+     * Executes CreateSnapshot bash script that performs docker checkpoint create operation with the parameters.
+     *
+     * @param container Either container ID or unique name provided by Docker.
+     * @param checkpointName Unique string (must not exist in /tmp directory) that will name the snapshot of the container.
+     * @return
+     */
+    private fun createContainerSnapshot(container: String, checkpointName:String): String {
+        val process = ProcessBuilder("bash", "CreateSnapshot.sh", container, checkpointName).start()
+        process.waitFor()
+        return process.inputStream.bufferedReader().use(BufferedReader::readLine)
     }
 
     /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */

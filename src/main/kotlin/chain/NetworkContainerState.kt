@@ -42,6 +42,11 @@ class NetworkContainerState {
         container.apply(block)
     }
 
+    /**
+     * Moves container information between different nodes.
+     *
+     * @param migrationPlan [MigrationPlan] that is planned / was executed provided in that block.
+     */
     fun migrationChange(migrationPlan: MigrationPlan) {
         val (from, to, container) = migrationPlan
         val removedContainer = removeContainer(from, container)

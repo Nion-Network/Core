@@ -20,6 +20,9 @@ import kotlin.concurrent.withLock
  * Created by Mihael Valentin Berčič
  * on 18/11/2021 at 12:32
  * using IntelliJ IDEA
+ *
+ * Class holds information about docker containers across the whole network as well as provides functionality regarding
+ * network statistics aggregation.
  */
 @ExperimentalSerializationApi
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
@@ -31,6 +34,11 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         Thread(::listenForDockerStatistics).start()
     }
 
+    /**
+     * Removes statistics that are outdated (previous slots).
+     *
+     * @param slot
+     */
     protected fun removeOutdatedStatistics(slot: Long) {
         networkStatistics.remove(slot)
     }
@@ -51,7 +59,6 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         return networkLock.withLock { networkStatistics[slot]?.toSet() ?: emptySet() }
     }
 
-    // ToDo: Separate docker statistics to sendInformationToCluster...
     /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot
