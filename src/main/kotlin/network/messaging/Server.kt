@@ -178,7 +178,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         val index = shuffled.indexOf(localNode.publicKey)
 
         if (isTrustedNode) {
-            Logger.debug(TreeUtils.outputTree(k, shuffled.map { sha256(it).asHex.substring(50..60) }))
+            // Logger.debug(TreeUtils.outputTree(k, shuffled.map { sha256(it).asHex.substring(50..60) }))
         }
 
         val broadcastNodes = mutableSetOf<String>()
