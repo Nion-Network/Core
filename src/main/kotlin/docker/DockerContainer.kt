@@ -22,7 +22,8 @@ data class DockerContainer(
     var processes: Int,
     val memoryUsage: CircularList<Double>,
     val cpuUsage: CircularList<Double>,
-    var updated: Long = System.currentTimeMillis()
+    var updated: Long = System.currentTimeMillis(),
+    var latestSnapshot: String? = null
 ) {
 
     val averageCpuUsage get(): Double = cpuUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0

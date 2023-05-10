@@ -1,7 +1,9 @@
 #!/bin/bash
-COUNT=200
-echo "Running stress test of $COUNT apps..."
+count=200
+echo "Running stress test of $count apps..."
 
-for i in {1..COUNT}; do
-   echo "Welcome $i times"
+for i in $(seq $count); do
+   docker run -d dormage/java-stress
+   echo "Started $i-th app."
+   sleep 30
 done

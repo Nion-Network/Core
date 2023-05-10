@@ -10,6 +10,7 @@ import logging.Dashboard
 import logging.Logger
 import network.messaging.Server
 import utils.tryAndReport
+import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -30,7 +31,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     protected val imageMappings = ConcurrentHashMap<String, String>()
 
     init {
-        // Thread(::startListeningForMigrations).start() ToDo: Turn on.
+        Thread(::startListeningForMigrations).start() //  ToDo: Turn on.
     }
 
     /** Saves the image of the localContainerIdentifier([container]) and is stored as either checkpoint or .tar data. */
@@ -41,10 +42,24 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
         return File("/tmp/$container.tar")
     }
 
+    /**
+     * Executes CreateSnapshot bash script that performs docker checkpoint create operation with the parameters.
+     *
+     * @param container Either container ID or unique name provided by Docker.
+     * @param checkpointName Unique string (must not exist in /tmp directory) that will name the snapshot of the container.
+     * @return
+     */
+    private fun createContainerSnapshot(container: String, checkpointName:String): String {
+        val process = ProcessBuilder("bash", "CreateSnapshot.sh", container, checkpointName).start()
+        process.waitFor()
+        return process.inputStream.bufferedReader().use(BufferedReader::readLine)
+    }
+
     /** Sends the requested localContainerIdentifier from [migrationPlan] to the next node. */
     fun migrateContainer(migrationPlan: MigrationPlan, block: Block) {
         Logger.info("We have to send localContainerIdentifier ${migrationPlan.container} to ${migrationPlan.to}")
         query(migrationPlan.to) { receiver ->
+            Dashboard.reportException(Exception("Okay [${block.slot}]... Querying... ${localNode.ip}:${localNode.kademliaPort}"))
             val networkContainerIdentifier = migrationPlan.container
             val startedAt = System.currentTimeMillis()
             val localContainerIdentifier = networkMappings[networkContainerIdentifier] ?: networkContainerIdentifier
@@ -52,7 +67,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val savedAt = System.currentTimeMillis()
             val containerMigration = ContainerMigration(networkContainerIdentifier, localContainerIdentifier, block.slot, startedAt, savedAt)
             val encoded = ProtoBuf.encodeToByteArray(containerMigration)
-            Socket(receiver.ip, receiver.tcpPort).use { socket ->
+            Socket(receiver.ip, receiver.migrationPort).use { socket ->
                 DataOutputStream(socket.getOutputStream()).apply {
                     writeInt(encoded.size)
                     // TODO: Write image of the container. With length.
@@ -79,7 +94,8 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
             val networkContainerIdentifier = migrationInformation.networkContainer
             val localContainerIdentifier = migrationInformation.localContainerIdentifier
 
-            val outputFile = File.createTempFile("nion-", "-migration.tar").apply {
+
+            val outputFile = File("/tmp/$localContainerIdentifier.tar").apply {
                 outputStream().use { dataInputStream.transferTo(it) }
             }
             val filePath = outputFile.absolutePath
@@ -109,19 +125,17 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
     /** Starts the thread listening on socket for receiving migrations. */
     private fun startListeningForMigrations() {
         while (true) tryAndReport {
-            runMigratedContainer(tcpSocket.accept())
+            runMigratedContainer(migrationSocket.accept())
         }
     }
 
     /** Computes which migrations should happen based on provided docker statistics. */
-    protected fun computeMigrations(dockerStatistics: List<DockerStatistics>): Map<String, MigrationPlan> {
+    protected fun computeMigrations(previouslyMigratedContainers: List<String>, dockerStatistics: Set<DockerStatistics>): Map<String, MigrationPlan> {
         val migrations = mutableMapOf<String, MigrationPlan>()
         val mostUsedNode = dockerStatistics.maxByOrNull { it.totalCPU }
         val leastUsedNode = dockerStatistics.filter { it != mostUsedNode }.minByOrNull { it.totalCPU }
-
         if (leastUsedNode != null && mostUsedNode != null && leastUsedNode != mostUsedNode) {
-            val leastConsumingApp = mostUsedNode.containers.minByOrNull { it.averageCpuUsage }
-
+            val leastConsumingApp = mostUsedNode.containers.filter { !previouslyMigratedContainers.contains(it.id) }.minByOrNull { it.averageCpuUsage }
             if (leastConsumingApp != null) {
                 val mostUsage = mostUsedNode.totalCPU
                 val leastUsage = leastUsedNode.totalCPU
@@ -130,11 +144,9 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
                 val afterMigration = abs((mostUsage - appUsage) - (leastUsage + appUsage))
                 val difference = abs(beforeMigration - afterMigration)
 
-                Dashboard.reportException(Exception("Difference: $difference% \t App: $appUsage"))
                 if (difference > 1) {
                     val migration = MigrationPlan(mostUsedNode.publicKey, leastUsedNode.publicKey, leastConsumingApp.id)
                     migrations[mostUsedNode.publicKey] = migration
-                    Logger.debug(migration)
                 }
             }
         }

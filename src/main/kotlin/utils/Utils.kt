@@ -1,6 +1,9 @@
 package utils
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import logging.Dashboard
 import logging.Logger
 import java.net.InetAddress
@@ -8,6 +11,7 @@ import java.net.Socket
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.locks.Lock
+import kotlin.concurrent.schedule
 import kotlin.concurrent.withLock
 
 
@@ -30,17 +34,14 @@ fun sha256(data: String) = sha256(data.encodeToByteArray())
 
 /** Executes [block] after [delay in milliseconds][delay]. */
 fun runAfter(delay: Long, block: () -> Unit) {
-    launchCoroutine {
-        delay(delay)
+    Timer().schedule(delay) {
         block()
     }
 }
 
 /** Launches a coroutine and executes [block] on that coroutine.*/
 fun launchCoroutine(block: suspend CoroutineScope.() -> Unit) {
-    GlobalScope.launch(coroutineExceptionHandler) {
-        block(this)
-    }
+    GlobalScope.launch(coroutineExceptionHandler, block = block)
 }
 
 /** Establish a connection with google and find your external address. */

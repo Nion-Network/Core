@@ -4,7 +4,6 @@ import Configuration
 import chain.data.Block
 import chain.data.ChainTask
 import chain.data.SlotDuty
-import chain.data.Vote
 import com.influxdb.client.InfluxDBClientFactory
 import com.influxdb.client.InfluxDBClientOptions
 import com.influxdb.client.WriteOptions
@@ -77,11 +76,11 @@ object Dashboard {
      *
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
-    fun reportStatistics(statistics: Collection<DockerStatistics>, slot: Long) {
+    fun reportStatistics(statistics: Set<DockerStatistics>, slot: Long) {
         var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex
-            Logger.info("$publicKey has ${measurement.containers.size} containers running...")
+            Logger.info("$publicKey has ${measurement.containers.size} containers running ${sha256("$measurement").asHex}...")
             measurement.containers.onEach { container ->
                 val point = Point.measurement("containers").apply {
                     time(Instant.now().plusMillis(total), WritePrecision.NS)
@@ -95,7 +94,6 @@ object Dashboard {
                 queue.put(point)
             }
         }
-        vdfInformation("Count: $total ... Total: ${statistics.size}")
     }
 
     /** Sends the newly created block information to the dashboard. */
@@ -104,6 +102,7 @@ object Dashboard {
         val point = Point.measurement("block").apply {
             addField("created", formatTime(blockData.timestamp))
             addField("knownSize", knownNodesSize)
+            addField("apps", blockData.dockerStatistics.sumOf { it.containers.size })
             addField("statistics", blockData.dockerStatistics.size)
             addField("validatorSet", validatorSize)
             addField("slot", blockData.slot)
@@ -112,36 +111,13 @@ object Dashboard {
             addField("ip", ip)
             addField(
                 "blockProducer",
-                if (blockData.blockProducer == "SKIPBLOCK") blockData.blockProducer else sha256(blockData.blockProducer).asHex
+                if (blockData.blockProducer == "SKIPBLOCK") blockData.blockProducer
+                else sha256(blockData.blockProducer).asHex
             ) // TODO: Add sha256 encoding after skip block implementation.
-            addField(
-                "previousHash",
-                blockData.precedentHash.asHex
-            )
+            addField("previousHash", blockData.precedentHash.asHex)
             addField("hash", blockData.hash.asHex)
             addField("votes", blockData.votes)
         }
-        queue.put(point)
-    }
-
-    /** Reports to the dashboard that a new vote arrived. */
-    fun newVote(vote: Vote, publicKey: String) {
-        if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("attestations").apply {
-            // addField("blockHash", vote.blockHash)
-            addField("committeeMember", publicKey)
-        }
-
-        queue.put(point)
-    }
-
-    // TODO: remove
-    fun logPacket(endpoint: Endpoint, sender: String, missing: Int) {
-        if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("queueSize")
-            .addField("from", sender)
-            .addField("endpoint", "$endpoint")
-            .addField("missing", missing)
         queue.put(point)
     }
 
@@ -184,46 +160,27 @@ object Dashboard {
         queue.put(point)
     }
 
-    /** Reports that the localNode has requested inclusion into the validator set. */
-    fun requestedInclusion(from: String, slot: Long) {
-        if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("inclusion")
-            .addField("from", from)
-            .addField("slot", slot)
-        queue.put(point)
-    }
-
     /** Reports that a message with [id] has been sent. */
-    fun sentMessage(id: String, endpoint: Endpoint, sender: String, receiver: String, messageSize: Int, delay: Long) {
+    fun sentMessage(id: String, endpoint: Endpoint, sender: String, messageSize: Int) {
         if (!configuration.dashboardEnabled) return
         val point = Point.measurement("message")
             .time(Instant.now(), WritePrecision.NS)
             .addField("id", id)
             .addField("endpoint", endpoint.name)
             .addField("source", sha256(sender).asHex)
-            .addField("target", sha256(receiver).asHex)
             .addField("size", messageSize)
-            .addField("delay", delay)
 
         queue.put(point)
     }
 
-    // TODO: remove
-    fun vdfInformation(computation: String) {
+    fun receivedMessage(id: String, endpoint: Endpoint, receiver: String, time: Long) {
         if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("join")
-            .addField("computation", computation)
-
-        queue.put(point)
-    }
-
-    /** Sends message sizes computed by ProtoBuf and Json which is used for comparison. */
-    fun logMessageSize(protoBuf: Int, json: Int) {
-        if (!configuration.dashboardEnabled) return
-        val point = Point.measurement("message_size")
-            .addField("json", json)
-            .addField("protobuf", protoBuf)
-
+        val point = Point.measurement("received-message")
+            .time(Instant.now(), WritePrecision.NS)
+            .addField("id", id)
+            .addField("endpoint", endpoint.name)
+            .addField("receiver", sha256(receiver).asHex)
+            .addField("arrival", time)
         queue.put(point)
     }
 
@@ -240,9 +197,9 @@ object Dashboard {
     /** Computes [Point] which is used in [logCluster]. */
     private fun clusterNodePoint(block: Block, task: ChainTask, representative: String, node: String, index: Int): Point {
         val slotDuty = when {
-            task.blockProducer == node -> SlotDuty.PRODUCER
-            task.committee.contains(node) -> SlotDuty.COMMITTEE
-            else -> SlotDuty.VALIDATOR
+            task.blockProducer == node -> SlotDuty.Producer
+            task.committee.contains(node) -> SlotDuty.Committee
+            else -> SlotDuty.Validator
         }
         return Point.measurement("cluster")
             .time(Instant.now(), WritePrecision.NS)

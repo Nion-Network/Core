@@ -21,6 +21,8 @@ class CircularList<T>(private val maxCapacity: Int) {
     /** Returns all elements in this circular list. */
     fun elements() = elements.toList()
 
+    override fun hashCode(): Int = elements.joinToString("").hashCode()
+
     override fun toString(): String {
         return elements.toString()
     }

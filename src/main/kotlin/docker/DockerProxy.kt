@@ -20,6 +20,9 @@ import kotlin.concurrent.withLock
  * Created by Mihael Valentin Berčič
  * on 18/11/2021 at 12:32
  * using IntelliJ IDEA
+ *
+ * Class holds information about docker containers across the whole network as well as provides functionality regarding
+ * network statistics aggregation.
  */
 @ExperimentalSerializationApi
 abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(configuration) {
@@ -31,6 +34,11 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         Thread(::listenForDockerStatistics).start()
     }
 
+    /**
+     * Removes statistics that are outdated (previous slots).
+     *
+     * @param slot
+     */
     protected fun removeOutdatedStatistics(slot: Long) {
         networkStatistics.remove(slot)
     }
@@ -47,15 +55,15 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     }
 
     /** Retrieves all [DockerStatistics] from [networkStatistics] for the [slot]. */
-    fun getNetworkStatistics(slot: Long): List<DockerStatistics> {
-        return networkLock.withLock { networkStatistics[slot]?.toList() ?: emptyList() }
+    fun getNetworkStatistics(slot: Long): Set<DockerStatistics> {
+        return networkLock.withLock { networkStatistics[slot]?.toSet() ?: emptySet() }
     }
 
     /** Sends (new) local [DockerStatistics] to our centroid / block producer (if we're centroid).  */
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot
         val currentTime = System.currentTimeMillis()
-        localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= configuration.slotDuration }
+        localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= 1000 }
 
         val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
@@ -64,9 +72,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         if (ourCluster != null) {
             val clusterRepresentative = ourCluster.centroid
             val isRepresentative = clusterRepresentative == ourPublicKey
-            if (!isRepresentative) query(clusterRepresentative) {
-                send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
-            }
+            if (!isRepresentative) send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
             else runAfter(configuration.slotDuration / 4) {
                 val networkStatistics = getNetworkStatistics(slot).plus(localStatistics)
                 networkStatistics.forEach { Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot) }

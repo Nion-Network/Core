@@ -20,8 +20,6 @@ data class DockerStatistics(
     val containers: List<DockerContainer>,
     val slot: Long,
     val timestamp: Long = System.currentTimeMillis(),
-) {
-    val totalCPU: Int get() = containers.sumOf { it.averageCpuUsage.roundToInt() }
+    val totalCPU: Int = containers.sumOf { it.averageCpuUsage.roundToInt() }
+)
 
-    override fun toString() = "Node ... $totalCPU% CPU with ${containers.size} containers"
-}

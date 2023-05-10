@@ -2,6 +2,8 @@ package network.messaging
 
 import Configuration
 import chain.ValidatorSet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -14,10 +16,7 @@ import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
 import network.kademlia.Kademlia
-import utils.TreeUtils
-import utils.asHex
-import utils.sha256
-import utils.tryAndReport
+import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.math.BigInteger
@@ -101,7 +100,15 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val queuedMessage = outgoingMessageQueue.take()
             val message = queuedMessage.message
             val recipients = queuedMessage.recipients
-            val recipientNodes = recipients.toList().ifEmpty { pickRandomNodes().map { it.publicKey } }
+
+            val recipientNodes = recipients.toList().ifEmpty {
+                if (validatorSet.activeValidators.isEmpty() || !configuration.useTreeBasedMessageRoutingProtocol) return@ifEmpty pickRandomNodes().map { it.publicKey }
+                val messageId = message.uid.asHex
+                val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
+                val messageRandom = Random(seed)
+                val shuffled = validatorSet.shuffled(messageRandom)
+                shuffled.take(1)
+            }
             val transmissionLayer = message.endpoint.transmissionLayer
 
             val data: Array<ByteArray>
@@ -122,7 +129,9 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 query(publicKey) { outgoingQueue.add(OutgoingData(it, *data)) }
             }
 
-            Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.identifier, "X", message.body.size, 0)
+            if (message.endpoint == Endpoint.NewBlock) {
+                Dashboard.sentMessage(message.uid.asHex, message.endpoint, localNode.publicKey, message.body.size)
+            }
         }
     }
 
@@ -130,12 +139,15 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
         while (true) tryAndReport {
             val outgoing = tcpOutgoingQueue.take()
             val recipient = outgoing.recipient
-            Socket(recipient.ip, recipient.tcpPort).use { socket ->
-                socket.getOutputStream().apply {
-                    outgoing.data.forEach { write(it) }
-                    flush()
+            launchCoroutine {
+                withContext(Dispatchers.IO) {
+                    Socket(recipient.ip, recipient.tcpPort).use { socket ->
+                        socket.getOutputStream().apply {
+                            outgoing.data.forEach { write(it) }
+                            flush()
+                        }
+                    }
                 }
-                socket.close()
             }
         }
     }
@@ -145,44 +157,56 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             tcpSocket.accept().use { socket ->
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                val currentMilliseconds = System.currentTimeMillis()
-                if (messageHistory.computeIfAbsent(message.uid.asHex) { currentMilliseconds } < currentMilliseconds) return@tryAndReport
+                if (alreadySeen(message.uid.asHex)) return@tryAndReport
                 processingQueue.add(message)
                 if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
             }
         }
     }
 
+    private fun alreadySeen(id: String): Boolean {
+        val currentTime = System.currentTimeMillis()
+        return messageHistory.computeIfAbsent(id) { System.currentTimeMillis() } < currentTime
+
+    }
+
     private fun broadcast(transmissionLayer: TransmissionLayer, messageId: String, vararg data: ByteArray) {
         val seed = BigInteger(messageId, 16).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
         val messageRandom = Random(seed)
         val shuffled = validatorSet.shuffled(messageRandom)
-        val k = 2
+        val k = configuration.treeChildrenCount
         val index = shuffled.indexOf(localNode.publicKey)
 
         if (isTrustedNode) {
-            Logger.error(TreeUtils.outputTree(k, shuffled.mapNotNull { query(it) }.map { "${it.ip}:${it.kademliaPort}".padEnd(22) }))
+            // Logger.debug(TreeUtils.outputTree(k, shuffled.map { sha256(it).asHex.substring(50..60) }))
         }
+
         val broadcastNodes = mutableSetOf<String>()
-        if (index != -1) {
-            val currentDepth = TreeUtils.computeDepth(k, index)
-            val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
-            val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
-            val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
-            val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
-            val children = TreeUtils.findChildren(k, index)
-            val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
-            val neighbour = shuffled[neighbourIndex]
-            val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
-            val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
+        when {
+            configuration.useTreeBasedMessageRoutingProtocol && index != -1 -> {
+                val currentDepth = TreeUtils.computeDepth(k, index)
+                val totalNodes = TreeUtils.computeTotalNodesOnDepth(k, currentDepth)
+                val minimumIndex = TreeUtils.computeMinimumIndexAtDepth(k, totalNodes, currentDepth)
+                val maximumIndex = TreeUtils.computeMaximumIndexAtDepth(totalNodes)
+                val neighbourIndex = (index + 1).takeIf { it <= maximumIndex && it < shuffled.size } ?: minimumIndex
+                val children = TreeUtils.findChildren(k, index)
+                val neighbourChildren = TreeUtils.findChildren(k, neighbourIndex)
+                val neighbour = shuffled[neighbourIndex]
+                val childrenKeys = children.mapNotNull { shuffled.getOrNull(it) }
+                val neighbourChildrenKeys = neighbourChildren.mapNotNull { shuffled.getOrNull(it) }
 
-            broadcastNodes.add(neighbour)
-            broadcastNodes.addAll(childrenKeys)
-            broadcastNodes.addAll(neighbourChildrenKeys)
-            Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                broadcastNodes.add(neighbour)
+                broadcastNodes.addAll(childrenKeys)
+                broadcastNodes.addAll(neighbourChildrenKeys)
+                Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
 
+            }
+            else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
         }
-        broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
+
+        val knownAndNotInSet = knownNodes.values.map(Node::publicKey).filter { !validatorSet.activeValidators.contains(it) }
+        broadcastNodes.addAll(knownAndNotInSet)
+
         Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
 
         broadcastNodes.forEach { publicKey ->
@@ -213,9 +237,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             val packetId = packetIdBytes.asHex
             val messageIdBytes = inputStream.readNBytes(32)
             val messageId = messageIdBytes.asHex
-            val currentMilliseconds = System.currentTimeMillis()
-            if (messageHistory.computeIfAbsent(packetId) { currentMilliseconds } < currentMilliseconds)
-                return@tryAndReport
+            if (alreadySeen(packetId) || alreadySeen(messageId)) return@tryAndReport
 
             val endpoint = Endpoint.byId(inputStream.read().toByte()) ?: return@tryAndReport
             if (endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.UDP, messageId, packet.data.copyOf())
