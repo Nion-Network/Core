@@ -31,6 +31,9 @@ jobs:
         tag_name: latest
         files: build/libs/*.jar
 
+    - name: Move built executable
+      run: mv build/libs/*.jar .
+
     - name: Docker Login
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
