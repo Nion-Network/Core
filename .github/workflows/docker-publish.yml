@@ -23,16 +23,19 @@ jobs:
     
     - name: Execute Gradle build
       run: ./gradlew build
-      
+
+    - name: Move built executable
+      run: mv build/libs/*.jar .
+
+    - name: Rename built executable
+      run: for file in *.jar; do mv "$file" "${file%.*}-Jungle-Boogie.jar"; done;
+
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
         name: Nion Network - Jungle Boogie
         tag_name: latest
-        files: build/libs/*.jar
-
-    - name: Move built executable
-      run: mv build/libs/*.jar .
+        files: ./*.jar
 
     - name: Docker Login
       env:
