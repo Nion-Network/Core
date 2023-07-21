@@ -31,7 +31,7 @@ tasks.withType(Test).configureEach {
 
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    setArchivesBaseName("nion")
+    setArchivesBaseName("Nion-Network")
     manifest {
         attributes.put("Main-Class", "LaunchKt")
     }
