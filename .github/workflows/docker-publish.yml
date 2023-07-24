@@ -1,0 +1,50 @@
+name: Java CI with Gradle
+on:
+  push:
+    branches: [ "jungle-boogie" ]
+    
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setting up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '18'
+        distribution: 'temurin'
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+    
+    - name: Execute Gradle build
+      run: ./gradlew build
+
+    - name: Move built executable
+      run: mv build/libs/*.jar .
+
+    - name: Rename built executable
+      run: for file in *.jar; do mv "$file" "${file%.*}-Jungle-Boogie.jar"; done;
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Nion Network - Jungle Boogie
+        tag_name: latest
+        files: ./*.jar
+
+    - name: Docker Login
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      
+    - name: Docker Build Image
+      run: docker build --tag ${{ secrets.DOCKER_USERNAME }}/network:jungle-boogie .
+      
+    - name: Docker Push Image to Hub
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/network:jungle-boogie
