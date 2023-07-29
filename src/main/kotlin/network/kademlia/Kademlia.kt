@@ -31,7 +31,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
 
     val crypto = Crypto(".")
 
-    private val kademliaSocket: DatagramSocket = if (configuration.passedPort != -1) DatagramSocket(configuration.passedPort) else DatagramSocket()
+    private val kademliaSocket: DatagramSocket = configuration.port?.let { DatagramSocket(it) } ?: DatagramSocket()
 
     val localAddress = getLocalAddress()
     val localNode = Node(
@@ -43,7 +43,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         publicKey = crypto.publicKey
     ).apply {
         Dashboard.myInfo = "$ip:$kademliaPort"
-        println(Dashboard.myInfo)
+        Logger.info("Kademlia listening on: ${Dashboard.myInfo}")
     }
     val isTrustedNode = localNode.let { node -> node.ip == configuration.trustedNodeIP && node.kademliaPort == configuration.trustedNodePort }
 
@@ -68,7 +68,7 @@ open class Kademlia(configuration: Configuration) : SocketHolder(configuration) 
         lookForInactiveQueries()
 
         if (isTrustedNode) add(localNode)
-        printTree()
+        // printTree()
     }
 
     /** Sends a FIND_NODE request of our key to the known bootstrapping [Node]. */

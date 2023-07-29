@@ -19,8 +19,7 @@ fun main(args: Array<String>) {
 
         Logger.toggleLogging(configuration.loggingEnabled)
         args.getOrNull(0)?.toInt()?.apply {
-            configuration.passedPort = this
-            println("Passed udpPort: $this...")
+            configuration.port = this
         }
 
         Nion(configuration).apply {

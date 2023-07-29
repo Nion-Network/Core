@@ -55,7 +55,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
     private fun attemptBootstrap() {
         if (isTrustedNode || isBootstrapped) return
 
-        Logger.info("Attempting bootstrapping.")
+        Logger.info("Attempting bootstrapping to ${configuration.trustedNodeIP}:${configuration.trustedNodePort}.")
         bootstrap(configuration.trustedNodeIP, configuration.trustedNodePort)
         runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)
     }

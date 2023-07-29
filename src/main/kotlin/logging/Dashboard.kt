@@ -151,6 +151,7 @@ object Dashboard {
 
     /** Reports that an exception was caught */
     fun reportException(e: Throwable, additionalInfo: String = "") {
+        if (!configuration.dashboardEnabled) return
         Logger.reportException(e)
         val point = Point.measurement("exceptions")
             .time(Instant.now(), WritePrecision.NS)
