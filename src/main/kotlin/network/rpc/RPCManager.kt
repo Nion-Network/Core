@@ -12,6 +12,12 @@ import java.util.*
 import java.util.concurrent.CompletionStage
 import kotlin.collections.HashMap
 
+
+/**
+ * Created by Mihael Berčič
+ * on 29/07/2022 at 10:44
+ * using IntelliJ IDEA
+ */
 open class RPCManager(configuration: Configuration) {
 
     private val webServer = Javalin.create {
