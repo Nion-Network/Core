@@ -11,6 +11,7 @@ import network.data.clusters.ClusterUtils
 import network.data.messages.InclusionRequest
 import network.data.messages.Message
 import network.data.messages.SyncRequest
+import network.rpc.Topic
 import utils.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -47,7 +48,8 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
 
-            if(isTrustedNode) println("Added block\t[${block.slot}]")
+            if(isTrustedNode) Logger.chain("Added block\t[${block.slot}].")
+            sendToSubscribed(Topic.Block, block)
 
             removeOutdatedStatistics(block.slot - 1)
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
