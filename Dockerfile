@@ -4,9 +4,10 @@ FROM docker:dind
 WORKDIR /root
 
 RUN apk update
+RUN apk add openjdk20-jre-headless --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
+
 RUN apk add make \
     bash \
-    openjdk11-jre \
     curl \
     openssl-dev \
     python3-dev \
