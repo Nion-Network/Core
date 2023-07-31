@@ -1,20 +1,19 @@
-FROM docker:dind
+FROM docker:20-dind
 # RUN sed 's/http:\/\/fr\./http:\/\//' /etc/apt/sources.list
 
 WORKDIR /root
 
 RUN apk update
-RUN apk add openjdk20-jre-headless --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/
-
 RUN apk add make \
     bash \
     curl \
     openssl-dev \
     python3-dev \
-    gmp-dev
+    gmp-dev \
+    tar
 
-RUN apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing criu-dev
-RUN apk add tar
+RUN apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing criu-dev \
+    openjdk20-jre-headless
 
 ADD *.jar Node.jar
 ADD config.json config.json

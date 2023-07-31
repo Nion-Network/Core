@@ -7,9 +7,12 @@ import io.javalin.websocket.WsConnectContext
 import io.javalin.websocket.WsContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.lang.Exception
 import java.net.http.WebSocket
+import java.time.Duration
 import java.util.*
 import java.util.concurrent.CompletionStage
+import java.util.concurrent.TimeUnit
 import kotlin.collections.HashMap
 
 
@@ -20,12 +23,14 @@ import kotlin.collections.HashMap
  */
 open class RPCManager(configuration: Configuration) {
 
+    val subscribedClients: HashMap<Topic, MutableList<WsContext>> = hashMapOf()
+
     private val webServer = Javalin.create {
         it.showJavalinBanner = false
     }.start(configuration.webSocketPort)
 
     private val pendingClients: MutableList<WsContext> = mutableListOf()
-    private val subscribedClients: HashMap<Topic, MutableList<WsContext>> = hashMapOf()
+
     private val subscribedTopics: HashMap<WsContext, MutableList<Topic>> = hashMapOf()
 
     init {
@@ -41,6 +46,7 @@ open class RPCManager(configuration: Configuration) {
      * once requested.
      */
     private fun onConnect(webSocket: WsConnectContext) {
+        webSocket.enableAutomaticPings(5, TimeUnit.SECONDS)
         webSocket.send("Hello, this is Nion node!")
         Topic.entries.forEach { topic ->
             subscribedClients
@@ -53,6 +59,10 @@ open class RPCManager(configuration: Configuration) {
      * On Client disconnect, remove the context from all subscribed topics.
      */
     private fun onClose(webSocket: WsCloseContext) {
+        removeConnection(webSocket)
+    }
+
+    fun removeConnection(webSocket: WsContext) {
         val subscriptions = subscribedTopics.remove(webSocket) ?: return
         subscriptions.forEach { topic ->
             subscribedClients[topic]?.remove(webSocket)
@@ -62,10 +72,16 @@ open class RPCManager(configuration: Configuration) {
     /**
      * Sends serialised data to all clients that are subscribed to the [topic].
      */
-    fun sendToSubscribed(topic: Topic, data: Any) {
-        val serialisedData = Json.encodeToString(data)
+    inline fun <reified T> sendToSubscribed(topic: Topic, data: T) {
+        val serialisedData = Json.encodeToString<T>(data)
         val clientList = subscribedClients[topic] ?: return
-        clientList.forEach { it.send(serialisedData) }
+        clientList.forEach {
+            try {
+                it.send(serialisedData)
+            } catch (e:Exception) {
+                removeConnection(it)
+            }
+        }
     }
 
 }

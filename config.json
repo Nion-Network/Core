@@ -1,9 +1,8 @@
 {
-  "trustedNodeIP": "88.200.63.133",
-  "trustedNodePort": 2517,
+  "trustedNodeIP": "172.16.150.159",
+  "trustedNodePort": 5005,
+  "webSocketPort": 2517,
   "keystorePath": ".",
-  "port": 2517,
-  "webSocketPort": 5010,
   "maxNodes": 10000,
   "slotDuration": 10000,
   "initialDifficulty": 10,

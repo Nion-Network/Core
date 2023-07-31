@@ -29,7 +29,10 @@ class ValidatorSet(private val localNode: Node, isTrustedNode: Boolean) {
 
 
     init {
-        if (isTrustedNode) scheduledChanges[localNode.publicKey] = true
+        if (isTrustedNode) {
+            scheduledChanges[localNode.publicKey] = true
+            Logger.info("We're the trusted node...")
+        }
     }
 
     /** Returns shuffled validator set using passed [random]. */

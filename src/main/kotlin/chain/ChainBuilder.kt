@@ -228,12 +228,15 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             validatorSet.scheduleChange(inclusionRequest.publicKey, true)
             // send(message)
         }
-        Logger.debug("Received inclusion request! ")
+        val canStartTheChain = isTrustedNode && lastBlock == null
+        Logger.debug("Received inclusion request! Can start the chain: $canStartTheChain")
 
-        if (isTrustedNode && lastBlock == null) {
+        if (canStartTheChain) {
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
+            Logger.debug("There is enough to start: $isEnoughToStart")
             if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
+                Logger.debug("Computing proof for genesis block.")
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
                 val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptySet(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
                 send(Endpoint.NewBlock, genesisBlock)

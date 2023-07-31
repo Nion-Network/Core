@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 data class Configuration(
     val trustedNodeIP: String,
     val trustedNodePort: Int,
-    var port: Int?,
+    var port: Int? = null,
     val webSocketPort: Int,
     val maxNodes: Int,
     val keystorePath: String,
