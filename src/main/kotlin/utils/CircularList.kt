@@ -8,28 +8,15 @@ import kotlinx.serialization.Serializable
  * using IntelliJ IDEA
  */
 @Serializable
-class CircularList<T>(private val maxCapacity: Int) {
-
-    private val elements = ArrayList<T>(maxCapacity)
+class CircularList<T>(private val maxCapacity: Int) : ArrayList<T>(maxCapacity) {
 
     /** Adds a new element to the list and removes the oldest element.*/
-    fun add(element: T) {
-        if (elements.size == maxCapacity) elements.removeFirst()
-        elements.add(element)
+    override fun add(element: T): Boolean {
+        if (size == maxCapacity) removeFirst()
+        return super.add(element)
     }
 
     /** Returns all elements in this circular list. */
-    fun elements() = elements.toList()
-
-    override fun hashCode(): Int = elements.joinToString("").hashCode()
-
-    override fun toString(): String {
-        return elements.toString()
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other is CircularList<*>) return other.elements == elements
-        return super.equals(other)
-    }
+    fun elements() = toList()
 
 }
