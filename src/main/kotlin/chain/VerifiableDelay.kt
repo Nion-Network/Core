@@ -11,7 +11,6 @@ class VerifiableDelay {
 
     /** Runs a vdf-cli command and returns the output of vdf computation. */
     fun computeProof(difficulty: Int, hash: ByteArray): String {
-        return "PROOF"
         val hexHash = hash.asHex
         val needed = hexHash.length % 2
         val processBuilder = ProcessBuilder()

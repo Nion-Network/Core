@@ -61,6 +61,7 @@ object Dashboard {
     }
 
     fun reportDHTQuery(identifier: String, seekerIp: String, seeker: String, hops: Int, revives: Int, duration: Long) {
+        if (!configuration.dashboardEnabled) return
         val point = Point.measurement("dht")
             .addField("hops", hops)
             .addField("ip", seekerIp)
@@ -77,6 +78,7 @@ object Dashboard {
      * @param statistics Docker statistics that are reported by all representers of clusters.
      */
     fun reportStatistics(statistics: Set<DockerStatistics>, slot: Long) {
+        if (!configuration.dashboardEnabled) return
         var total = 0L
         for (measurement in statistics) {
             val publicKey = sha256(measurement.publicKey).asHex

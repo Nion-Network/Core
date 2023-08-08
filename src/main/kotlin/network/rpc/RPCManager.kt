@@ -5,8 +5,10 @@ import io.javalin.Javalin
 import io.javalin.websocket.WsCloseContext
 import io.javalin.websocket.WsConnectContext
 import io.javalin.websocket.WsContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import network.data.messages.Message
 import java.lang.Exception
 import java.net.http.WebSocket
 import java.time.Duration
@@ -47,12 +49,12 @@ open class RPCManager(configuration: Configuration) {
      */
     private fun onConnect(webSocket: WsConnectContext) {
         webSocket.enableAutomaticPings(5, TimeUnit.SECONDS)
-        webSocket.send("Hello, this is Nion node!")
         Topic.entries.forEach { topic ->
             subscribedClients
                 .computeIfAbsent(topic) { mutableListOf() }
                 .add(webSocket)
         }
+        sendToSubscribed(Topic.Logging, "Hello, this is Nion node!")
     }
 
     /**
@@ -73,12 +75,13 @@ open class RPCManager(configuration: Configuration) {
      * Sends serialised data to all clients that are subscribed to the [topic].
      */
     inline fun <reified T> sendToSubscribed(topic: Topic, data: T) {
-        val serialisedData = Json.encodeToString<T>(data)
+        val message = RPCMessage(topic, data)
+        val serialisedData = Json.encodeToString(message)
         val clientList = subscribedClients[topic] ?: return
         clientList.forEach {
             try {
                 it.send(serialisedData)
-            } catch (e:Exception) {
+            } catch (e: Exception) {
                 removeConnection(it)
             }
         }
@@ -86,8 +89,12 @@ open class RPCManager(configuration: Configuration) {
 
 }
 
+@Serializable
+data class RPCMessage<T>(val topic: Topic, val data: T)
+
 enum class Topic {
     Block,
     Migration,
-    LocalApplication
+    LocalApplication,
+    Logging
 }

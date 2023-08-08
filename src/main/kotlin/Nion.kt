@@ -71,7 +71,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
             }
 
             // TODO -------------------------------------
-            val execution = endpoints[endpoint] ?: throw Exception("Endpoint $endpoint has no handler set.")
+            val execution = endpoints[endpoint] ?: return // throw Exception("Endpoint $endpoint has no handler set.")
             if (endpoint.processing == MessageProcessing.Queued) processingQueue.put { execution(message) }
             else launchCoroutine { execution(message) }
         }

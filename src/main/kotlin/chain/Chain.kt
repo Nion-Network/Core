@@ -34,7 +34,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             val lastBlock = getLastBlock()
             val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
             val difficulty = lastBlock?.difficulty ?: initialDifficulty
-            val isLegitimate = verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
+            val isLegitimate = nextBlock.slot == (lastBlock?.slot ?: 0) + 1 // verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
             if (!isLegitimate) {
                 Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
                 Logger.chain("Last hash: ${lastHash.asHex}")

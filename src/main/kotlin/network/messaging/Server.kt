@@ -16,6 +16,7 @@ import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
 import network.kademlia.Kademlia
+import network.rpc.Topic
 import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
@@ -157,7 +158,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             tcpSocket.accept().use { socket ->
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                if (alreadySeen(message.uid.asHex)) return@tryAndReport
+                if (alreadySeen(message.uid.asHex)) return@use
                 processingQueue.add(message)
                 if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
             }
@@ -253,6 +254,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val gluedData = messageBuilder.gluedData()
                 val decoded = ProtoBuf.decodeFromByteArray<Message>(gluedData)
                 processingQueue.add(decoded)
+                messageBuilders.remove(messageId)
             }
         }
     }

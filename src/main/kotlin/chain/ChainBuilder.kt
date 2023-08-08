@@ -51,7 +51,6 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             if(isTrustedNode) Logger.chain("Added block\t[${block.slot}].")
             sendToSubscribed(Topic.Block, block)
 
-            removeOutdatedStatistics(block.slot - 1)
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
 
