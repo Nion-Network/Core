@@ -52,6 +52,12 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         attemptInclusion()
     }
 
+    /**
+     * Attempts to bootstrap to the network, retrying every 20 seconds upon failure.
+     *
+     * This function initiates a connection to the network and will continue to retry
+     * the connection attempt at 20-second intervals until successful or externally stopped.
+     */
     private fun attemptBootstrap() {
         if (isTrustedNode || isBootstrapped) return
 
@@ -60,6 +66,13 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
         runAfter(Random.nextLong(10000, 20000), this::attemptBootstrap)
     }
 
+    /**
+     * Processes the incoming network message and determines the appropriate action
+     * based on the current task within the network workflow.
+     *
+     * We interpret the message content and updates the system state or
+     * triggers the next network-related operation accordingly using the processing queue.
+     */
     override fun processMessage(message: Message) {
         val verified = crypto.verify(message.body, message.signature, message.publicKey)
         Logger.debug("We received a message on ${message.endpoint} [$verified]")
