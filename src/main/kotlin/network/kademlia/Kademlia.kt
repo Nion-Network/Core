@@ -30,7 +30,6 @@ import kotlin.random.Random
  * on 01/12/2021 at 13:10
  * using IntelliJ IDEA
  */
-@ExperimentalSerializationApi
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
 
     val crypto = Crypto(".")

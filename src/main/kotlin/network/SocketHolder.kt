@@ -10,7 +10,7 @@ import java.net.ServerSocket
  * on 21/01/2022 at 10:44
  * using IntelliJ IDEA
  */
-open class SocketHolder(configuration: Configuration) : RPCManager(configuration) {
+open class SocketHolder(configuration: Configuration) {
 
     protected val udpSocket: DatagramSocket = DatagramSocket()
     protected val tcpSocket: ServerSocket = ServerSocket(0)

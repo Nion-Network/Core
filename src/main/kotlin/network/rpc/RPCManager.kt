@@ -8,7 +8,9 @@ import io.javalin.websocket.WsContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import network.SocketHolder
 import network.data.messages.Message
+import network.kademlia.Kademlia
 import java.lang.Exception
 import java.net.http.WebSocket
 import java.time.Duration
@@ -23,22 +25,23 @@ import kotlin.collections.HashMap
  * on 29/07/2022 at 10:44
  * using IntelliJ IDEA
  */
-open class RPCManager(configuration: Configuration) {
+open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
 
     val subscribedClients: HashMap<Topic, MutableList<WsContext>> = hashMapOf()
-
-    private val webServer = Javalin.create {
-        it.showJavalinBanner = false
-    }.start(configuration.webSocketPort)
 
     private val pendingClients: MutableList<WsContext> = mutableListOf()
 
     private val subscribedTopics: HashMap<WsContext, MutableList<Topic>> = hashMapOf()
 
     init {
-        webServer.ws("/") {
-            it.onConnect(this::onConnect)
-            it.onClose(this::onClose)
+        if (isTrustedNode) {
+            val webServer = Javalin.create {
+                it.showJavalinBanner = false
+            }.start(configuration.webSocketPort)
+            webServer.ws("/") {
+                it.onConnect(this::onConnect)
+                it.onClose(this::onClose)
+            }
         }
     }
 

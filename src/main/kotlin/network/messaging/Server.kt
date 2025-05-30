@@ -16,6 +16,7 @@ import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
 import network.kademlia.Kademlia
+import network.rpc.RPCManager
 import network.rpc.Topic
 import utils.*
 import java.io.ByteArrayInputStream
@@ -37,7 +38,7 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 @ExperimentalSerializationApi
-abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
+abstract class Server(val configuration: Configuration) : RPCManager(configuration) {
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val messageHistory = ConcurrentHashMap<String, Long>()

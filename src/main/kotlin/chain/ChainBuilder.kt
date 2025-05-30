@@ -48,7 +48,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
 
-            if(isTrustedNode) Logger.chain("Added block\t[${block.slot}].")
+            if (isTrustedNode) Logger.chain("Added block\t[${block.slot}].")
             sendToSubscribed(Topic.Block, block)
 
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
@@ -122,14 +122,19 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             blockProducer = localNode.publicKey,
                             validatorChanges = validatorSet.getScheduledChanges(),
                             precedentHash = block.hash,
-                            migrations = migrations
+                            migrations = migrations,
+                            committee = committeeMembers
                         )
                         val voteRequest = VoteRequest(newBlock, localNode.publicKey)
                         send(Endpoint.VoteRequest, voteRequest, *committeeMembers.toTypedArray())
                         runAfter(delayThird * 2) {
-                            val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1
+                            val blockVotes = votes[newBlock.hash.asHex] ?: emptyList()
+                            val allVotes = blockVotes.count()
+                            val votedMembers = blockVotes.map { it.publicKey }
+
                             Logger.chain("Broadcasting out block ${newBlock.slot}.")
                             newBlock.votes = allVotes
+                            newBlock.votedMembers.addAll(votedMembers)
                             send(Endpoint.NewBlock, newBlock)
                         }
                     }
@@ -248,7 +253,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     fun voteRequested(message: Message) {
         val request = message.decodeAs<VoteRequest>()
         val block = request.block
-        val vote = Vote(block.hash, VoteType.FOR)
+        val vote = Vote(block.hash, VoteType.FOR, localNode.publicKey)
         send(Endpoint.Vote, vote, request.publicKey)
     }
 
