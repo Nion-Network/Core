@@ -5,7 +5,6 @@ import io.javalin.Javalin
 import io.javalin.websocket.WsCloseContext
 import io.javalin.websocket.WsConnectContext
 import io.javalin.websocket.WsContext
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import network.kademlia.Kademlia
@@ -20,9 +19,7 @@ import java.util.concurrent.TimeUnit
 open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
 
     val subscribedClients: HashMap<Topic, MutableList<WsContext>> = hashMapOf()
-
     private val pendingClients: MutableList<WsContext> = mutableListOf()
-
     private val subscribedTopics: HashMap<WsContext, MutableList<Topic>> = hashMapOf()
 
     init {
@@ -59,6 +56,12 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
         removeConnection(webSocket)
     }
 
+    /**
+     * Removes the subscribed client from the notification list.
+     *
+     * This function unregisters a client, ensuring it no longer receives
+     * notifications or updates from the system.
+     */
     fun removeConnection(webSocket: WsContext) {
         val subscriptions = subscribedTopics.remove(webSocket) ?: return
         subscriptions.forEach { topic ->
@@ -83,9 +86,6 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
     }
 
 }
-
-@Serializable
-data class RPCMessage<T>(val topic: Topic, val data: T)
 
 enum class Topic {
     Block,
