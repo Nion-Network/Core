@@ -27,7 +27,7 @@ jobs:
     - name: Move built executable
       run: mv build/libs/*.jar .
 
-    - name: Rename built executable
+    - name: "Rename built executable to the current active branch. TODO: Make naming dynamic"
       run: for file in *.jar; do mv "$file" "${file%.*}-Jungle-Boogie.jar"; done;
 
     - name: Release
