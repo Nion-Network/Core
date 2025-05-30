@@ -1,4 +1,5 @@
 # Intellij
+config.json
 .idea/
 *.iml
 *.iws
