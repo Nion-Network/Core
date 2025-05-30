@@ -25,9 +25,6 @@ data class DockerContainer(
     var updated: Long = System.currentTimeMillis(),
     var latestSnapshot: String? = null
 ) {
-
     val averageCpuUsage get(): Double = cpuUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
-
     val averageMemoryUsage get(): Double = memoryUsage.elements().average().takeIf { !it.isNaN() } ?: 0.0
-
 }

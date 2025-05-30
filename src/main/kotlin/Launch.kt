@@ -13,16 +13,12 @@ import java.io.File
 @ExperimentalSerializationApi
 fun main(args: Array<String>) {
     tryAndReport {
-        System.setProperty("kotlinx.coroutines.scheduler", "off")
-
+        System.setProperty("kotlinx.coroutines.scheduler", "off") // Needed due to bugs with linux and docker containers. TODO: fix ASAP
         val configuration = Json.decodeFromString<Configuration>(File("./config.json").readText())
-
         Logger.toggleLogging(configuration.loggingEnabled)
         args.getOrNull(0)?.toInt()?.apply {
-            configuration.passedPort = this
-            println("Passed udpPort: $this...")
+            configuration.port = this
         }
-
         Nion(configuration).apply {
             launch()
         }

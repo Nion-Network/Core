@@ -2,6 +2,7 @@ package chain
 
 import chain.data.Block
 import logging.Logger
+import utils.CircularList
 import utils.asHex
 import utils.tryWithLock
 import java.util.concurrent.locks.ReentrantLock
@@ -15,7 +16,7 @@ import kotlin.concurrent.withLock
 class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int, private val committeeSize: Int) {
 
     private val lock = ReentrantLock(true)
-    private val blocks = mutableListOf<Block>()
+    private val blocks = CircularList<Block>(50) // ToDo: Remove, do not use Circular List but use persistent storage!
 
     /** Returns the last block in the chain. */
     fun getLastBlock(): Block? {
@@ -46,8 +47,6 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             lock.tryWithLock {
                 blocks.add(nextBlock)
                 // ToDo: Put chain history in some sort of storage instead of keeping in memory.
-                val lastBlocks = blocks.takeLast(50)
-                blocks.removeAll { !lastBlocks.contains(it) }
             }
             Logger.chain("Block[${nextBlock.votes}/$committeeSize] added [${nextBlock.slot}].")
         }

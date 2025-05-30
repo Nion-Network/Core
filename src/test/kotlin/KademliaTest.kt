@@ -1,11 +1,4 @@
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import logging.Logger
-import network.data.Node
-import network.kademlia.Kademlia
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import java.io.File
 
 /**
  * Created by mihael
@@ -17,7 +10,7 @@ class KademliaTest {
 
     @Test
     fun lookup() {
-
+        // TODO: Implement local Kademlia network lookup to find closest nodes or values in the DHT.
     }
 
 }

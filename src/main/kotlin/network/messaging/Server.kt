@@ -15,7 +15,7 @@ import network.data.Node
 import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
-import network.kademlia.Kademlia
+import network.rpc.RPCManager
 import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
@@ -36,7 +36,7 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 @ExperimentalSerializationApi
-abstract class Server(val configuration: Configuration) : Kademlia(configuration) {
+abstract class Server(val configuration: Configuration) : RPCManager(configuration) {
 
     protected val validatorSet = ValidatorSet(localNode, isTrustedNode)
     private val messageHistory = ConcurrentHashMap<String, Long>()
@@ -119,6 +119,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                     data = encodeToPackets(message)
                     outgoingQueue = udpOutgoingQueue
                 }
+
                 else -> {
                     data = arrayOf(ProtoBuf.encodeToByteArray(message))
                     outgoingQueue = tcpOutgoingQueue
@@ -157,7 +158,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
             tcpSocket.accept().use { socket ->
                 val data = socket.getInputStream().readAllBytes()
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
-                if (alreadySeen(message.uid.asHex)) return@tryAndReport
+                if (alreadySeen(message.uid.asHex)) return@use
                 processingQueue.add(message)
                 if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
             }
@@ -201,6 +202,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
 
             }
+
             else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
         }
 
@@ -253,6 +255,7 @@ abstract class Server(val configuration: Configuration) : Kademlia(configuration
                 val gluedData = messageBuilder.gluedData()
                 val decoded = ProtoBuf.decodeFromByteArray<Message>(gluedData)
                 processingQueue.add(decoded)
+                messageBuilders.remove(messageId)
             }
         }
     }

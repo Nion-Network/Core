@@ -1,7 +1,5 @@
 package utils
 
-import java.awt.Toolkit
-import java.awt.datatransfer.StringSelection
 import kotlin.math.ceil
 import kotlin.math.log10
 import kotlin.math.pow

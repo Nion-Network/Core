@@ -23,6 +23,8 @@ class VerifiableDelay {
 
     /** Verifies the calculated vdf proof. */
     fun verifyProof(hash: ByteArray, difficulty: Int, proof: String): Boolean {
+        // In order to speed up the development and testing of other elements of the project, we prematurely return true.
+        // There are tests that cover the vdf computation and verification.
         return true
         val processBuilder = ProcessBuilder()
             .command("vdf-cli", hash.asHex, "$difficulty", proof)

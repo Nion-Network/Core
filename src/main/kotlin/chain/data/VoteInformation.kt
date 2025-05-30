@@ -7,5 +7,6 @@ import kotlinx.serialization.Serializable
  * on 24/10/2021 at 00:47
  * using IntelliJ IDEA
  */
+@Deprecated("Irrelevant information", replaceWith = ReplaceWith("Vote"))
 @Serializable
 data class VoteInformation(val from: String, val timestamp: Long = System.currentTimeMillis())
