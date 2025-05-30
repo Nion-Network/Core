@@ -49,7 +49,7 @@ abstract class MigrationStrategy(configuration: Configuration) : Server(configur
      * @param checkpointName Unique string (must not exist in /tmp directory) that will name the snapshot of the container.
      * @return
      */
-    private fun createContainerSnapshot(container: String, checkpointName:String): String {
+    private fun createContainerSnapshot(container: String, checkpointName: String): String {
         val process = ProcessBuilder("bash", "CreateSnapshot.sh", container, checkpointName).start()
         process.waitFor()
         return process.inputStream.bufferedReader().use(BufferedReader::readLine)

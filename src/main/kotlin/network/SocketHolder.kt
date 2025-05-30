@@ -1,7 +1,6 @@
 package network
 
 import Configuration
-import network.rpc.RPCManager
 import java.net.DatagramSocket
 import java.net.ServerSocket
 

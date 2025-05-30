@@ -8,16 +8,8 @@ import io.javalin.websocket.WsContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import network.SocketHolder
-import network.data.messages.Message
 import network.kademlia.Kademlia
-import java.lang.Exception
-import java.net.http.WebSocket
-import java.time.Duration
-import java.util.*
-import java.util.concurrent.CompletionStage
 import java.util.concurrent.TimeUnit
-import kotlin.collections.HashMap
 
 
 /**

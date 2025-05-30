@@ -15,9 +15,7 @@ import network.data.Node
 import network.data.TransmissionLayer
 import network.data.TransmissionType
 import network.data.messages.Message
-import network.kademlia.Kademlia
 import network.rpc.RPCManager
-import network.rpc.Topic
 import utils.*
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
@@ -121,6 +119,7 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
                     data = encodeToPackets(message)
                     outgoingQueue = udpOutgoingQueue
                 }
+
                 else -> {
                     data = arrayOf(ProtoBuf.encodeToByteArray(message))
                     outgoingQueue = tcpOutgoingQueue
@@ -203,6 +202,7 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
                 Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
 
             }
+
             else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
         }
 

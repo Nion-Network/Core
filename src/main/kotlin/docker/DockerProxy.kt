@@ -8,7 +8,6 @@ import logging.Logger
 import network.data.Endpoint
 import network.data.clusters.Cluster
 import network.data.messages.Message
-import network.rpc.Topic
 import utils.CircularList
 import utils.runAfter
 import java.nio.ByteBuffer
