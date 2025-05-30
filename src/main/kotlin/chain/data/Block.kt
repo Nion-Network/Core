@@ -10,6 +10,11 @@ import java.math.BigInteger
  * Created by Mihael Valentin Berčič
  * on 24/10/2021 at 00:46
  * using IntelliJ IDEA
+ * Holds information about a block in the blockchain.
+ *
+ * This class contains metadata and data associated with a blockchain block,
+ * such as the block hash, previous block hash, timestamp, nonce, transactions,
+ * and any other relevant consensus or application-specific details.
  */
 @Serializable
 class Block(
@@ -28,6 +33,9 @@ class Block(
     val hash: ByteArray = sha256("$slot$blockProducer$difficulty$precedentHash$validatorChanges")
 ) {
 
+    /**
+     * Lazy computation of the seed that is later used in the block computation.
+     */
     val seed by lazy {
         BigInteger(sha256(vdfProof)).remainder(Long.MAX_VALUE.toBigInteger()).toLong()
     }
