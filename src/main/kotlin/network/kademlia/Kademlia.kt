@@ -28,9 +28,7 @@ import kotlin.random.Random
  * using IntelliJ IDEA
  */
 open class Kademlia(configuration: Configuration) : SocketHolder(configuration) {
-
     val crypto = Crypto(".")
-
     private val kademliaSocket: DatagramSocket = configuration.port?.let { DatagramSocket(it) } ?: DatagramSocket()
 
     val localAddress = getLocalAddress()
