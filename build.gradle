@@ -6,7 +6,6 @@ plugins {
 
 group 'nion.network'
 version '0.1'
-
 //configurations.implementation.setCanBeResolved(true)
 
 repositories {
@@ -27,7 +26,6 @@ dependencies {
 test {
     useJUnitPlatform()
     scanForTestClasses = false
-    failOnNoMatchingTests = false
 }
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
