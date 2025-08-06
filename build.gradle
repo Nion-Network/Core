@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'nion.network'
-version '0.1'
+//version '0.1'
 //configurations.implementation.setCanBeResolved(true)
 
 repositories {
@@ -31,7 +31,7 @@ tasks.test {
 }
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
+    archiveBaseName.set("nion-core")
     manifest {
         attributes.put("Main-Class", "LaunchKt")
     }
