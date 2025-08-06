@@ -24,7 +24,7 @@ dependencies {
     implementation('org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt')
 }
 
-test {
+tasks.test {
     useJUnitPlatform()
     scanForTestClasses = false
     failOnNoDiscoveredTests = false
