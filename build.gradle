@@ -24,11 +24,11 @@ dependencies {
     implementation('org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt')
 }
 
-//tasks.withType(Test).configureEach {
-//    it.scanForTestClasses = false
-//    it.useJUnitPlatform()
-//}
-
+test {
+    useJUnitPlatform()
+    scanForTestClasses = false
+    failOnNoMatchingTests = false
+}
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
