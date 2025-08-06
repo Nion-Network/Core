@@ -11,7 +11,7 @@
   "influxUrl": "",
   "influxToken": "",
   "dashboardEnabled": false,
-  "loggingEnabled": false,
+  "loggingEnabled": true,
   "trustedLoggingEnabled": false,
   "historyMinuteClearance": 10,
   "historyCleaningFrequency": 5,
