@@ -11,7 +11,7 @@
   "influxUrl": "http://88.200.63.190:8086",
   "influxToken": "LtudFFrFu_b91XO6bCr0mzJuKV-Ffzom2phPlbn9FqNgDiYYcFRmh0mt63sHwPTo7JUv3jCe9RQNmB4AHMpKbQ==",
   "dashboardEnabled": false,
-  "loggingEnabled": false,
+  "loggingEnabled": true,
   "trustedLoggingEnabled": false,
   "historyMinuteClearance": 1,
   "historyCleaningFrequency": 1,
