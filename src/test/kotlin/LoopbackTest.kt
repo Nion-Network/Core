@@ -12,7 +12,6 @@ class LoopbackTest {
     @Test
     fun retrievedIpIsNotLoopback() {
         val currentAddress = getLocalAddress()
-        println(currentAddress)
         assertTrue(!currentAddress.isLoopbackAddress)
     }
 

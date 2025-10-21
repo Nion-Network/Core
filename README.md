@@ -12,9 +12,6 @@
         <img alt="Twitter Badge" src="https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white"/>
     </a>
     <br>
-    <a href="#">
-        <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Nion-Network/Core?color=e"/>
-    </a>
     <br>
     <a href="#">
         <img alt="PR" src="https://img.shields.io/github/issues-pr/Nion-Network/Core?color=%235352ed"/>
@@ -41,6 +38,22 @@
     </a>
 </div>
 
+
+#### Features
+- [x] Kademlia distributed hash table protocol
+- [x] UDP networking for faster and light-weight communication
+- [x] docker container tracking
+- [x] docker container migration
+- [x] rpc and web dashboard view of the blockchain
+- [x] grafana logging and visualisations
+- [x] cluster computation
+- [x] network configuration
+- [x] Mary Tree implementation
+- [x] committee voting
+- [x] verifiable delay computation
+- [ ] Zero knowledge proof of migration successfully running #Theoretical
+- [ ] Independent verification by the committee of fair-play by the nodes
+- [ ] Punishment of nodes that act maliciously
 
 [kotlin-badge]: https://img.shields.io/badge/Kotlin-0095D5?logo=kotlin&logoColor=white
 [gradle-badge]: https://img.shields.io/badge/gradle-02303A?logo=gradle&logoColor=white

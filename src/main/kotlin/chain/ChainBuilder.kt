@@ -11,6 +11,7 @@ import network.data.clusters.ClusterUtils
 import network.data.messages.InclusionRequest
 import network.data.messages.Message
 import network.data.messages.SyncRequest
+import network.rpc.Topic
 import utils.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -47,9 +48,9 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
         votes.entries.removeIf { (key, _) -> key == block.hash.asHex }
         if (blockAdded) {
 
-            if(isTrustedNode) println("Added block\t[${block.slot}]")
+            if (isTrustedNode) Logger.chain("Added block\t[${block.slot}].")
+            sendToSubscribed(Topic.Block, block)
 
-            removeOutdatedStatistics(block.slot - 1)
             if (block.slot <= 2) validatorSet.inclusionChanges(block)
             val nextTask = validatorSet.computeNextTask(block, configuration.committeeSize)
 
@@ -121,14 +122,19 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
                             blockProducer = localNode.publicKey,
                             validatorChanges = validatorSet.getScheduledChanges(),
                             precedentHash = block.hash,
-                            migrations = migrations
+                            migrations = migrations,
+                            committee = committeeMembers
                         )
                         val voteRequest = VoteRequest(newBlock, localNode.publicKey)
                         send(Endpoint.VoteRequest, voteRequest, *committeeMembers.toTypedArray())
                         runAfter(delayThird * 2) {
-                            val allVotes = votes[newBlock.hash.asHex]?.count() ?: -1
+                            val blockVotes = votes[newBlock.hash.asHex] ?: emptyList()
+                            val allVotes = blockVotes.count()
+                            val votedMembers = blockVotes.map { it.publicKey }
+
                             Logger.chain("Broadcasting out block ${newBlock.slot}.")
                             newBlock.votes = allVotes
+                            newBlock.votedMembers.addAll(votedMembers)
                             send(Endpoint.NewBlock, newBlock)
                         }
                     }
@@ -226,12 +232,15 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
             validatorSet.scheduleChange(inclusionRequest.publicKey, true)
             // send(message)
         }
-        Logger.debug("Received inclusion request! ")
+        val canStartTheChain = isTrustedNode && lastBlock == null
+        Logger.debug("Received inclusion request! Can start the chain: $canStartTheChain")
 
-        if (isTrustedNode && lastBlock == null) {
+        if (canStartTheChain) {
             val scheduledChanges = validatorSet.getScheduledChanges().count { it.value }
             val isEnoughToStart = scheduledChanges > configuration.committeeSize
+            Logger.debug("There is enough to start: $isEnoughToStart")
             if (isEnoughToStart && !sentGenesis.getAndSet(true)) {
+                Logger.debug("Computing proof for genesis block.")
                 val proof = verifiableDelay.computeProof(configuration.initialDifficulty, "FFFF".encodeToByteArray())
                 val genesisBlock = Block(1, configuration.initialDifficulty, localNode.publicKey, emptySet(), proof, System.currentTimeMillis(), byteArrayOf(), validatorSet.getScheduledChanges())
                 send(Endpoint.NewBlock, genesisBlock)
@@ -244,7 +253,7 @@ abstract class ChainBuilder(configuration: Configuration) : DockerProxy(configur
     fun voteRequested(message: Message) {
         val request = message.decodeAs<VoteRequest>()
         val block = request.block
-        val vote = Vote(block.hash, VoteType.FOR)
+        val vote = Vote(block.hash, VoteType.FOR, localNode.publicKey)
         send(Endpoint.Vote, vote, request.publicKey)
     }
 

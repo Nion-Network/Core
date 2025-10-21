@@ -21,7 +21,6 @@ object Logger {
     data class Log(val type: DebugType, val log: String, val ip: String, val timestamp: Long)
 
     private var isLoggingEnabled = false
-    private var currentDebug: DebugType = DebugType.ALL
     private val timeFormatter = DateTimeFormatter.ofPattern("dd. MM | HH:mm:ss.SSS")
 
     const val red = "\u001b[31m"

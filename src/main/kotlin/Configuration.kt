@@ -9,7 +9,8 @@ import kotlinx.serialization.Serializable
 data class Configuration(
     val trustedNodeIP: String,
     val trustedNodePort: Int,
-    val port: Int,
+    var port: Int? = null,
+    val webSocketPort: Int,
     val maxNodes: Int,
     val keystorePath: String,
     val slotDuration: Long,
@@ -29,6 +30,4 @@ data class Configuration(
     val useCriu: Boolean,
     val useTreeBasedMessageRoutingProtocol: Boolean,
     val treeChildrenCount: Int
-) {
-    var passedPort: Int = -1
-}
+)

@@ -18,7 +18,7 @@ class ClusterTest {
     @Test
     fun computeClusters() {
         val publicKeys = (0..100).map { "${Random.nextInt(1000)}" }
-        val clusters = ClusterUtils.computeClusters(10, 1, publicKeys) { centroid, element ->
+        val clusters = ClusterUtils.computeClusters(50, 3, publicKeys) { centroid, element ->
             val elementBitSet = sha256(element).asHex.asBitSet
             val centroidBitset = sha256(centroid).asHex.asBitSet.apply { xor(elementBitSet) }
             centroidBitset.nextSetBit(0)
@@ -28,8 +28,8 @@ class ClusterTest {
             val cluster = clusters[element] ?: Cluster("null")
             val centroid = cluster.centroid
             val isRepresentative = element == centroid
-            if (isRepresentative) println("$centroid -> PRODUCER")
-            println("$element -> $centroid")
+            if (isRepresentative) println("$centroid -> PRODUCER [color=red]")
+            else println("$element -> $centroid")
         }
 
     }

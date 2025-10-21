@@ -39,8 +39,10 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
      *
      * @param slot
      */
-    protected fun removeOutdatedStatistics(slot: Long) {
-        networkStatistics.remove(slot)
+    private fun removeOutdatedStatistics(slot: Long) {
+        networkStatistics.clear()
+        val keys = networkStatistics.keys.filter { it < slot }
+        for (key in keys) networkStatistics.remove(key)
     }
 
     /** Stores all [statistics] into latest [networkStatistics] using [networkLock]. */
@@ -65,17 +67,17 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         val currentTime = System.currentTimeMillis()
         localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= 1000 }
 
-        val mapped = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
+        val mapped: List<DockerContainer> = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
         val localStatistics = DockerStatistics(localNode.publicKey, mapped, slot)
         val ourPublicKey = localNode.publicKey
         val ourCluster = clusters[ourPublicKey]
         if (ourCluster != null) {
             val clusterRepresentative = ourCluster.centroid
             val isRepresentative = clusterRepresentative == ourPublicKey
+            removeOutdatedStatistics(slot)
             if (!isRepresentative) send(Endpoint.NodeStatistics, arrayOf(localStatistics), clusterRepresentative)
             else runAfter(configuration.slotDuration / 4) {
                 val networkStatistics = getNetworkStatistics(slot).plus(localStatistics)
-                networkStatistics.forEach { Dashboard.statisticSent(localNode.publicKey, it, blockProducer, block.slot) }
                 send(Endpoint.NodeStatistics, networkStatistics, blockProducer)
             }
         } else Dashboard.reportException(Exception("Our cluster does not exist."))

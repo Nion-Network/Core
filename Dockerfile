@@ -1,4 +1,4 @@
-FROM docker:dind
+FROM docker:20-dind
 # RUN sed 's/http:\/\/fr\./http:\/\//' /etc/apt/sources.list
 
 WORKDIR /root
@@ -10,7 +10,8 @@ RUN apk add make \
     curl \
     openssl-dev \
     python3-dev \
-    gmp-dev
+    gmp-dev \
+    tar
 
 RUN apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing/x86_64/criu-dev
 RUN apk add tar
@@ -26,7 +27,6 @@ COPY . .
 #ADD RunContainer.sh RunContainer.sh
 
 # ADD stress.sh stress.sh
-
 # COPY stress.tar stress.tar
 
 RUN ./gradlew assemble jar
