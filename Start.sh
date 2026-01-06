@@ -13,9 +13,9 @@
 
 #docker load -i stress.tar
 
-if [ "$1" -eq 5005 ]; then
-  echo "We're trusted. Running stress test."
+#if [ "$1" -eq 5005 ]; then
+#  echo "We're trusted. Running stress test."
 #  bash stress.sh &
-fi
+#fi
 
 java -jar build/libs/nion-core.jar $1 $2

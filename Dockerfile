@@ -1,4 +1,4 @@
-FROM docker:20-dind
+FROM docker:dind
 # RUN sed 's/http:\/\/fr\./http:\/\//' /etc/apt/sources.list
 
 WORKDIR /root
