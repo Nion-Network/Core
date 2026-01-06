@@ -32,6 +32,6 @@ COPY . .
 RUN ./gradlew assemble jar
 RUN chmod 777 Start.sh
 RUN chmod 777 vdf-cli
-RUN mv vdf-cli /usr/bin/vdf-cli
+# RUN mv vdf-cli /usr/bin/vdf-cli
 RUN chmod +x Start.sh
 ENTRYPOINT ["./Start.sh"]
