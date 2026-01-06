@@ -17,7 +17,7 @@ RUN apk add --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing/x86_6
 RUN apk add tar
 
 COPY . .
-
+ADD vdf-cli vdf-cli
 #ADD /
 #ADD *.jar Node.jar
 #ADD config.json config.json
