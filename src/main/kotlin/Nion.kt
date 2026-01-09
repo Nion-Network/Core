@@ -5,6 +5,7 @@ import logging.Logger
 import network.data.Endpoint
 import network.data.MessageProcessing
 import network.data.messages.Message
+import org.jetbrains.exposed.v1.jdbc.Database
 import utils.asHex
 import utils.launchCoroutine
 import utils.runAfter
@@ -48,6 +49,7 @@ class Nion(configuration: Configuration) : ChainBuilder(configuration) {
             Dashboard.reportException(Exception("Local address: $localAddress!"))
             return
         }
+        Database.connect("jdbc:sqlite:nion.db", "org.sqlite.JDBC")
         attemptBootstrap()
         attemptInclusion()
     }

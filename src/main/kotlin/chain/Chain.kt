@@ -1,7 +1,10 @@
 package chain
 
 import chain.data.Block
+import database.BlockTable
 import logging.Logger
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import utils.CircularList
 import utils.asHex
 import utils.tryWithLock
@@ -47,7 +50,22 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             lock.tryWithLock {
                 blocks.add(nextBlock)
                 // ToDo: Put chain history in some sort of storage instead of keeping in memory.
+                transaction {
+                    BlockTable.insert {
+                        it[BlockTable.slot] = nextBlock.slot
+                        it[BlockTable.difficulty] = nextBlock.difficulty
+                        it[BlockTable.blockProducer] = nextBlock.blockProducer
+                        it[BlockTable.timestamp] = nextBlock.timestamp
+                        it[BlockTable.precedentHash] = nextBlock.precedentHash.toHexString()
+                        it[BlockTable.votes] = nextBlock.votes
+                        it[BlockTable.committee] = nextBlock.committee.joinToString()
+                        it[BlockTable.hash] = nextBlock.hash.toHexString()
+                        it[BlockTable.votedMembers] = nextBlock.votedMembers.joinToString()
+
+                    }
+                }
             }
+
             Logger.chain("Block[${nextBlock.votes}/$committeeSize] added [${nextBlock.slot}].")
         }
         return true
