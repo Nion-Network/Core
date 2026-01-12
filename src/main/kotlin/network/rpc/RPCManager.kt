@@ -77,6 +77,7 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
         val serialisedData = Json.encodeToString(message)
         val clientList = subscribedClients[topic] ?: return
         clientList.forEach {
+            println("Websocket data: $serialisedData")
             try {
                 it.send(serialisedData)
             } catch (e: Exception) {

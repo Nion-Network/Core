@@ -16,7 +16,11 @@ import kotlin.concurrent.withLock
  * on 16/11/2021 at 16:21
  * using IntelliJ IDEA
  */
-class Chain(private val verifiableDelay: VerifiableDelay, private val initialDifficulty: Int, private val committeeSize: Int) {
+class Chain(
+    private val verifiableDelay: VerifiableDelay,
+    private val initialDifficulty: Int,
+    private val committeeSize: Int
+) {
 
     private val lock = ReentrantLock(true)
     private val blocks = CircularList<Block>(50) // ToDo: Remove, do not use Circular List but use persistent storage!
@@ -37,7 +41,8 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
             val lastBlock = getLastBlock()
             val lastHash = lastBlock?.hash ?: "FFFF".toByteArray()
             val difficulty = lastBlock?.difficulty ?: initialDifficulty
-            val isLegitimate = nextBlock.slot == (lastBlock?.slot ?: 0) + 1 // verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
+            val isLegitimate = nextBlock.slot == (lastBlock?.slot
+                ?: 0) + 1 // verifiableDelay.verifyProof(lastHash, difficulty, nextBlock.vdfProof)
             if (!isLegitimate) {
                 Logger.trace("Proof is not legitimate for block ${nextBlock.slot}!")
                 Logger.chain("Last hash: ${lastHash.asHex}")
@@ -48,6 +53,7 @@ class Chain(private val verifiableDelay: VerifiableDelay, private val initialDif
                 return false
             }
             lock.tryWithLock {
+
                 blocks.add(nextBlock)
                 // ToDo: Put chain history in some sort of storage instead of keeping in memory.
                 transaction {

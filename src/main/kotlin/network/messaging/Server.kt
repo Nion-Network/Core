@@ -65,6 +65,7 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
             Logger.trace("Clearing message history...")
             messageHistory.entries.removeIf { (_, value) -> currentTime - value > maximumAge }
         }
+
     }
 
     abstract fun processMessage(message: Message)
@@ -91,7 +92,10 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
 
     /** Returns [Configuration.broadcastSpreadPercentage] number of nodes.  */
     fun pickRandomNodes(amount: Int = 0): List<Node> {
-        val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(totalKnownNodes, 1) / 100)
+        val toTake = if (amount > 0) amount else 5 + (configuration.broadcastSpreadPercentage * Integer.max(
+            totalKnownNodes,
+            1
+        ) / 100)
         return getRandomNodes(toTake).filter { it.identifier != localNode.identifier }
     }
 
@@ -160,7 +164,11 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
                 val message = ProtoBuf.decodeFromByteArray<Message>(data)
                 if (alreadySeen(message.uid.asHex)) return@use
                 processingQueue.add(message)
-                if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.TCP, message.uid.asHex, data)
+                if (message.endpoint.transmissionType == TransmissionType.Broadcast) broadcast(
+                    TransmissionLayer.TCP,
+                    message.uid.asHex,
+                    data
+                )
             }
         }
     }
@@ -199,14 +207,21 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
                 broadcastNodes.add(neighbour)
                 broadcastNodes.addAll(childrenKeys)
                 broadcastNodes.addAll(neighbourChildrenKeys)
-                Logger.error("[$index] [$children] Neighbour: $neighbourIndex ... Children: ${childrenKeys.joinToString(",") { "${shuffled.indexOf(it)}" }}")
+                Logger.error(
+                    "[$index] [$children] Neighbour: $neighbourIndex ... Children: ${
+                        childrenKeys.joinToString(
+                            ","
+                        ) { "${shuffled.indexOf(it)}" }
+                    }"
+                )
 
             }
 
             else -> broadcastNodes.addAll(pickRandomNodes().map { it.publicKey })
         }
 
-        val knownAndNotInSet = knownNodes.values.map(Node::publicKey).filter { !validatorSet.activeValidators.contains(it) }
+        val knownAndNotInSet =
+            knownNodes.values.map(Node::publicKey).filter { !validatorSet.activeValidators.contains(it) }
         broadcastNodes.addAll(knownAndNotInSet)
 
         Logger.trace("We have to retransmit to [total: ${shuffled.size}] --> ${broadcastNodes.size} nodes.")
@@ -214,7 +229,8 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
         broadcastNodes.forEach { publicKey ->
             query(publicKey) {
                 val outgoingData = OutgoingData(it, *data)
-                val outgoingQueue = if (transmissionLayer == TransmissionLayer.UDP) udpOutgoingQueue else tcpOutgoingQueue
+                val outgoingQueue =
+                    if (transmissionLayer == TransmissionLayer.UDP) udpOutgoingQueue else tcpOutgoingQueue
                 outgoingQueue.add(outgoingData)
             }
         }
@@ -242,7 +258,11 @@ abstract class Server(val configuration: Configuration) : RPCManager(configurati
             if (alreadySeen(packetId) || alreadySeen(messageId)) return@tryAndReport
 
             val endpoint = Endpoint.byId(inputStream.read().toByte()) ?: return@tryAndReport
-            if (endpoint.transmissionType == TransmissionType.Broadcast) broadcast(TransmissionLayer.UDP, messageId, packet.data.copyOf())
+            if (endpoint.transmissionType == TransmissionType.Broadcast) broadcast(
+                TransmissionLayer.UDP,
+                messageId,
+                packet.data.copyOf()
+            )
 
             val totalSlices = inputStream.readInt()
             val currentSlice = inputStream.readInt()
