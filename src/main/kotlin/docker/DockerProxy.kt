@@ -65,7 +65,6 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     fun sendDockerStatistics(block: Block, blockProducer: String, clusters: Map<String, Cluster<String>>) {
         val slot = block.slot
         val currentTime = System.currentTimeMillis()
-        println("Containers length before remove: ${localContainers.size}")
         localContainers.entries.removeIf { (_, container) -> currentTime - container.updated >= 30_000 }
 
         val mapped: List<DockerContainer> = localContainers.values.map { it.copy(id = networkMappings[it.id] ?: it.id) }
@@ -92,7 +91,6 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     /** Starts a process of `docker stats` and keeps the [localStatistics] up to date. */
     private fun listenForDockerStatistics() {
-        println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
         val json = Json {
             ignoreUnknownKeys = true
@@ -106,7 +104,6 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             val reader = process.inputStream.bufferedReader()
 
             reader.readLines().forEach { line ->
-                println(line)
                 val stats = json.decodeFromString<DockerStatsModel>(line)
                 val pids = stats.pids.toIntOrNull() ?: 0
                 val cpuPercentage = stats.cpuPercentage.trim('%').toDoubleOrNull() ?: 0.0
