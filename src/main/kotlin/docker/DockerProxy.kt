@@ -97,7 +97,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         while (true) {
             // TODO: I believe this could be optimised
             val process = ProcessBuilder()
-                .command("docker", "stats", "--no-trunc", "--format", "{{ json . }}")
+                .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
                 .redirectErrorStream(true)
                 .start()
             val reader = process.inputStream.bufferedReader()
@@ -118,6 +118,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
                     updated = System.currentTimeMillis()
                 }
             }
+            Thread.sleep(5000)
         }
 
 
