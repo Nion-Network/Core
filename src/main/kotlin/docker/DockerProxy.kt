@@ -93,7 +93,9 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     private fun listenForDockerStatistics() {
         println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
-        val json = Json { ignoreUnknownKeys = true }
+        val json = Json {
+            ignoreUnknownKeys = true
+        }
         while (true) {
             // TODO: I believe this could be optimised
             val process = ProcessBuilder()
@@ -103,6 +105,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             val reader = process.inputStream.bufferedReader()
 
             reader.readLines().forEach { line ->
+                println(line)
                 val stats = json.decodeFromString<DockerStatsModel>(line)
                 val pids = stats.pids.toIntOrNull() ?: 0
                 val cpuPercentage = stats.cpuPercentage.trim('%').toDoubleOrNull() ?: 0.0
