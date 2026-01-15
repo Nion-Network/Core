@@ -94,7 +94,7 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
         val process = ProcessBuilder()
-            .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
+            .command("docker", "stats", "--no-trunc", "--format", "{{ json . }}")
             .redirectErrorStream(true)
             .start()
         val reader = process.inputStream.bufferedReader()

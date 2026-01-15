@@ -1,5 +1,5 @@
 #!/bin/bash
-count=200
+count=$1
 echo "Running stress test of $count apps..."
 
 for i in $(seq $count); do
