@@ -94,9 +94,28 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
             .redirectErrorStream(true)
             .start()
-        process.inputReader().readLines().forEach { line ->
-            println("Read line from docker stats: $line")
+
+        println("Reading docker stats")
+        val reader = process.inputStream.bufferedReader()
+        println("Reader $reader")
+        reader.use {
+            it.readAllLines().forEach { line ->
+                println(line)
+            }
         }
+        println("Done reading")
+
+        /*
+        val container = localContainers.computeIfAbsent(containerId) {
+            DockerContainer(containerId, activeProcesses, CircularList(numberOfElements), CircularList(numberOfElements))
+        }
+        container.apply {
+            cpuUsage.add(cpuPercentage)
+            memoryUsage.add(memoryPercentage)
+            updated = System.currentTimeMillis()
+            processes = activeProcesses
+        }
+        */
 
     }
 }
