@@ -98,10 +98,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
         println("Reading docker stats")
         val reader = process.inputStream.bufferedReader()
         println("Reader $reader")
-        reader.use {
-            it.readAllLines().forEach { line ->
-                println(line)
-            }
+        reader.readLines().forEach { line ->
+            println(line)
         }
         println("Done reading")
 
