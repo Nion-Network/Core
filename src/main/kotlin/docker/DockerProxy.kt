@@ -88,20 +88,25 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
 
     /** Starts a process of `docker stats` and keeps the [localStatistics] up to date. */
     private fun listenForDockerStatistics() {
+        println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
 
-        val process = ProcessBuilder()
-            .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
-            .redirectErrorStream(true)
-            .start()
+        while (true) {
+            val process = ProcessBuilder()
+                .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
+                .redirectErrorStream(true)
+                .start()
 
-        println("Reading docker stats")
-        val reader = process.inputStream.bufferedReader()
-        println("Reader $reader")
-        reader.readLines().forEach { line ->
-            println(line)
+            println("Reading docker stats")
+            val reader = process.inputStream.bufferedReader()
+            println("Reader $reader")
+            reader.readLines().forEach { line ->
+                println(line)
+            }
+            println("Done reading")
+            Thread.sleep(5000)
         }
-        println("Done reading")
+
 
         /*
         val container = localContainers.computeIfAbsent(containerId) {
