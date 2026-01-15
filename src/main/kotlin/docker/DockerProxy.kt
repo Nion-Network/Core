@@ -93,27 +93,30 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     private fun listenForDockerStatistics() {
         println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
-        val process = ProcessBuilder()
-            .command("docker", "stats", "--no-trunc", "--format", "{{ json . }}")
-            .redirectErrorStream(true)
-            .start()
-        val reader = process.inputStream.bufferedReader()
-        while (true) {
-            val line = reader.readLine()
-            println("Line read: $line")
-            val stats = Json.decodeFromString<DockerStatsModel>(line)
-            val pids = stats.pids.toIntOrNull() ?: 0
-            val cpuPercentage = stats.cpuPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
-            val memoryPercentage = stats.memoryPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
 
-            val container = localContainers.computeIfAbsent(stats.id) {
-                DockerContainer(stats.id, pids, CircularList(numberOfElements), CircularList(numberOfElements))
-            }
-            container.apply {
-                cpuUsage.add(cpuPercentage)
-                memoryUsage.add(memoryPercentage)
-                processes = pids
-                updated = System.currentTimeMillis()
+        while (true) {
+            // TODO: I believe this could be optimised
+            val process = ProcessBuilder()
+                .command("docker", "stats", "--no-trunc", "--format", "{{ json . }}")
+                .redirectErrorStream(true)
+                .start()
+            val reader = process.inputStream.bufferedReader()
+
+            reader.readLines().forEach { line ->
+                val stats = Json.decodeFromString<DockerStatsModel>(line)
+                val pids = stats.pids.toIntOrNull() ?: 0
+                val cpuPercentage = stats.cpuPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
+                val memoryPercentage = stats.memoryPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
+
+                val container = localContainers.computeIfAbsent(stats.id) {
+                    DockerContainer(stats.id, pids, CircularList(numberOfElements), CircularList(numberOfElements))
+                }
+                container.apply {
+                    cpuUsage.add(cpuPercentage)
+                    memoryUsage.add(memoryPercentage)
+                    processes = pids
+                    updated = System.currentTimeMillis()
+                }
             }
         }
 
