@@ -27,12 +27,12 @@ class Chain(
 
     /** Returns the last block in the chain. */
     fun getLastBlock(): Block? {
-        return lock.withLock { blocks.lastOrNull() }
+        return lock.withLock { blocks.items.lastOrNull() }
     }
 
     /** Returns max 100 blocks [from slot][fromSlot].*/
     fun getLastBlocks(fromSlot: Long): List<Block> {
-        return lock.withLock { blocks.takeLastWhile { it.slot > fromSlot } }.take(100)
+        return lock.withLock { blocks.items.takeLastWhile { it.slot > fromSlot } }.take(100)
     }
 
     /** Attempts to add each block one by one to the chain. */

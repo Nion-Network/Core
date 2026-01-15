@@ -13,6 +13,6 @@ class CircularListTest {
     fun circularTest() {
         val circularList = CircularList<Int>(3)
         for (i in 0..10) circularList.add(i)
-        assertEquals(circularList.elements(), listOf(8, 9, 10))
+        assertEquals(circularList.items, listOf(8, 9, 10))
     }
 }
