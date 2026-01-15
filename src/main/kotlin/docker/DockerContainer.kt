@@ -35,13 +35,13 @@ data class DockerStatsModel(
     @SerializedName("BlockIO")
     val blockIo: String,
     @SerializedName("CPUPerc")
-    val cpuperc: String,
+    val cpuPercentage: String,
     @SerializedName("Container")
     val container: String,
     @SerializedName("ID")
     val id: String,
     @SerializedName("MemPerc")
-    val memPerc: String,
+    val memoryPercentage: String,
     @SerializedName("MemUsage")
     val memUsage: String,
     @SerializedName("Name")

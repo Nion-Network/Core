@@ -3,11 +3,14 @@ package docker
 import Configuration
 import chain.data.Block
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import logging.Dashboard
 import logging.Logger
 import network.data.Endpoint
 import network.data.clusters.Cluster
 import network.data.messages.Message
+import utils.CircularList
 import utils.runAfter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -90,34 +93,33 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
     private fun listenForDockerStatistics() {
         println("Started a docker stats process")
         val numberOfElements = (configuration.slotDuration / 1000).toInt()
-
+        val process = ProcessBuilder()
+            .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
+            .redirectErrorStream(true)
+            .start()
+        val reader = process.inputStream.bufferedReader()
         while (true) {
-            val process = ProcessBuilder()
-                .command("docker", "stats", "--no-stream", "--no-trunc", "--format", "{{ json . }}")
-                .redirectErrorStream(true)
-                .start()
+            val line = reader.readLine()
+            println("Line read: $line")
+            val stats = Json.decodeFromString<DockerStatsModel>(line)
+            val pids = stats.pids.toIntOrNull() ?: 0
+            val cpuPercentage = stats.cpuPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
+            val memoryPercentage = stats.memoryPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
 
-            println("Reading docker stats")
-            val reader = process.inputStream.bufferedReader()
-            println("Reader $reader")
-            reader.readLines().forEach { line ->
-                println(line)
+            val container = localContainers.computeIfAbsent(stats.id) {
+                DockerContainer(stats.id, pids, CircularList(numberOfElements), CircularList(numberOfElements))
             }
-            println("Done reading")
-            Thread.sleep(5000)
+            container.apply {
+                cpuUsage.add(cpuPercentage)
+                memoryUsage.add(memoryPercentage)
+                processes = pids
+                updated = System.currentTimeMillis()
+            }
         }
 
 
         /*
-        val container = localContainers.computeIfAbsent(containerId) {
-            DockerContainer(containerId, activeProcesses, CircularList(numberOfElements), CircularList(numberOfElements))
-        }
-        container.apply {
-            cpuUsage.add(cpuPercentage)
-            memoryUsage.add(memoryPercentage)
-            updated = System.currentTimeMillis()
-            processes = activeProcesses
-        }
+
         */
 
     }
