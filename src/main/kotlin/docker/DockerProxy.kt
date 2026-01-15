@@ -105,8 +105,8 @@ abstract class DockerProxy(configuration: Configuration) : MigrationStrategy(con
             reader.readLines().forEach { line ->
                 val stats = Json.decodeFromString<DockerStatsModel>(line)
                 val pids = stats.pids.toIntOrNull() ?: 0
-                val cpuPercentage = stats.cpuPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
-                val memoryPercentage = stats.memoryPercentage.replace("%", "").toDoubleOrNull() ?: 0.0
+                val cpuPercentage = stats.cpuPercentage.trim('%').toDoubleOrNull() ?: 0.0
+                val memoryPercentage = stats.memoryPercentage.trim('%').toDoubleOrNull() ?: 0.0
 
                 val container = localContainers.computeIfAbsent(stats.id) {
                     DockerContainer(stats.id, pids, CircularList(numberOfElements), CircularList(numberOfElements))
