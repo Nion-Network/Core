@@ -1,6 +1,7 @@
 package docker
 
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import utils.CircularList
 
@@ -32,22 +33,22 @@ data class DockerContainer(
 
 @Serializable
 data class DockerStatsModel(
-    @SerializedName("BlockIO")
+    @SerialName("BlockIO")
     val blockIo: String,
-    @SerializedName("CPUPerc")
+    @SerialName("CPUPerc")
     val cpuPercentage: String,
-    @SerializedName("Container")
+    @SerialName("Container")
     val container: String,
-    @SerializedName("ID")
+    @SerialName("ID")
     val id: String,
-    @SerializedName("MemPerc")
+    @SerialName("MemPerc")
     val memoryPercentage: String,
-    @SerializedName("MemUsage")
+    @SerialName("MemUsage")
     val memUsage: String,
-    @SerializedName("Name")
+    @SerialName("Name")
     val name: String,
-    @SerializedName("NetIO")
+    @SerialName("NetIO")
     val netIo: String,
-    @SerializedName("PIDs")
+    @SerialName("PIDs")
     val pids: String,
 )
