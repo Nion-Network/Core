@@ -61,7 +61,7 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
                 .add(webSocket)
         }
         sendToSubscribed(Topic.Logging, "Hello, this is Nion node!")
-        sendToSubscribed(Topic.Logging, Json.encodeToString(knownNodes.values.toList()))
+        sendToSubscribed(Topic.Logging, knownNodes.values.toList())
     }
 
     /**
