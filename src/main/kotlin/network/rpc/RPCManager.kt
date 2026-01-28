@@ -7,6 +7,7 @@ import io.javalin.websocket.WsConnectContext
 import io.javalin.websocket.WsContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import logging.Logger
 import network.kademlia.Kademlia
 import java.util.concurrent.TimeUnit
 
@@ -30,6 +31,19 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
             webServer.ws("/") {
                 it.onConnect(this::onConnect)
                 it.onClose(this::onClose)
+                it.onMessage { context ->
+                    val message = context.message()
+                    when (message) {
+                        "dht" -> {
+                            context.send(Json.encodeToString(knownNodes.values))
+                        }
+
+                        else -> {
+                            Logger.debug("A message of $message is being ignored via WS")
+                        }
+                    }
+
+                }
             }
         }
     }
@@ -47,6 +61,7 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
                 .add(webSocket)
         }
         sendToSubscribed(Topic.Logging, "Hello, this is Nion node!")
+        sendToSubscribed(Topic.Logging, Json.encodeToString(knownNodes.values))
     }
 
     /**
