@@ -35,7 +35,7 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
                     val message = context.message()
                     when (message) {
                         "dht" -> {
-                            context.send(Json.encodeToString(knownNodes.values))
+                            context.send(Json.encodeToString(knownNodes.values.toList()))
                         }
 
                         else -> {
@@ -61,7 +61,7 @@ open class RPCManager(configuration: Configuration) : Kademlia(configuration) {
                 .add(webSocket)
         }
         sendToSubscribed(Topic.Logging, "Hello, this is Nion node!")
-        sendToSubscribed(Topic.Logging, Json.encodeToString(knownNodes.values))
+        sendToSubscribed(Topic.Logging, Json.encodeToString(knownNodes.values.toList()))
     }
 
     /**
